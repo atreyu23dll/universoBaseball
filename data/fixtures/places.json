@@ -1,0 +1,313 @@
+{
+  "fixture_version": "1.0.0",
+  "generated_on": "2026-10-20",
+  "notice": "Fixture geográfico LOCAL. Nombres, códigos y centroides son datos públicos estándar. Las poblaciones son ESTIMACIONES de orden de magnitud con año de referencia declarado: sirven para escalar mercados en la simulación, no para citarse como censo. Los índices (economía, cultura beisbolística, coste de vida, infraestructura) son heurísticas nuestras en escala relativa 0-1 y son calibrables por el usuario. Las subzonas de ciudad marcadas 'fictional' son áreas sintéticas inventadas; no corresponden a colonias reales.",
+  "places": [
+    {
+      "key": "MX", "kind": "country", "parent": null, "name": "México",
+      "country_code": "MX", "timezone": "America/Mexico_City",
+      "lat": 23.6345, "lon": -102.5528,
+      "confidence": "observed", "sources": ["ISO 3166-1", "centroide aproximado de país"],
+      "profile": {
+        "ref_year": 2025, "population": 130000000,
+        "economy_index": 0.46, "baseball_culture_index": 0.58,
+        "cost_of_living_index": 0.38, "infrastructure_index": 0.5,
+        "confidence": "estimated",
+        "sources": ["orden de magnitud público", "índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "MX-CHH", "kind": "region", "parent": "MX", "name": "Chihuahua",
+      "country_code": "MX", "timezone": "America/Chihuahua",
+      "lat": 28.6353, "lon": -106.0889,
+      "confidence": "observed", "sources": ["ISO 3166-2:MX"],
+      "profile": {
+        "ref_year": 2025, "population": 3800000,
+        "economy_index": 0.5, "baseball_culture_index": 0.66,
+        "cost_of_living_index": 0.4, "infrastructure_index": 0.52,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "MX-NLE", "kind": "region", "parent": "MX", "name": "Nuevo León",
+      "country_code": "MX", "timezone": "America/Monterrey",
+      "lat": 25.5922, "lon": -99.9962,
+      "confidence": "observed", "sources": ["ISO 3166-2:MX"],
+      "profile": {
+        "ref_year": 2025, "population": 6100000,
+        "economy_index": 0.68, "baseball_culture_index": 0.72,
+        "cost_of_living_index": 0.5, "infrastructure_index": 0.68,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "MX-CMX", "kind": "region", "parent": "MX", "name": "Ciudad de México",
+      "country_code": "MX", "timezone": "America/Mexico_City",
+      "lat": 19.4326, "lon": -99.1332,
+      "confidence": "observed", "sources": ["ISO 3166-2:MX"],
+      "profile": {
+        "ref_year": 2025, "population": 9200000,
+        "economy_index": 0.74, "baseball_culture_index": 0.48,
+        "cost_of_living_index": 0.58, "infrastructure_index": 0.78,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "MX-SON", "kind": "region", "parent": "MX", "name": "Sonora",
+      "country_code": "MX", "timezone": "America/Hermosillo",
+      "lat": 29.2972, "lon": -110.3309,
+      "confidence": "observed", "sources": ["ISO 3166-2:MX"],
+      "profile": {
+        "ref_year": 2025, "population": 3000000,
+        "economy_index": 0.52, "baseball_culture_index": 0.78,
+        "cost_of_living_index": 0.42, "infrastructure_index": 0.54,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "MX-JAL", "kind": "region", "parent": "MX", "name": "Jalisco",
+      "country_code": "MX", "timezone": "America/Mexico_City",
+      "lat": 20.6595, "lon": -103.3494,
+      "confidence": "observed", "sources": ["ISO 3166-2:MX"],
+      "profile": {
+        "ref_year": 2025, "population": 8500000,
+        "economy_index": 0.6, "baseball_culture_index": 0.42,
+        "cost_of_living_index": 0.46, "infrastructure_index": 0.62,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "MX-CJS", "kind": "city", "parent": "MX-CHH", "name": "Ciudad Juárez",
+      "country_code": "MX", "timezone": "America/Ciudad_Juarez",
+      "lat": 31.6904, "lon": -106.4245, "elevation_m": 1137,
+      "confidence": "observed", "sources": ["centroide aproximado de ciudad"],
+      "profile": {
+        "ref_year": 2025, "population": 1500000,
+        "economy_index": 0.44, "baseball_culture_index": 0.62,
+        "cost_of_living_index": 0.37, "infrastructure_index": 0.41,
+        "confidence": "estimated",
+        "sources": ["orden de magnitud público", "índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "MX-CUU", "kind": "city", "parent": "MX-CHH", "name": "Chihuahua",
+      "country_code": "MX", "timezone": "America/Chihuahua",
+      "lat": 28.6324, "lon": -106.0691, "elevation_m": 1440,
+      "confidence": "observed", "sources": ["centroide aproximado de ciudad"],
+      "profile": {
+        "ref_year": 2025, "population": 940000,
+        "economy_index": 0.48, "baseball_culture_index": 0.64,
+        "cost_of_living_index": 0.39, "infrastructure_index": 0.47,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "MX-MTY", "kind": "city", "parent": "MX-NLE", "name": "Monterrey",
+      "country_code": "MX", "timezone": "America/Monterrey",
+      "lat": 25.6866, "lon": -100.3161, "elevation_m": 540,
+      "confidence": "observed", "sources": ["centroide aproximado de ciudad"],
+      "profile": {
+        "ref_year": 2025, "population": 1150000,
+        "economy_index": 0.71, "baseball_culture_index": 0.74,
+        "cost_of_living_index": 0.52, "infrastructure_index": 0.72,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "MX-MEX", "kind": "city", "parent": "MX-CMX", "name": "Ciudad de México",
+      "country_code": "MX", "timezone": "America/Mexico_City",
+      "lat": 19.4326, "lon": -99.1332, "elevation_m": 2240,
+      "confidence": "observed", "sources": ["centroide aproximado de ciudad"],
+      "profile": {
+        "ref_year": 2025, "population": 9200000,
+        "economy_index": 0.74, "baseball_culture_index": 0.48,
+        "cost_of_living_index": 0.58, "infrastructure_index": 0.79,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "MX-GDL", "kind": "city", "parent": "MX-JAL", "name": "Guadalajara",
+      "country_code": "MX", "timezone": "America/Mexico_City",
+      "lat": 20.6597, "lon": -103.3496, "elevation_m": 1566,
+      "confidence": "observed", "sources": ["centroide aproximado de ciudad"],
+      "profile": {
+        "ref_year": 2025, "population": 1400000,
+        "economy_index": 0.59, "baseball_culture_index": 0.4,
+        "cost_of_living_index": 0.46, "infrastructure_index": 0.63,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "MX-HMO", "kind": "city", "parent": "MX-SON", "name": "Hermosillo",
+      "country_code": "MX", "timezone": "America/Hermosillo",
+      "lat": 29.0729, "lon": -110.9559, "elevation_m": 210,
+      "confidence": "observed", "sources": ["centroide aproximado de ciudad"],
+      "profile": {
+        "ref_year": 2025, "population": 940000,
+        "economy_index": 0.53, "baseball_culture_index": 0.81,
+        "cost_of_living_index": 0.43, "infrastructure_index": 0.56,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "MX-CUL", "kind": "city", "parent": "MX-SON", "name": "Culiacán",
+      "country_code": "MX", "timezone": "America/Mazatlan",
+      "lat": 24.8091, "lon": -107.394, "elevation_m": 54,
+      "confidence": "observed", "sources": ["centroide aproximado de ciudad"],
+      "profile": {
+        "ref_year": 2025, "population": 810000,
+        "economy_index": 0.47, "baseball_culture_index": 0.83,
+        "cost_of_living_index": 0.4, "infrastructure_index": 0.5,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "MX-CJS-NOR", "kind": "district", "parent": "MX-CJS",
+      "name": "Sector Norponiente", "country_code": "MX",
+      "timezone": "America/Ciudad_Juarez", "lat": 31.7215, "lon": -106.4702,
+      "confidence": "fictional",
+      "sources": ["área sintética generada para la simulación; no es una colonia real"],
+      "profile": {
+        "ref_year": 2025, "population": 310000,
+        "economy_index": 0.39, "baseball_culture_index": 0.63,
+        "cost_of_living_index": 0.36, "infrastructure_index": 0.36,
+        "confidence": "fictional", "sources": ["subzona sintética"]
+      }
+    },
+    {
+      "key": "MX-CJS-ORI", "kind": "district", "parent": "MX-CJS",
+      "name": "Sector Oriente", "country_code": "MX",
+      "timezone": "America/Ciudad_Juarez", "lat": 31.6612, "lon": -106.3519,
+      "confidence": "fictional",
+      "sources": ["área sintética generada para la simulación; no es una colonia real"],
+      "profile": {
+        "ref_year": 2025, "population": 420000,
+        "economy_index": 0.46, "baseball_culture_index": 0.6,
+        "cost_of_living_index": 0.39, "infrastructure_index": 0.44,
+        "confidence": "fictional", "sources": ["subzona sintética"]
+      }
+    },
+    {
+      "key": "MX-CJS-SUR", "kind": "district", "parent": "MX-CJS",
+      "name": "Sector Sur", "country_code": "MX",
+      "timezone": "America/Ciudad_Juarez", "lat": 31.6153, "lon": -106.4311,
+      "confidence": "fictional",
+      "sources": ["área sintética generada para la simulación; no es una colonia real"],
+      "profile": {
+        "ref_year": 2025, "population": 360000,
+        "economy_index": 0.41, "baseball_culture_index": 0.65,
+        "cost_of_living_index": 0.35, "infrastructure_index": 0.38,
+        "confidence": "fictional", "sources": ["subzona sintética"]
+      }
+    },
+    {
+      "key": "MX-CJS-CEN", "kind": "district", "parent": "MX-CJS",
+      "name": "Sector Centro-Histórico", "country_code": "MX",
+      "timezone": "America/Ciudad_Juarez", "lat": 31.7389, "lon": -106.4871,
+      "confidence": "fictional",
+      "sources": ["área sintética generada para la simulación; no es una colonia real"],
+      "profile": {
+        "ref_year": 2025, "population": 240000,
+        "economy_index": 0.43, "baseball_culture_index": 0.68,
+        "cost_of_living_index": 0.4, "infrastructure_index": 0.47,
+        "confidence": "fictional", "sources": ["subzona sintética"]
+      }
+    },
+    {
+      "key": "AR", "kind": "country", "parent": null, "name": "Argentina",
+      "country_code": "AR", "timezone": "America/Argentina/Buenos_Aires",
+      "lat": -38.4161, "lon": -63.6167,
+      "confidence": "observed", "sources": ["ISO 3166-1"],
+      "profile": {
+        "ref_year": 2025, "population": 46000000,
+        "economy_index": 0.45, "baseball_culture_index": 0.12,
+        "cost_of_living_index": 0.4, "infrastructure_index": 0.55,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "AR-BUE", "kind": "city", "parent": "AR", "name": "Buenos Aires",
+      "country_code": "AR", "timezone": "America/Argentina/Buenos_Aires",
+      "lat": -34.6037, "lon": -58.3816, "elevation_m": 25,
+      "confidence": "observed", "sources": ["centroide aproximado de ciudad"],
+      "profile": {
+        "ref_year": 2025, "population": 3100000,
+        "economy_index": 0.56, "baseball_culture_index": 0.14,
+        "cost_of_living_index": 0.45, "infrastructure_index": 0.66,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "BR", "kind": "country", "parent": null, "name": "Brasil",
+      "country_code": "BR", "timezone": "America/Sao_Paulo",
+      "lat": -14.235, "lon": -51.9253,
+      "confidence": "observed", "sources": ["ISO 3166-1"],
+      "profile": {
+        "ref_year": 2025, "population": 213000000,
+        "economy_index": 0.48, "baseball_culture_index": 0.18,
+        "cost_of_living_index": 0.42, "infrastructure_index": 0.54,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "BR-SAO", "kind": "city", "parent": "BR", "name": "São Paulo",
+      "country_code": "BR", "timezone": "America/Sao_Paulo",
+      "lat": -23.5505, "lon": -46.6333, "elevation_m": 760,
+      "confidence": "observed", "sources": ["centroide aproximado de ciudad"],
+      "profile": {
+        "ref_year": 2025, "population": 12300000,
+        "economy_index": 0.63, "baseball_culture_index": 0.22,
+        "cost_of_living_index": 0.5, "infrastructure_index": 0.7,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "CU", "kind": "country", "parent": null, "name": "Cuba",
+      "country_code": "CU", "timezone": "America/Havana",
+      "lat": 21.5218, "lon": -77.7812,
+      "confidence": "observed", "sources": ["ISO 3166-1"],
+      "profile": {
+        "ref_year": 2025, "population": 11000000,
+        "economy_index": 0.26, "baseball_culture_index": 0.9,
+        "cost_of_living_index": 0.24, "infrastructure_index": 0.34,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "CU-HAV", "kind": "city", "parent": "CU", "name": "La Habana",
+      "country_code": "CU", "timezone": "America/Havana",
+      "lat": 23.1136, "lon": -82.3666, "elevation_m": 59,
+      "confidence": "observed", "sources": ["centroide aproximado de ciudad"],
+      "profile": {
+        "ref_year": 2025, "population": 2100000,
+        "economy_index": 0.3, "baseball_culture_index": 0.92,
+        "cost_of_living_index": 0.26, "infrastructure_index": 0.38,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "DO", "kind": "country", "parent": null, "name": "República Dominicana",
+      "country_code": "DO", "timezone": "America/Santo_Domingo",
+      "lat": 18.7357, "lon": -70.1627,
+      "confidence": "observed", "sources": ["ISO 3166-1"],
+      "profile": {
+        "ref_year": 2025, "population": 11300000,
+        "economy_index": 0.4, "baseball_culture_index": 0.94,
+        "cost_of_living_index": 0.34, "infrastructure_index": 0.44,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    },
+    {
+      "key": "DO-SDQ", "kind": "city", "parent": "DO", "name": "Santo Domingo",
+      "country_code": "DO", "timezone": "America/Santo_Domingo",
+      "lat": 18.4861, "lon": -69.9312, "elevation_m": 14,
+      "confidence": "observed", "sources": ["centroide aproximado de ciudad"],
+      "profile": {
+        "ref_year": 2025, "population": 1100000,
+        "economy_index": 0.44, "baseball_culture_index": 0.95,
+        "cost_of_living_index": 0.36, "infrastructure_index": 0.48,
+        "confidence": "estimated", "sources": ["índices heurísticos propios"]
+      }
+    }
+  ]
+}

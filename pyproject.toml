@@ -1,0 +1,55 @@
+[project]
+name = "baseball-universe"
+version = "0.1.0"
+description = "Simulador de ecosistemas de béisbol: local, persistente y reproducible"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "sqlalchemy>=2",
+  "alembic",
+  "pydantic>=2",
+  "pydantic-settings",
+  "psycopg[binary]",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "httpx", "hypothesis", "ruff"]
+
+[tool.pytest.ini_options]
+pythonpath = [".", "backend"]
+testpaths = ["simulation/tests", "backend/tests"]
+addopts = "-q --strict-markers"
+markers = [
+  "slow: pruebas de rendimiento y temporadas completas; se excluyen con -m 'not slow'",
+]
+filterwarnings = [
+  # Nuestro propio código no debe emitir avisos de obsolescencia.
+  "error::DeprecationWarning:app.*",
+  "error::DeprecationWarning:simulation.*",
+  # starlette.testclient avisa de httpx2; no es nuestro para arreglarlo.
+  "ignore:Using .httpx. with .starlette.testclient.:",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [".venv", "frontend", "backend/migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "RUF"]
+ignore = [
+  "E501",    # la longitud la gobierna el formateador
+  "B008",    # Depends() en argumentos por omisión es el idioma de FastAPI
+  "RUF001",  # el texto en castellano usa comillas tipográficas
+  "RUF002",
+  "RUF003",
+  "RUF046",  # int(round(x)) declara la intención de redondear a entero
+]
+
+[tool.ruff.lint.per-file-ignores]
+"simulation/tests/*" = ["B011"]
+# Estos dos arreglan `sys.path` antes de importar la aplicación, a propósito:
+# son puntos de entrada que se ejecutan desde la raíz del repositorio.
+"scripts/*" = ["E402"]
+"backend/tests/conftest.py" = ["E402"]
