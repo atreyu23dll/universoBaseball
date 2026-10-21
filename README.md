@@ -37,6 +37,16 @@ docker compose up --build
 - API y documentación: <http://127.0.0.1:8000/docs>
 - Salud del servicio: <http://127.0.0.1:8000/health>
 
+El navegador habla **siempre con el mismo origen**: el servidor de SvelteKit
+reenvía `/api/*` al backend (`src/routes/api/[...path]/+server.ts`, destino en
+`BU_API_URL`). El mismo camino en desarrollo y en producción, y sin depender de
+CORS. Para comprobar el stack tal como lo ve el navegador:
+
+```bash
+docker compose up -d --wait
+make smoke-stack
+```
+
 Las migraciones se aplican al arrancar el contenedor de la API. Los datos viven
 en un volumen (`pgdata`), así que `docker compose down` y `up` conservan el
 mundo. `make nuke` sí lo borra.
@@ -94,6 +104,7 @@ que falla si alguien lo rompe (`backend/tests/test_layering.py`).
 ```bash
 make help              # lista todo
 make test              # 109 pruebas, sin las de rendimiento (~1 min)
+make smoke-stack       # comprueba el stack por el camino del navegador
 make test-all          # incluye las de rendimiento, que imprimen cifras
 make test-postgres     # la batería del backend contra PostgreSQL en Docker
 make lint              # ruff check + format --check

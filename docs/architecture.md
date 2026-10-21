@@ -100,6 +100,19 @@ proceso separado. La frontera ya está donde debe: `application/sim_service.py`
 no sabe quién lo llama. Mover a un proceso aparte con cola en Postgres es un
 cambio de `runner`, no de dominio.
 
+### Cómo llega la interfaz a la API
+
+[IMPLEMENTADO] El navegador solo habla con el origen del frontend. El servidor
+de SvelteKit reenvía `/api/*` al backend, con el destino en `BU_API_URL`
+(`http://api:8000` en Docker, `http://127.0.0.1:8000` por omisión).
+
+Esto empezó siendo un proxy de Vite, que **solo existe en `vite dev`**: en el
+contenedor se sirve la compilación de producción con el adaptador de Node y cada
+llamada de la interfaz recibía un 404 con el HTML de la página. El proxy vive
+ahora en una ruta de servidor de SvelteKit, de modo que desarrollo y producción
+recorren el mismo camino, y `scripts/smoke_stack.sh` comprueba el stack por ese
+camino y no por atajos.
+
 [PLANIFICADO] WebSocket `/sim/stream`. Hoy la UI hace polling del endpoint de
 estado. El contrato de mensajes está redactado en `docs/implementation-plan.md`
 pero no hay servidor WS: no lo anunciamos como disponible.

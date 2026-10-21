@@ -113,5 +113,9 @@ build-frontend:  ## Compila el frontend (necesita Node)
 calibrate:  ## Mide el comportamiento estadístico del motor
 	$(PY) scripts/calibrate.py --seasons 2
 
+.PHONY: smoke-stack
+smoke-stack:  ## Comprueba el stack por el camino del navegador (necesita docker compose up)
+	./scripts/smoke_stack.sh
+
 .PHONY: verify
 verify: lint test calibrate  ## Todo lo que debe pasar antes de dar algo por hecho
