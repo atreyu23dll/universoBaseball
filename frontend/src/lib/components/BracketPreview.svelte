@@ -24,6 +24,7 @@
 </script>
 
 {#if bracket}
+  {#key bracket}
   <div class="panel">
     <div class="spread">
       <h3 style="margin:0">Postemporada</h3>
@@ -89,6 +90,7 @@
       {/if}
     {/if}
   </div>
+  {/key}
 {/if}
 
 <style>
@@ -123,7 +125,11 @@
     border-radius: 6px;
     background: var(--panel-2);
     border-left: 3px solid var(--accent);
+    animation: entrant-arrives 280ms ease-out both;
   }
+  .clasificado:nth-child(2) { animation-delay: 45ms; }
+  .clasificado:nth-child(3) { animation-delay: 90ms; }
+  .clasificado:nth-child(4) { animation-delay: 135ms; }
   .clasificado.repechaje {
     border-left-color: var(--accent-2);
   }
@@ -145,10 +151,26 @@
     align-items: flex-start;
   }
   .ronda {
+    position: relative;
     min-width: 170px;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    animation: round-arrives 320ms ease-out both;
+  }
+  .ronda:nth-child(2) { animation-delay: 110ms; }
+  .ronda:nth-child(3) { animation-delay: 220ms; }
+  .ronda:nth-child(4) { animation-delay: 330ms; }
+  .ronda:not(:last-child)::after {
+    content: '→';
+    position: absolute;
+    top: 50%;
+    right: -12px;
+    z-index: 1;
+    color: var(--accent);
+    font-size: 1.15rem;
+    line-height: 1;
+    animation: bracket-arrow 900ms ease-in-out infinite;
   }
   .cabecera {
     font-weight: 600;
@@ -166,5 +188,21 @@
   .vs {
     font-size: 0.75rem;
     margin: 2px 0;
+  }
+  @keyframes entrant-arrives {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes round-arrives {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes bracket-arrow {
+    50% { transform: translateX(3px); color: var(--accent-2); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .clasificado,
+    .ronda,
+    .ronda:not(:last-child)::after { animation: none; }
   }
 </style>

@@ -19,9 +19,11 @@
     /** Lo que se manda a `/schedule/preview`. Lo arma quien usa el componente. */
     payload: Record<string, unknown>;
     /** `bracket` dibuja solo la postemporada, para el paso del reglamento. */
-    view?: 'full' | 'bracket';
+    view?: 'full' | 'bracket' | 'headless';
     /** Se llama con cada respuesta, para que el editor marque los desajustes. */
     onresult?: (preview: SchedulePreview | null) => void;
+    /** El lienzo de estructura puede mostrar el cuadro en el mismo flujo. */
+    showBracket?: boolean;
   }
 
   const props: Props = $props();
@@ -93,7 +95,9 @@
   }
 </script>
 
-{#if (props.view ?? 'full') === 'bracket'}
+{#if props.view === 'headless'}
+  <!-- Esta instancia solo mantiene sincronizado el cálculo del tablero. -->
+{:else if (props.view ?? 'full') === 'bracket'}
   {#if failure}
     <div class="notice error">{failure}</div>
   {:else}
@@ -281,7 +285,7 @@
     {/key}
   {/if}
 </div>
-{#if (props.view ?? 'full') === 'full' && preview?.ok}
+{#if (props.view ?? 'full') === 'full' && props.showBracket !== false && preview?.ok}
   <BracketPreview bracket={preview.playoffs} />
 {/if}
 {/if}

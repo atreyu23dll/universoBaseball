@@ -35,7 +35,6 @@
   import ErrorNotice from '$lib/components/ErrorNotice.svelte';
   import SchedulePreview from '$lib/components/SchedulePreview.svelte';
   import StructureEditor from '$lib/components/StructureEditor.svelte';
-  import VisualAdjuster from '$lib/components/VisualAdjuster.svelte';
 
   /** De la lista de competiciones aquí solo hacen falta el id y el nombre. */
   type CompetitionOption = { id: string; name: string };
@@ -371,30 +370,6 @@
       ? Array.from({ length: expectedRounds }, () => 1)
       : parsedRoundLengths
   );
-  const seriesOptions = [1, 3, 5, 7, 9];
-
-  /** Las series se editan como fichas del cuadro, nunca como una lista "3,5". */
-  function setRoundLength(roundIndex: number, length: number) {
-    const lengths = Array.from(
-      { length: expectedRounds },
-      (_, index) => parsedRoundLengths[index] ?? (index === expectedRounds - 1 ? 5 : 3)
-    );
-    lengths[roundIndex] = length;
-    roundLengths = lengths.join(',');
-  }
-
-  // Al abrir o redibujar un cuadro, cada ronda recibe una duración válida. La
-  // cadena persiste porque es el contrato actual, pero nunca se expone como
-  // campo de texto al usuario.
-  $effect(() => {
-    if (playoffFormat !== 'best_of_series' || expectedRounds === 0) return;
-    const normalised = Array.from(
-      { length: expectedRounds },
-      (_, index) => parsedRoundLengths[index] ?? (index === expectedRounds - 1 ? 5 : 3)
-    );
-    const next = normalised.join(',');
-    if (next !== roundLengths) roundLengths = next;
-  });
   const partner = $derived(competitions.find((c) => c.id === linkPartnerId) ?? null);
   const isHierarchy = $derived(
     relationshipMode === 'dependent' && linkRelation === 'promotion_relegation'
@@ -603,16 +578,6 @@
       : [...selectedPlaces, key];
   }
 
-  function toggleTiebreaker(value: string) {
-    tiebreakers = tiebreakers.includes(value)
-      ? tiebreakers.filter((t) => t !== value)
-      : [...tiebreakers, value];
-  }
-
-  function toggleRestDay(day: number) {
-    restDays = restDays.includes(day) ? restDays.filter((d) => d !== day) : [...restDays, day];
-  }
-
   onMount(async () => {
     try {
       const [geography, existing] = await Promise.all([
@@ -631,17 +596,18 @@
     }
   });
 
-  const weekdays = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 </script>
 
-<h1>Crear competición</h1>
-<p class="muted small">
-  Esto es lo único que hace falta definir: <strong>las condiciones de la
-  competición</strong>. Los clubes, su forma de organizarse, quién los financia,
-  qué instalaciones usan y a quién pagan los genera y administra el motor según
-  el entorno de cada uno. El asistente no te va a preguntar por ninguna de esas
-  cosas.
-</p>
+{#if step !== 6}
+  <h1>Crear competición</h1>
+  <p class="muted small">
+    Esto es lo único que hace falta definir: <strong>las condiciones de la
+    competición</strong>. Los clubes, su forma de organizarse, quién los financia,
+    qué instalaciones usan y a quién pagan los genera y administra el motor según
+    el entorno de cada uno. El asistente no te va a preguntar por ninguna de esas
+    cosas.
+  </p>
+{/if}
 
 <ErrorNotice {error} />
 
@@ -1040,336 +1006,45 @@
     </div>
   </div>
 {:else if step === 6}
-  <div class="panel">
-    <h2>Paso 6 — Formato de liga</h2>
-    <p class="small muted" style="margin-top:0">
-      Partes de los <strong>{clubCount} equipos</strong> que definiste y les das
-      forma: crea divisiones, reparte sus plazas, marca los caminos a la
-      postemporada y mira cómo se mueve el calendario. Este es un solo lienzo;
-      la tabla, el ritmo y el cuadro responden en tiempo real al mismo reglamento.
-    </p>
-  </div>
-
   <StructureEditor
     clubCount={clubCount}
     bind:divisions
     bind:gates
     issues={scheduleError ? [scheduleError, ...structureIssues] : structureIssues}
+    bracket={previewResult?.playoffs ?? null}
+    preview={previewResult}
+    currencyPrefix={resolvedCurrency ? `${resolvedCurrency} ` : '$'}
+    bind:groupAssignment
+    bind:gamesPerSeries
+    bind:daysBetweenSeries
+    bind:offseasonDays
+    bind:restDays
+    bind:playoffFormat
+    bind:roundLengths
+    bind:rosterSize
+    bind:designatedHitter
+    bind:extraInnings
+    bind:mercyEnabled
+    bind:mercyRunDiff
+    bind:standingsPrimary
+    bind:tiebreakers
+    bind:licenceRequired
+    bind:safetyCertRequired
+    bind:amateurStatusRequired
+    bind:minimumVenueCapacityEnabled
+    bind:minimumVenueCapacity
+    bind:compensationRule
+    bind:entryFeeEnabled
+    bind:entryFee
+    onback={() => (step = 5)}
+    oncontinue={() => (step = 7)}
   />
-
-  {#if divisions.length > 1}
-    <div class="panel compact-panel">
-      <div class="spread">
-        <div>
-          <h3 style="margin:0">Asignación cuando se generen los clubes</h3>
-          <p class="small muted" style="margin:5px 0 0">
-            Ahora mueves plazas, no clubes todavía: las sedes reales se generan después.
-          </p>
-        </div>
-        <div class="choice-row" role="group" aria-label="Criterio de asignación">
-          <button
-            type="button"
-            class={groupAssignment === 'geographic' ? 'button' : 'button ghost'}
-            onclick={() => (groupAssignment = 'geographic')}
-          >Por cercanía</button>
-          <button
-            type="button"
-            class={groupAssignment === 'balanced' ? 'button' : 'button ghost'}
-            onclick={() => (groupAssignment = 'balanced')}
-          >Equilibrada</button>
-        </div>
-      </div>
-    </div>
-  {/if}
-
-  <div class="panel">
-    <h3 style="margin-top:0">Ritmo de la temporada</h3>
-    <div class="grid two">
-      <div>
-        <div class="field">
-          <VisualAdjuster
-            label="Partidos seguidos en el mismo campo"
-            bind:value={gamesPerSeries}
-            min={1}
-            max={7}
-          />
-          <p class="small muted" style="margin:6px 0 0">
-            Una serie es la visita completa: con 3, los dos equipos juegan tres
-            días seguidos en el mismo estadio antes de cambiar de rival.
-            El total de partidos por club nace de estas series y de las vueltas
-            que dibujaste en cada división; lo ves calculado abajo, por club.
-          </p>
-        </div>
-      </div>
-      <div>
-        <div class="field">
-          <VisualAdjuster
-            label="Días de descanso entre series"
-            bind:value={daysBetweenSeries}
-            min={0}
-            max={14}
-          />
-        </div>
-        <div class="field" role="group" aria-labelledby="descanso-leyenda">
-          <span class="small muted" id="descanso-leyenda">
-            Días en los que no se juega nunca
-          </span>
-          <div class="row">
-            {#each weekdays as day, index}
-              <button
-                type="button"
-                class={restDays.includes(index) ? 'button' : 'button ghost'}
-                onclick={() => toggleRestDay(index)}
-                aria-pressed={restDays.includes(index)}
-              >{day}</button>
-            {/each}
-          </div>
-        </div>
-        <div class="field">
-          <VisualAdjuster
-            label="Días entre temporadas"
-            bind:value={offseasonDays}
-            min={1}
-            max={180}
-            step={7}
-          />
-          <p class="small muted" style="margin:6px 0 0">
-            El hueco en el que se resuelven ascensos y descensos antes de que la
-            temporada siguiente tenga calendario.
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="spread">
-      <div>
-        <h3 style="margin:0">Ruta a la postemporada</h3>
-        <p class="small muted" style="margin:5px 0 0">
-          Las plazas salen exclusivamente de las insignias que acabas de marcar.
-        </p>
-      </div>
-      <div class="choice-row" role="group" aria-label="Formato de postemporada">
-        <button
-          type="button"
-          class={playoffFormat === 'best_of_series' ? 'button' : 'button ghost'}
-          onclick={() => (playoffFormat = 'best_of_series')}
-        >Series</button>
-        <button
-          type="button"
-          class={playoffFormat === 'single_elimination' ? 'button' : 'button ghost'}
-          onclick={() => (playoffFormat = 'single_elimination')}
-        >A un partido</button>
-        <button
-          type="button"
-          class={playoffFormat === 'none' ? 'button' : 'button ghost'}
-          onclick={() => (playoffFormat = 'none')}
-        >Campeón por tabla</button>
-      </div>
-    </div>
-
-    {#if playoffFormat === 'none'}
-      <div class="notice info" style="margin:12px 0 0">
-        El primer lugar de la tabla será el campeón. Las marcas de clasificación se
-        conservan en el tablero para que puedas volver a activar la postemporada.
-      </div>
-    {:else if gateQualifiers < 2}
-      <div class="notice" style="margin:12px 0 0">
-        Marca al menos dos puestos en las divisiones para dibujar el cuadro.
-      </div>
-    {:else}
-      <div class="postseason-summary">
-        <span class="tag accent">{gateQualifiers} clasificados</span>
-        <span class="small muted">
-          {expectedRounds} ronda{expectedRounds === 1 ? '' : 's'}
-          {gateQualifiers & (gateQualifiers - 1) ? ' · las mejores siembras esperan' : ''}
-        </span>
-      </div>
-      {#if playoffFormat === 'best_of_series'}
-        <div class="round-controls" aria-label="Duración de las series">
-          {#each Array.from({ length: expectedRounds }) as _, roundIndex (roundIndex)}
-            <div class="round-control">
-              <span class="small muted">Ronda {roundIndex + 1}</span>
-              <div class="choice-row">
-                {#each seriesOptions as length}
-                  <button
-                    type="button"
-                    class={parsedRoundLengths[roundIndex] === length ? 'button' : 'button ghost'}
-                    onclick={() => setRoundLength(roundIndex, length)}
-                    aria-pressed={parsedRoundLengths[roundIndex] === length}
-                  >al mejor de {length}</button>
-                {/each}
-              </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    {/if}
-  </div>
-
-  <div class="panel">
-    <h3 style="margin-top:0">Reglas que acompañan al formato</h3>
-    <div class="grid two">
-      <div>
-        <div class="field">
-          <VisualAdjuster
-            label="Tamaño de plantilla"
-            bind:value={rosterSize}
-            min={14}
-            max={40}
-          />
-        </div>
-        <div class="choice-row rule-toggles" role="group" aria-label="Reglas de juego">
-          <button
-            type="button"
-            class={designatedHitter ? 'button' : 'button ghost'}
-            onclick={() => (designatedHitter = !designatedHitter)}
-            aria-pressed={designatedHitter}
-          >Bateador designado</button>
-          <button
-            type="button"
-            class={extraInnings ? 'button' : 'button ghost'}
-            onclick={() => (extraInnings = !extraInnings)}
-            aria-pressed={extraInnings}
-          >Entradas extra</button>
-          <button
-            type="button"
-            class={mercyEnabled ? 'button' : 'button ghost'}
-            onclick={() => (mercyEnabled = !mercyEnabled)}
-            aria-pressed={mercyEnabled}
-          >Regla de nocaut</button>
-        </div>
-        {#if mercyEnabled}
-          <div class="field" style="margin-top:10px">
-            <VisualAdjuster
-              label="Diferencia para aplicar el nocaut"
-              bind:value={mercyRunDiff}
-              min={5}
-              max={30}
-              suffix=" carreras"
-            />
-          </div>
-        {/if}
-      </div>
-      <div>
-        <span class="small muted">Tabla y desempates</span>
-        <div class="choice-row rule-toggles" role="group" aria-label="Criterio de clasificación">
-          {#each [['win_percentage', 'Porcentaje de victorias'], ['wins', 'Victorias'], ['points', 'Puntos']] as [value, label]}
-            <button
-              type="button"
-              class={standingsPrimary === value ? 'button' : 'button ghost'}
-              onclick={() => (standingsPrimary = value)}
-            >{label}</button>
-          {/each}
-        </div>
-        <span class="small muted" style="display:block;margin-top:14px">Desempates aplicables, en orden</span>
-        <div class="choice-row rule-toggles">
-          {#each [['head_to_head', 'Enfrentamiento directo'], ['run_differential', 'Diferencia de carreras'], ['runs_for', 'Carreras a favor'], ['fewest_runs_against', 'Menos carreras en contra'], ['coin_flip', 'Sorteo reproducible']] as [value, label]}
-            <button
-              type="button"
-              class={tiebreakers.includes(value) ? 'button' : 'button ghost'}
-              onclick={() => toggleTiebreaker(value)}
-              aria-pressed={tiebreakers.includes(value)}
-            >{label}</button>
-          {/each}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <h3 style="margin-top:0">Admisión y normas económicas</h3>
-    <p class="small muted">
-      Solo exigencias verificables del reglamento; no decisiones sobre cómo se
-      organizan los clubes.
-    </p>
-    <div class="grid two">
-      <div>
-        <div class="choice-row rule-toggles" role="group" aria-label="Requisitos de admisión">
-          <button
-            type="button"
-            class={licenceRequired ? 'button' : 'button ghost'}
-            onclick={() => (licenceRequired = !licenceRequired)}
-            aria-pressed={licenceRequired}
-          >Exigir licencia</button>
-          <button
-            type="button"
-            class={safetyCertRequired ? 'button' : 'button ghost'}
-            onclick={() => (safetyCertRequired = !safetyCertRequired)}
-            aria-pressed={safetyCertRequired}
-          >Certificado de seguridad</button>
-          <button
-            type="button"
-            class={amateurStatusRequired ? 'button' : 'button ghost'}
-            onclick={() => (amateurStatusRequired = !amateurStatusRequired)}
-            aria-pressed={amateurStatusRequired}
-          >Condición amateur</button>
-          <button
-            type="button"
-            class={minimumVenueCapacityEnabled ? 'button' : 'button ghost'}
-            onclick={() => (minimumVenueCapacityEnabled = !minimumVenueCapacityEnabled)}
-            aria-pressed={minimumVenueCapacityEnabled}
-          >Aforo mínimo</button>
-        </div>
-        {#if minimumVenueCapacityEnabled}
-          <div class="field" style="margin-top:10px">
-            <VisualAdjuster
-              label="Aforo mínimo"
-              bind:value={minimumVenueCapacity}
-              min={0}
-              max={200000}
-              step={100}
-              suffix=" personas"
-            />
-          </div>
-        {/if}
-      </div>
-      <div>
-        <span class="small muted">Norma de compensación</span>
-        <div class="choice-row rule-toggles" role="group" aria-label="Norma de compensación">
-          {#each [['', 'Según la modalidad'], ['unrestricted', 'Sin restricción'], ['expenses_only', 'Solo gastos'], ['no_salaried_players', 'Sin salarios']] as [value, label]}
-            <button
-              type="button"
-              class={compensationRule === value ? 'button' : 'button ghost'}
-              onclick={() => (compensationRule = value)}
-            >{label}</button>
-          {/each}
-        </div>
-        <div class="choice-row rule-toggles" style="margin-top:14px" role="group" aria-label="Cuota de inscripción">
-          <button
-            type="button"
-            class={entryFeeEnabled ? 'button' : 'button ghost'}
-            onclick={() => (entryFeeEnabled = !entryFeeEnabled)}
-            aria-pressed={entryFeeEnabled}
-          >Cuota de inscripción</button>
-        </div>
-        {#if entryFeeEnabled}
-          <div class="field" style="margin-top:10px">
-            <VisualAdjuster
-              label="Cuota por club"
-              bind:value={entryFee}
-              min={0}
-              step={100}
-              prefix={resolvedCurrency ? `${resolvedCurrency} ` : '$'}
-            />
-          </div>
-        {/if}
-      </div>
-    </div>
-  </div>
 
   <SchedulePreview
     payload={previewPayload}
     onresult={(resultado) => (previewResult = resultado)}
+    view="headless"
   />
-
-  <div class="panel">
-    <div class="row">
-      <button class="ghost" onclick={() => (step = 5)}>Atrás</button>
-      <button onclick={() => (step = 7)}>Continuar</button>
-    </div>
-  </div>
 {:else if step === 7}
   <div class="panel">
     <h2>Paso 7 — Relaciones competitivas</h2>
@@ -1802,42 +1477,5 @@
   button.small {
     padding: 2px 8px;
     font-size: 0.85em;
-  }
-  .compact-panel {
-    padding-block: 13px;
-  }
-  .choice-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    align-items: center;
-  }
-  .choice-row button {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-  .postseason-summary {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-top: 13px;
-  }
-  .round-controls {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 10px;
-    margin-top: 13px;
-  }
-  .round-control {
-    padding: 10px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--panel-2);
-  }
-  .round-control .choice-row {
-    margin-top: 6px;
-  }
-  .rule-toggles {
-    margin-top: 8px;
   }
 </style>
