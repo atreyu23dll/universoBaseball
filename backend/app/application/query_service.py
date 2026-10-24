@@ -17,6 +17,7 @@ from app.application import club_evolution_service
 from app.application.errors import NotFoundError
 from app.application.universe_service import get_universe
 from app.infrastructure import models as m
+from simulation.competitions.ruleset import StructureRules as RuleSetStructure
 
 
 def _club_brief(club: m.Club) -> dict:
@@ -230,10 +231,21 @@ def edition_detail(session: Session, edition_id: str) -> dict:
 def _structure_view(
     session: Session, edition: m.CompetitionEdition, rules_json: dict
 ) -> dict | None:
-    """Grupos de esta edición y qué deciden, o `None` si es de tabla única."""
-    structure = (rules_json or {}).get("structure") or {}
-    if int(structure.get("count", 1)) < 2:
+    """Divisiones de esta edición y qué deciden, o `None` si es de tabla única.
+
+    La estructura se lee con su propio modelo y no a mano: con fases declaradas
+    el número de divisiones está en `stages`, no en `count`, y mirar el JSON por
+    encima dejaba la vista en blanco.
+    """
+    crudo = (rules_json or {}).get("structure") or {}
+    try:
+        structure = RuleSetStructure.model_validate(crudo)
+    except ValueError:
         return None
+    if not structure.has_groups:
+        return None
+    etiquetas = structure.labels
+    fase = structure.table_stage
     entries = session.scalars(
         select(m.EditionEntry).where(m.EditionEntry.edition_id == edition.id)
     ).all()
@@ -241,17 +253,48 @@ def _structure_view(
     for entry in entries:
         if entry.group_key:
             por_grupo[entry.group_key] = por_grupo.get(entry.group_key, 0) + 1
+
+    def division_de(etiqueta: str):
+        return next((d for d in fase.divisions if d.label == etiqueta), None) if fase else None
+
     return {
-        "count": int(structure.get("count", 1)),
-        "assignment": structure.get("assignment"),
-        "intra_cycles": structure.get("intra_cycles"),
-        "inter_cycles": structure.get("inter_cycles"),
-        "qualifiers_per_group": structure.get("qualifiers_per_group"),
-        "wildcards": structure.get("wildcards"),
-        "standings_scope": structure.get("standings_scope"),
+        "count": len(etiquetas),
+        "declared": structure.declared,
+        "assignment": str(structure.assignment),
+        "symmetric": fase.is_symmetric if fase else True,
+        "standings_scope": str(structure.standings_scope),
         "groups": [
-            {"label": etiqueta, "clubs": cuantos} for etiqueta, cuantos in sorted(por_grupo.items())
+            {
+                "label": etiqueta,
+                "clubs": por_grupo.get(etiqueta, 0),
+                "intra_cycles": getattr(division_de(etiqueta), "intra_cycles", None),
+                "inter_cycles": getattr(division_de(etiqueta), "inter_cycles", None),
+                "gates": [
+                    {
+                        "positions": list(g.positions),
+                        "route": str(g.route),
+                        "label": g.describe(etiqueta),
+                    }
+                    for g in (fase.gates if fase else [])
+                    if g.division == getattr(division_de(etiqueta), "key", None)
+                ],
+            }
+            for etiqueta in etiquetas
         ],
+        "overall_gates": [
+            {
+                "positions": list(g.positions),
+                "route": str(g.route),
+                "label": g.describe(None),
+            }
+            for g in (fase.gates if fase else [])
+            if g.division is None
+        ],
+        # Compatibilidad con la vista anterior, que leía estos campos.
+        "intra_cycles": structure.intra_cycles,
+        "inter_cycles": structure.inter_cycles,
+        "qualifiers_per_group": structure.qualifiers_per_group,
+        "wildcards": structure.wildcards,
     }
 
 

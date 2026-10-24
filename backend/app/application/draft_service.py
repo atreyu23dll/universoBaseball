@@ -294,7 +294,11 @@ def _format_issues(ruleset: RuleSet) -> list[Issue]:
             )
         )
     por_ciclo = max(1, ruleset.season.games_per_series * (clubes - 1))
-    if ruleset.season.games_per_club_target % por_ciclo:
+    # El editor gráfico declara las vueltas de cada división. Su cifra de
+    # temporada se deriva de ellas y puede representar un promedio cuando las
+    # divisiones son asimétricas; no es un objetivo independiente que haya que
+    # rechazar contra una tabla única teórica.
+    if not ruleset.structure.declared and ruleset.season.games_per_club_target % por_ciclo:
         problemas.append(
             Issue(
                 "SCHEDULE_UNSATISFIABLE",

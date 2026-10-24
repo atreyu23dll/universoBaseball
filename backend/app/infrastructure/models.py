@@ -411,6 +411,10 @@ class CompetitionEdition(Base):
     #: Clasificados con pase directo que esperan la segunda ronda, cuando las
     #: plazas de playoff no son potencia de dos. Se vacía en cuanto entran.
     playoff_byes: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    #: Posición de la fase en curso dentro de la secuencia del reglamento. El
+    #: nombre de la fase está en `stage`; esto dice **cuál** de las declaradas
+    #: es, que es lo que hace falta para saber qué viene después.
+    stage_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     competition: Mapped[CompetitionDefinition] = relationship(back_populates="editions")
 
@@ -797,12 +801,20 @@ class Standing(Base):
     away_losses: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     #: Puesto dentro de su grupo. 0 cuando la competición es de tabla única.
     group_rank: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    #: Fase a la que pertenece esta fila. Una liguilla entre clasificados tiene
+    #: su propia tabla: empieza de cero y no arrastra los partidos de la fase
+    #: anterior.
+    stage_key: Mapped[str] = mapped_column(String(40), nullable=False, default="regular_season")
     streak: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_ten: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
     rank: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     tiebreak_note: Mapped[str] = mapped_column(String(80), nullable=False, default="")
 
-    __table_args__ = (UniqueConstraint("edition_id", "entry_id", name="uq_standing_edition_entry"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "edition_id", "entry_id", "stage_key", name="uq_standing_edition_entry_stage"
+        ),
+    )
 
 
 class PlayoffSeriesRow(Base):

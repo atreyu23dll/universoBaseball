@@ -127,17 +127,28 @@ defensa/corrido, cognición) más `potential` oculto y `scouted_potential`
 observado con error. La nacionalidad no otorga calidad: el contexto afecta las
 **oportunidades de formación** (`training_opportunity`), no un techo biológico.
 
-### StructureRules `[I]` / grupo de la inscripción `[I]`
-`structure` es el bloque del reglamento que dice si la competición se juega en
-una tabla única (`count = 1`, el comportamiento de siempre) o en divisiones:
-cuántas, con qué criterio se reparten (`geographic`, `balanced`, `declared`),
-cuántas vueltas se juegan dentro y fuera del grupo, y cómo se clasifica
-(`qualifiers_per_group` más `wildcards`).
+### StructureRules `[I]` / Stage `[I]` / Division `[I]` / Gate `[I]`
+`structure` describe la competición como una **secuencia de fases**
+(`simulation/competitions/structure.py`). Una `Stage` es de tabla —una o varias
+`Division` jugando a la vez— o de cruces. Una `Division` lleva **sus** plazas,
+**sus** vueltas internas y **sus** vueltas contra las demás: es un subproceso de
+la liga y no tiene por qué parecerse a sus hermanas. Entre dos divisiones
+distintas se juegan las vueltas que pida la que más pida.
 
-**Autoridad única**: con divisiones, las plazas de playoff las fija la
-estructura. Un reglamento que declare `playoffs.slots` distinto de
-`count × qualifiers_per_group + wildcards` se rechaza con el número que sí
-cuadra, en vez de dejar dos cifras que puedan contradecirse.
+Una `Gate` es la salida de una fase: qué puestos pasan y por qué ruta
+(`direct` o `wildcard`). Una puerta de división cuenta los puestos de su tabla;
+una puerta de la tabla general los cuenta **entre los que todavía no han pasado
+por ninguna puerta anterior**, que es lo que significa un repechaje.
+
+Se admiten dos formas de declararla, **nunca las dos a la vez**: la corta
+(`count`, `groups`, `intra_cycles`, `inter_cycles`, `qualifiers_per_group`,
+`wildcards`) y la completa (`stages`). La corta se traduce a fases con
+`derive_stages()`, así que un reglamento guardado antes de este modelo se juega
+por el mismo camino.
+
+**Autoridad única**: las plazas de la fase siguiente **son** la suma de los
+puestos de las puertas de la anterior. Un reglamento que declare
+`playoffs.slots` distinto de esa suma se rechaza con el número que sí cuadra.
 
 El grupo de cada club vive en `edition_entries.group_key` —por **edición**, no
 por club— y el puesto dentro de él en `standings.group_rank`. El reparto se
@@ -246,11 +257,11 @@ filial no puede acabar tratándose como una división por un campo mal puesto.
     de equipos de una liga.
 15. Un club desaparece solo tras **dos** temporadas consecutivas insolventes, y
     su desaparición queda registrada como hecho con su causa y su cifra.
-16. Con divisiones, cada club juega `intra_cycles` veces contra cada rival de su
-    grupo e `inter_cycles` contra cada uno de los demás, exactamente, y ningún
-    club juega dos partidos el mismo día. Si los grupos tienen tamaños
-    distintos, los clubes no juegan el mismo número de partidos y se dice: la
-    clasificación usa porcentaje de victorias, que no depende de ello.
-17. Las plazas de playoff con divisiones son
-    `count × qualifiers_per_group + wildcards`, y cada clasificado guarda por
-    qué ruta entró.
+16. Con divisiones, cada club juega contra cada rival **las vueltas que su
+    estructura declara** —las de su división si es de la suya, y entre dos
+    divisiones las que pida la que más pida—, exactamente, y ningún club juega
+    dos partidos el mismo día. Si las divisiones no son iguales, los clubes no
+    juegan el mismo número de partidos y se dice: la clasificación usa
+    porcentaje de victorias, que no depende de ello.
+17. Las plazas de la fase siguiente son la suma de los puestos de las puertas
+    de la anterior, y cada clasificado guarda por qué puerta entró.

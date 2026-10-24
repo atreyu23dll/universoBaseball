@@ -53,7 +53,14 @@ class GroupPlacement:
 
 
 def group_sizes(structure: StructureRules, club_count: int) -> list[int]:
-    """Plazas de cada grupo: las declaradas, o el reparto más parejo posible."""
+    """Plazas de cada división: las declaradas, o el reparto más parejo posible.
+
+    Con fases declaradas las plazas son las de sus divisiones, que **no tienen
+    por qué ser iguales**: seis clubes en una y cuatro en otra es una estructura
+    legítima, no un desajuste que haya que corregir.
+    """
+    if structure.stages:
+        return [d.slots for d in structure.stages[0].divisions]
     if structure.groups:
         return [slot.slots for slot in structure.groups]
     base, resto = divmod(club_count, structure.count)

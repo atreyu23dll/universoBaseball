@@ -137,12 +137,15 @@
         verdad.
       </li>
       <li>
-        <strong>El asistente dibuja lo que pides.</strong> Los seis números del
-        calendario —partidos, series, descansos, vueltas dentro y fuera de la
-        división— se multiplican entre sí, así que el paso 6 muestra en vivo los
-        partidos que salen, el reparto de cada club, la matriz de cruces, las dos
-        primeras semanas día a día y el cuadro de postemporada. Lo calcula el
-        motor, no es una maqueta, y no escribe nada hasta que confirmas.
+        <strong>La estructura se dibuja, no se rellena.</strong> El paso 6 es un
+        editor: arrancas con una tabla única de tus equipos, añades divisiones y
+        arrastras plazas de una a otra. Cada división lleva sus propias vueltas
+        —no tienen que parecerse entre sí—, y pulsando la insignia de un puesto
+        decides si clasifica directo o por repechaje. Debajo se dibuja en vivo lo
+        que sale: partidos, jornadas, matriz de cruces, las dos primeras semanas
+        día a día y el cuadro de postemporada con la ruta de cada clasificado. Lo
+        calcula el motor, no es una maqueta, y no escribe nada hasta que
+        confirmas.
       </li>
       <li>Procedencia de cada número generado, consultable en la ficha del club.</li>
     </ul>
@@ -170,6 +173,12 @@
         moneda de 251 de 252, pero los importes solo se pueden calcular donde el
         ancla está curada: México, Argentina, Brasil, Cuba y República
         Dominicana.
+      </li>
+      <li>
+        <strong>Una segunda fase de tabla.</strong> Una liguilla entre los
+        clasificados antes de los cruces cabe en el modelo, y el motor todavía no
+        la juega: hace falta una clasificación por fase y no por temporada. El
+        reglamento la rechaza diciéndolo, en vez de aceptarla y no simularla.
       </li>
       <li>
         <strong>Fusiones y refundaciones.</strong> Un club crece, se encoge o

@@ -17,12 +17,20 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import StrEnum
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from simulation.competitions.structure import (
+    Stage,
+    StageFormat,
+    derive_stages,
+    validate_sequence,
+)
 
 RULESET_SCHEMA_VERSION = "2.0.0"
 
@@ -424,14 +432,69 @@ class StructureRules(BaseModel):
     #: clasificados. Es lo que hace falta para que un grupo fuerte no pierda a
     #: su segundo mejor club.
     wildcards: int = Field(default=0, ge=0, le=16)
+    #: Fases de la competición, cuando se declaran a mano. Es el modelo
+    #: completo: divisiones que no tienen por qué parecerse entre sí y puertas
+    #: de clasificación con su ruta. Vacío significa «la forma simple de
+    #: arriba», que se traduce a fases con `derive_stages()`.
+    stages: list[Stage] = Field(default_factory=list)
 
     @property
     def has_groups(self) -> bool:
+        if self.stages:
+            return len(self.stages[0].divisions) > 1
         return self.count > 1
 
     @property
+    def declared(self) -> bool:
+        """¿La estructura se declaró por fases o con la forma simple?"""
+        return bool(self.stages)
+
+    @property
+    def table_stage(self) -> Stage | None:
+        """La fase de tabla con la que arranca la competición."""
+        return self.stages[0] if self.stages else None
+
+    def cycles_between_labels(
+        self, club_count: int, playoffs: PlayoffRules
+    ) -> Callable[[str, str], int]:
+        """Vueltas entre dos divisiones, por su etiqueta.
+
+        Es lo que `build_schedule` necesita: la inscripción de cada club guarda
+        la **etiqueta** de su división, no su clave. Con la forma simple
+        devuelve las mismas vueltas para todas; con fases declaradas, las de
+        cada una.
+        """
+        stage = self.effective_stages(club_count, playoffs)[0]
+        por_etiqueta = {d.label: d for d in stage.divisions}
+
+        def vueltas(a: str, b: str) -> int:
+            uno, otro = por_etiqueta.get(a), por_etiqueta.get(b)
+            if a == b:
+                return uno.intra_cycles if uno else 0
+            return max(uno.inter_cycles if uno else 0, otro.inter_cycles if otro else 0)
+
+        return vueltas
+
+    def effective_stages(self, club_count: int, playoffs: PlayoffRules) -> list[Stage]:
+        """Las fases declaradas, o las que implica la forma simple."""
+        if self.stages:
+            return list(self.stages)
+        return derive_stages(
+            club_count=club_count,
+            labels=self.labels,
+            group_sizes=[g.slots for g in self.groups] if self.groups else None,
+            intra_cycles=self.intra_cycles,
+            inter_cycles=self.inter_cycles,
+            qualifiers_per_group=self.qualifiers_per_group,
+            wildcards=self.wildcards,
+            playoffs=playoffs,
+        )
+
+    @property
     def labels(self) -> list[str]:
-        """Nombres de los grupos, declarados o numerados."""
+        """Nombres de las divisiones de la primera fase."""
+        if self.stages:
+            return [d.label for d in self.stages[0].divisions]
         if self.groups:
             return [g.label for g in self.groups]
         if self.count == 1:
@@ -441,10 +504,31 @@ class StructureRules(BaseModel):
     @property
     def playoff_slots(self) -> int:
         """Plazas de playoff que esta estructura produce."""
+        if self.stages:
+            return self.stages[0].qualifiers if len(self.stages) > 1 else 0
         return self.count * self.qualifiers_per_group + self.wildcards
 
     @model_validator(mode="after")
     def _coherent(self) -> StructureRules:
+        if self.stages:
+            # Con fases declaradas, la forma simple no se usa: dos modelos de
+            # la misma estructura podrían contradecirse.
+            if self.groups or self.count != 1:
+                raise ValueError(
+                    "la estructura se declara por fases (`stages`) o con la forma simple "
+                    "(`count` y `groups`), no con las dos a la vez"
+                )
+            if len(self.stages) > 4:
+                raise ValueError(
+                    f"se declararon {len(self.stages)} fases: el motor encadena hasta cuatro, "
+                    "y más que eso suele ser un error de edición"
+                )
+            if any(s.format is StageFormat.BRACKET for s in self.stages[:-1]):
+                raise ValueError(
+                    "una fase de cruces solo puede ser la última: de un cuadro sale un "
+                    "campeón, no una clasificación para otra fase"
+                )
+            return self
         if self.groups:
             if len(self.groups) != self.count:
                 raise ValueError(
@@ -653,6 +737,44 @@ class RuleSet(BaseModel):
                 "implementadas; el motor rechaza crearlas en vez de generar una "
                 "liga de clubes disfrazada"
             )
+        if self.structure.declared:
+            # Con fases declaradas, la coherencia la comprueba el modelo de
+            # estructura, que sabe de divisiones asimétricas y puertas.
+            problemas = validate_sequence(self.structure.stages, self.generation.club_count)
+            if problemas:
+                raise ValueError("; ".join(problemas))
+            cuadro = next(
+                (s for s in self.structure.stages if s.format is StageFormat.BRACKET), None
+            )
+            if cuadro is None:
+                if self.playoffs.format is not PlayoffFormat.NONE:
+                    raise ValueError(
+                        "el reglamento declara postemporada y la estructura no tiene fase "
+                        "de cruces: añade la fase o quita el playoff"
+                    )
+            else:
+                llegan = self.structure.stages[0].qualifiers
+                if self.playoffs.format is PlayoffFormat.NONE:
+                    raise ValueError(
+                        "la estructura tiene una fase de cruces y el reglamento dice que no "
+                        "hay postemporada"
+                    )
+                if self.playoffs.slots != llegan:
+                    raise ValueError(
+                        f"a la fase de cruces llegan {llegan} clasificados por sus puertas y "
+                        f"`playoffs.slots` dice {self.playoffs.slots}. Las plazas las fijan "
+                        "las puertas, no se declaran dos veces."
+                    )
+                if (
+                    self.playoffs.format is PlayoffFormat.BEST_OF_SERIES
+                    and cuadro.series_lengths
+                    and list(self.playoffs.round_lengths) != list(cuadro.series_lengths)
+                ):
+                    raise ValueError(
+                        "las longitudes de serie del playoff y las de la fase de cruces no "
+                        "coinciden: son el mismo dato"
+                    )
+            return self
         if self.structure.has_groups:
             if self.generation.club_count < 2 * self.structure.count:
                 raise ValueError(

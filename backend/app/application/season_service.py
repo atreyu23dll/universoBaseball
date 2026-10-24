@@ -320,8 +320,8 @@ def open_next_edition(
             games_per_series=ruleset.season.games_per_series,
             days_between_series=ruleset.season.days_between_series,
             groups={club.club_key: grupos[club.id] for club in clubs} if grupos else None,
-            intra_cycles=ruleset.structure.intra_cycles,
-            inter_cycles=ruleset.structure.inter_cycles,
+            cycles_between=ruleset.structure.cycles_between_labels(len(clubs), ruleset.playoffs),
+            target_is_derived=ruleset.structure.declared,
         )
     except ScheduleError as exc:
         record_event(

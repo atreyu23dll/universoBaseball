@@ -19,16 +19,16 @@ teórico (el grado máximo del multigrafo). Es un calendario válido y con las
 localías repartidas; lo que cuesta son algunos días de más de temporada, no la
 equidad. Un coloreado de aristas óptimo lo arreglaría y no está implementado.
 
-Si el objetivo de partidos del usuario no es alcanzable con un número entero de
-ciclos, **no se altera la regla en silencio**: se elige el valor factible más
-cercano y se devuelve una advertencia explícita con los objetivos que sí
-cuadran, para que la interfaz lo muestre antes de confirmar. Con grupos, el
-número de partidos por club es una **consecuencia** de las vueltas declaradas,
-y se advierte cuando no coincide con lo pedido.
+Si un objetivo independiente de partidos no es alcanzable con un número entero
+de ciclos, **no se altera la regla en silencio**: se elige el valor factible más
+cercano y se devuelve una advertencia explícita. En el editor por fases el
+valor se deriva de las vueltas declaradas, por lo que no se lo compara consigo
+mismo ni se muestra como una decisión separada.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 
@@ -99,13 +99,28 @@ def build_schedule(
     groups: dict[str, str] | None = None,
     intra_cycles: int = 2,
     inter_cycles: int = 1,
+    cycles_between: Callable[[str, str], int] | None = None,
+    target_is_derived: bool = False,
 ) -> ScheduleReport:
     """Calendario de la temporada regular.
 
     `groups` asigna a cada club su grupo. Con uno solo —o sin `groups`— el
-    calendario es el round-robin de siempre y `intra_cycles` e `inter_cycles` no
-    se usan.
+    calendario es el round-robin de siempre y las vueltas no se usan.
+
+    `cycles_between(grupo_a, grupo_b)` permite que **cada división tenga sus
+    propias vueltas**: una de seis clubes puede jugar cuatro vueltas internas
+    mientras su hermana de cuatro juega seis, y el enfrentamiento entre ambas
+    las que diga la función. Sin ella se usan `intra_cycles` e `inter_cycles`
+    para todas, que es el caso simétrico.
+
+    `target_is_derived` evita avisos redundantes cuando la cifra técnica de
+    temporada se calculó a partir de la estructura declarada por fases.
     """
+    if cycles_between is None:
+
+        def cycles_between(a: str, b: str) -> int:
+            return intra_cycles if a == b else inter_cycles
+
     con_grupos = bool(groups) and len({*groups.values()}) > 1
     if con_grupos:
         faltan = [key for key in club_keys if key not in groups]
@@ -114,7 +129,8 @@ def build_schedule(
                 f"estos clubes no tienen grupo asignado: {', '.join(sorted(faltan)[:4])}",
                 ["revisa el reparto de grupos de la edición"],
             )
-    if con_grupos and intra_cycles != inter_cycles:
+    uniforme = con_grupos and _es_uniforme(groups or {}, club_keys, cycles_between)
+    if con_grupos and not uniforme:
         return _build_grouped_schedule(
             club_keys=club_keys,
             groups=groups,
@@ -123,8 +139,8 @@ def build_schedule(
             rest_days_weekday=rest_days_weekday,
             games_per_series=games_per_series,
             days_between_series=days_between_series,
-            intra_cycles=intra_cycles,
-            inter_cycles=inter_cycles,
+            cycles_between=cycles_between,
+            target_is_derived=target_is_derived,
         )
     if len(club_keys) < 2:
         raise ScheduleError(
@@ -309,11 +325,26 @@ def _balanced_orientation(
     ]
 
 
+def _es_uniforme(
+    groups: dict[str, str],
+    club_keys: list[str],
+    cycles_between: Callable[[str, str], int],
+) -> bool:
+    """¿Todas las parejas juegan las mismas vueltas, dentro y fuera?
+
+    Si lo son, el calendario es un round-robin normal y se construye por el
+    camino de siempre, que reparte mejor jornadas y localías.
+    """
+    etiquetas = sorted({groups[clave] for clave in club_keys if clave in groups})
+    dentro = {cycles_between(e, e) for e in etiquetas}
+    fuera = {cycles_between(a, b) for a in etiquetas for b in etiquetas if a != b}
+    return len(dentro) == 1 and len(fuera) == 1 and dentro == fuera
+
+
 def _series_plan(
     club_keys: list[str],
     groups: dict[str, str],
-    intra_cycles: int,
-    inter_cycles: int,
+    cycles_between: Callable[[str, str], int],
 ) -> list[tuple[str, str, str]]:
     """Series que hay que jugar: (local, visitante, tipo), en orden estable.
 
@@ -331,7 +362,7 @@ def _series_plan(
     for i, uno in enumerate(club_keys):
         for otro in club_keys[i + 1 :]:
             misma = groups[uno] == groups[otro]
-            vueltas = intra_cycles if misma else inter_cycles
+            vueltas = cycles_between(groups[uno], groups[otro])
             if not vueltas:
                 continue
             tipo = "intra" if misma else "inter"
@@ -390,8 +421,8 @@ def _build_grouped_schedule(
     rest_days_weekday: list[int],
     games_per_series: int,
     days_between_series: int,
-    intra_cycles: int,
-    inter_cycles: int,
+    cycles_between: Callable[[str, str], int],
+    target_is_derived: bool = False,
 ) -> ScheduleReport:
     if len(club_keys) < 2:
         raise ScheduleError(
@@ -400,18 +431,16 @@ def _build_grouped_schedule(
         )
     if len(set(club_keys)) != len(club_keys):
         raise ScheduleError("hay claves de club repetidas en la competición")
-    if intra_cycles == 0 and inter_cycles == 0:
-        raise ScheduleError(
-            "con cero vueltas dentro del grupo y cero contra los demás no hay "
-            "calendario que construir",
-            ["sube `structure.intra_cycles` o `structure.inter_cycles`"],
-        )
 
     por_grupo: dict[str, list[str]] = {}
     for key in club_keys:
         por_grupo.setdefault(groups[key], []).append(key)
-    solitarios = [etiqueta for etiqueta, miembros in por_grupo.items() if len(miembros) < 2]
-    if solitarios and intra_cycles:
+    solitarios = [
+        etiqueta
+        for etiqueta, miembros in por_grupo.items()
+        if len(miembros) < 2 and cycles_between(etiqueta, etiqueta)
+    ]
+    if solitarios:
         raise ScheduleError(
             f"el grupo «{solitarios[0]}» tiene un solo club: no puede jugar vueltas "
             "dentro de su grupo",
@@ -425,7 +454,7 @@ def _build_grouped_schedule(
             ["deja al menos un día hábil en `rest_days_weekday`"],
         )
 
-    plan = _series_plan(club_keys, groups, intra_cycles, inter_cycles)
+    plan = _series_plan(club_keys, groups, cycles_between)
     if not plan:
         raise ScheduleError(
             "las vueltas declaradas no producen ningún partido",
@@ -479,13 +508,12 @@ def _build_grouped_schedule(
             "en su división. La clasificación usa porcentaje de victorias, que no "
             "depende de los partidos jugados."
         )
-    if logrado != games_per_club_target:
+    if not target_is_derived and logrado != games_per_club_target:
         warnings.append(
             f"El objetivo de {games_per_club_target} partidos por club no lo fija el "
-            f"calendario cuando hay grupos: salen {logrado} de "
-            f"{intra_cycles} vuelta(s) dentro del grupo y {inter_cycles} contra los "
-            f"demás, con series de {games_per_series}. Ajusta las vueltas si quieres "
-            "otra cifra; el motor no cambia las reglas por su cuenta."
+            f"calendario cuando hay divisiones: salen {logrado} de las vueltas que cada "
+            f"una declara, con series de {games_per_series}. Ajusta las vueltas si "
+            "quieres otra cifra; el motor no cambia las reglas por su cuenta."
         )
 
     home_counts: dict[str, int] = dict.fromkeys(club_keys, 0)

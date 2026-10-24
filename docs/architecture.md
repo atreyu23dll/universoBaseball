@@ -198,18 +198,36 @@ con el intercambio— y en `club_organization_changes`, con la causa de cada
 cambio. La ficha del club lo muestra: lo real frente a lo previsto, asiento por
 asiento.
 
-## 6 bis. Divisiones dentro de una competición
+## 6 bis. Estructura: fases, divisiones y puertas
 
-[IMPLEMENTADO] El bloque `structure` del reglamento convierte una competición
-de tabla única en una de divisiones, grupos o conferencias. Lo que cambia:
+[IMPLEMENTADO] El bloque `structure` del reglamento describe la competición
+como una **secuencia de fases** (`simulation/competitions/structure.py`): una de
+tabla —con una o varias divisiones jugando a la vez— y, si la hay, una de cruces.
+
+Una división es un **subproceso de la liga** y no tiene por qué parecerse a sus
+hermanas: sus plazas, sus vueltas internas y sus vueltas contra las demás son
+suyas. Entre dos divisiones distintas se juegan las vueltas que pida la que más
+pida, porque no puede haber dos cifras para el mismo enfrentamiento.
+
+Lo que une una fase con la siguiente son las **puertas**: «los puestos 1 y 2 del
+Norte pasan directos» es una, y «el mejor de los que no pasaron entra por
+repechaje» es otra. Las plazas de la fase siguiente **son** la suma de los
+puestos de las puertas, y el reglamento rechaza cualquier cifra que no cuadre
+con esa suma.
+
+`qualifiers_from_groups()` es hoy una envoltura de `qualifiers_from_gates()`: la
+forma corta del reglamento se traduce a fases con `derive_stages()` y recorre el
+mismo camino, así que no hay dos implementaciones de «quién clasifica».
+
+Lo que cada pieza aporta:
 
 - **El reparto** (`simulation/competitions/groups.py`): por cercanía —los
   vecinos juntos, que es lo que abarata los viajes— o repartiendo los clubes con
-  más recursos en serpiente. El usuario puede además declarar los nombres y las
-  plazas de cada grupo. Cada club queda con el motivo de su división escrito en
-  la procedencia.
-- **El calendario** (`simulation/competitions/schedule.py`): `intra_cycles`
-  vueltas contra los de su grupo e `inter_cycles` contra los demás. Esa
+  más recursos en serpiente. Las plazas de cada división salen de la estructura,
+  y pueden ser distintas. Cada club queda con el motivo de su división escrito
+  en la procedencia.
+- **El calendario** (`simulation/competitions/schedule.py`): recibe
+  `cycles_between(a, b)` y pregunta, pareja por pareja, cuántas vueltas juegan. Esa
   asimetría es el sentido de una división, y tiene dos consecuencias que se
   declaran: los partidos por club dejan de ser el objetivo pedido y pasan a ser
   una consecuencia de las vueltas, y con grupos de tamaños distintos no todos

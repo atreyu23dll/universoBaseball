@@ -235,3 +235,126 @@ def test_g06_una_competicion_sin_grupos_sigue_igual(
     _advance_to_season_end(client, universe["id"], "g06")
     tabla = client.get(f"/api/v1/editions/{liga['edition_id']}/standings").json()["items"]
     assert all(fila["group"] == "" and fila["group_rank"] == 0 for fila in tabla)
+
+
+DEL_EDITOR = {
+    "name": "Liga del Editor",
+    "kind": "national_league",
+    "participation_modality": "semi_professional",
+    "scope": {"level": "national", "country_code": "MX", "place_keys": ["MX"]},
+    "season": {"games_per_club_target": 24, "offseason_days": 5, "roster_size": 20},
+    "standings": {"primary": "win_percentage", "tiebreakers": ["head_to_head"]},
+    "structure": {
+        "assignment": "geographic",
+        "stages": [
+            {
+                "key": "regular",
+                "label": "Temporada regular",
+                "format": "table",
+                "divisions": [
+                    {
+                        "key": "d1",
+                        "label": "Norte",
+                        "slots": 6,
+                        "intra_cycles": 2,
+                        "inter_cycles": 1,
+                    },
+                    {
+                        "key": "d2",
+                        "label": "Sur",
+                        "slots": 4,
+                        "intra_cycles": 3,
+                        "inter_cycles": 1,
+                    },
+                ],
+                "gates": [
+                    {"division": "d1", "positions": [1, 2], "route": "direct"},
+                    {"division": "d2", "positions": [1], "route": "direct"},
+                    {"division": None, "positions": [1], "route": "wildcard", "label": "Repechaje"},
+                ],
+            },
+            {
+                "key": "playoffs",
+                "label": "Postemporada",
+                "format": "bracket",
+                "series_lengths": [1, 1],
+            },
+        ],
+    },
+    "playoffs": {"slots": 4, "format": "best_of_series", "round_lengths": [1, 1]},
+    "generation": {"club_count": 10, "seed": 909},
+}
+
+
+def test_g07_una_estructura_asimetrica_del_editor_se_juega_entera(
+    client: TestClient, universe: dict, session
+) -> None:
+    """Divisiones que no se parecen, puertas por puesto y campeón al final.
+
+    Es el reglamento que produce el editor del paso 6: diez equipos repartidos
+    6-4, la división chica jugando más vueltas internas que la grande, dos
+    clasificados por una, uno por la otra y un repechaje de la tabla general.
+    """
+    liga = create_league(client, universe["id"], DEL_EDITOR)
+
+    detalle = client.get(f"/api/v1/editions/{liga['edition_id']}").json()
+    estructura = detalle["structure"]
+    assert estructura["declared"] is True
+    assert estructura["symmetric"] is False, "las divisiones no son iguales, y se dice"
+    por_etiqueta = {g["label"]: g for g in estructura["groups"]}
+    assert por_etiqueta["Norte"]["clubs"] == 6
+    assert por_etiqueta["Sur"]["clubs"] == 4
+    assert por_etiqueta["Norte"]["intra_cycles"] == 2
+    assert por_etiqueta["Sur"]["intra_cycles"] == 3
+    assert por_etiqueta["Norte"]["gates"][0]["positions"] == [1, 2]
+    assert estructura["overall_gates"][0]["route"] == "wildcard"
+
+    # El calendario respeta las vueltas de cada división.
+    grupo_de = {
+        entrada.club_id: entrada.group_key
+        for entrada in session.scalars(
+            select(m.EditionEntry).where(m.EditionEntry.edition_id == liga["edition_id"])
+        ).all()
+    }
+    rivales: dict[tuple[str, str], int] = {}
+    for partido in session.scalars(
+        select(m.Game).where(m.Game.edition_id == liga["edition_id"])
+    ).all():
+        pareja = tuple(sorted((partido.home_club_id, partido.away_club_id)))
+        rivales[pareja] = rivales.get(pareja, 0) + 1
+    for (uno, otro), partidos in rivales.items():
+        misma = grupo_de[uno] == grupo_de[otro]
+        esperado = (2 if grupo_de[uno] == "Norte" else 3) if misma else 1
+        assert partidos == esperado, f"{grupo_de[uno]} vs {grupo_de[otro]}: {partidos}"
+
+    _advance_to_season_end(client, universe["id"], "g07")
+
+    # Los equipos de la división chica juegan más partidos: es la consecuencia
+    # de una estructura asimétrica, no un error.
+    tabla = client.get(f"/api/v1/editions/{liga['edition_id']}/standings").json()["items"]
+    jugados_norte = {f["played"] for f in tabla if f["group"] == "Norte"}
+    jugados_sur = {f["played"] for f in tabla if f["group"] == "Sur"}
+    assert jugados_norte == {14} and jugados_sur == {15}
+
+    # Y las puertas repartieron las plazas como se marcaron.
+    noticias = client.get(f"/api/v1/universes/{universe['id']}/history?limit=500").json()["items"]
+    clasificacion = [
+        evento
+        for evento in noticias
+        if evento["event_type"] == "playoff_round_built" and evento["payload"].get("qualifiers")
+    ]
+    assert clasificacion
+    clasificados = clasificacion[-1]["payload"]["qualifiers"]
+    assert len(clasificados) == 4
+    rutas = [q["route"] for q in clasificados]
+    assert rutas.count("group_winner") == 3, "dos del Norte y uno del Sur"
+    assert rutas.count("wildcard") == 1, "y un repechaje de la tabla general"
+    motivos = {q["reason"] for q in clasificados}
+    assert "campeón de Norte" in motivos
+    assert "segundo de Norte" in motivos
+    assert "campeón de Sur" in motivos
+
+    edicion = session.get(m.CompetitionEdition, liga["edition_id"])
+    assert edicion is not None
+    assert edicion.status == "completed"
+    assert edicion.champion_club_id

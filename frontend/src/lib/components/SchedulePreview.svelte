@@ -16,23 +16,12 @@
   import BracketPreview from './BracketPreview.svelte';
 
   interface Props {
-    clubCount: number;
-    gamesTarget: number;
-    gamesPerSeries: number;
-    daysBetweenSeries: number;
-    restDays: number[];
-    groupCount: number;
-    groupAssignment: string;
-    intraCycles: number;
-    interCycles: number;
-    qualifiersPerGroup: number;
-    wildcards: number;
-    playoffFormat: string;
-    playoffSlots: number;
-    roundLengths: number[];
-    startDate?: string;
+    /** Lo que se manda a `/schedule/preview`. Lo arma quien usa el componente. */
+    payload: Record<string, unknown>;
     /** `bracket` dibuja solo la postemporada, para el paso del reglamento. */
     view?: 'full' | 'bracket';
+    /** Se llama con cada respuesta, para que el editor marque los desajustes. */
+    onresult?: (preview: SchedulePreview | null) => void;
   }
 
   const props: Props = $props();
@@ -42,38 +31,7 @@
   let failure = $state<string | null>(null);
   let pending: ReturnType<typeof setTimeout> | null = null;
 
-  /** La petición que define el estado actual, serializada para comparar. */
-  const intent = $derived(
-    JSON.stringify({
-      club_count: props.clubCount,
-      season: {
-        games_per_club_target: props.gamesTarget,
-        games_per_series: props.gamesPerSeries,
-        days_between_series: props.daysBetweenSeries,
-        rest_days_weekday: props.restDays,
-        start_date: props.startDate ?? null
-      },
-      structure:
-        props.groupCount > 1
-          ? {
-              count: props.groupCount,
-              assignment: props.groupAssignment,
-              intra_cycles: props.intraCycles,
-              inter_cycles: props.interCycles,
-              qualifiers_per_group: props.qualifiersPerGroup,
-              wildcards: props.wildcards
-            }
-          : { count: 1 },
-      playoffs:
-        props.playoffFormat === 'none'
-          ? { slots: 0, format: 'none', round_lengths: [] }
-          : {
-              slots: props.playoffSlots,
-              format: props.playoffFormat,
-              round_lengths: props.roundLengths
-            }
-    })
-  );
+  const intent = $derived(JSON.stringify(props.payload));
 
   // Se recalcula al soltar el control, no en cada tecla: el motor construye el
   // calendario completo en cada llamada.
@@ -85,9 +43,11 @@
       failure = null;
       try {
         preview = await api.post<SchedulePreview>('/schedule/preview', JSON.parse(body));
+        props.onresult?.(preview);
       } catch (err) {
         failure = err instanceof Error ? err.message : 'no se pudo calcular el calendario';
         preview = null;
+        props.onresult?.(null);
       } finally {
         loading = false;
       }
@@ -101,7 +61,7 @@
 
   /** Clubes agrupados por división, para pintar cada tabla y cada barra. */
   const porGrupo = $derived.by(() => {
-    if (!preview?.ok) return [];
+    if (!preview?.ok || !preview.structure) return [];
     const grupos = preview.structure.groups.map((g) => g.label);
     const lista = grupos.length ? grupos : [''];
     return lista.map((label) => ({
@@ -150,17 +110,24 @@
     <div class="notice error">{failure}</div>
   {:else if preview && !preview.ok}
     <div class="notice error">
-      <strong>El calendario no se puede construir así.</strong>
+      <strong>Todavía no se puede construir el calendario.</strong>
       <div>{preview.error}</div>
       {#if preview.suggestions?.length}
         <ul class="small">
           {#each preview.suggestions as suggestion}<li>{suggestion}</li>{/each}
         </ul>
       {/if}
+      {#if preview.issues?.length}
+        <ul class="small">
+          {#each preview.issues as issue}<li>{issue}</li>{/each}
+        </ul>
+      {/if}
     </div>
-  {:else if preview?.ok}
-    <!-- Resumen: las cifras que antes había que deducir -->
-    <div class="grid four">
+  {:else if preview?.ok && preview.structure}
+    {#key preview}
+    <div class="live-result">
+      <!-- Resumen: las cifras que antes había que deducir -->
+      <div class="grid four">
       <div class="stat">
         <div class="value">{preview.totals.games}</div>
         <div class="label">partidos en total</div>
@@ -171,9 +138,6 @@
         </div>
         <div class="label">
           por club
-          {#if preview.totals.adjusted}
-            · pediste {preview.totals.requested_games_per_club}
-          {/if}
         </div>
       </div>
       <div class="stat">
@@ -191,25 +155,12 @@
       </div>
     </div>
 
-    {#if preview.structure.undersized.length}
-      <div class="notice" style="margin-top:10px">
-        <strong>
-          {preview.structure.undersized.length === 1
-            ? `La división «${preview.structure.undersized[0]}» se queda con menos de dos clubes.`
-            : `${preview.structure.undersized.length} divisiones se quedan con menos de dos clubes.`}
-        </strong>
-        <div class="small">
-          Con {props.clubCount} clubes y {preview.structure.count} divisiones no salen las
-          cuentas: sube el número de clubes en el paso 5 o baja el de divisiones.
-        </div>
-      </div>
-    {/if}
-
     {#if preview.structure.has_groups}
       <div class="row divisiones-resumen">
         {#each preview.structure.groups as grupo (grupo.label)}
           <span class="tag" class:warn={grupo.clubs < 2}>
-            {grupo.label}: {grupo.clubs} club{grupo.clubs === 1 ? '' : 'es'}
+            {grupo.label}: {grupo.clubs} club{grupo.clubs === 1 ? '' : 'es'} ·
+            {grupo.intra_cycles}v dentro · {grupo.inter_cycles}v fuera
           </span>
         {/each}
       </div>
@@ -218,9 +169,12 @@
         <strong>{preview.totals.intra_games}</strong> partidos dentro de la división
         ·
         <span class="muestra inter"></span>
-        <strong>{preview.totals.inter_games}</strong> contra las otras. Cada club juega
-        {preview.structure.intra_cycles} vuelta(s) con cada rival de su división y
-        {preview.structure.inter_cycles} con cada uno de fuera.
+        <strong>{preview.totals.inter_games}</strong> contra las otras.
+        {#if !preview.structure.symmetric}
+          Las divisiones <strong>no son iguales</strong>: cada una juega las vueltas
+          que declara, y por eso no todos los equipos juegan el mismo número de
+          partidos.
+        {/if}
       </p>
     {/if}
 
@@ -318,11 +272,13 @@
         </div>
       {/each}
     </div>
-    <p class="small muted" style="margin-top:6px">
-      Cada casilla es un día con el número de partidos. Los días marcados son
-      los de descanso semanal; los vacíos sin marcar son el hueco que dejan los
-      días entre series.
-    </p>
+      <p class="small muted" style="margin-top:6px">
+        Cada casilla es un día con el número de partidos. Los días marcados son
+        los de descanso semanal; los vacíos sin marcar son el hueco que dejan los
+        días entre series.
+      </p>
+    </div>
+    {/key}
   {/if}
 </div>
 {#if (props.view ?? 'full') === 'full' && preview?.ok}
@@ -334,6 +290,9 @@
   .preview h4 {
     margin: 18px 0 8px;
     font-size: 0.95rem;
+  }
+  .live-result {
+    animation: preview-arrives 220ms ease-out both;
   }
   .muestra {
     display: inline-block;
@@ -372,6 +331,10 @@
   }
   .trozo.intra {
     background: var(--accent);
+    transition: width 260ms ease;
+  }
+  .trozo.inter {
+    transition: width 260ms ease;
   }
   .trozo.inter {
     background: var(--accent-2);
@@ -426,5 +389,13 @@
   }
   .dia.vacio {
     background: var(--panel);
+  }
+  @keyframes preview-arrives {
+    from { opacity: 0.35; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .live-result { animation: none; }
+    .trozo.intra, .trozo.inter { transition: none; }
   }
 </style>

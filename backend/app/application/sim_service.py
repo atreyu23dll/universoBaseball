@@ -644,30 +644,65 @@ def _simulate_and_store(session: Session, universe: m.Universe, game: m.Game) ->
     )
 
 
-def recompute_standings(session: Session, edition_id: str) -> list[m.Standing]:
-    """Recalcula la tabla desde los partidos terminados de temporada regular."""
+def recompute_standings(
+    session: Session, edition_id: str, stage_key: str | None = None
+) -> list[m.Standing]:
+    """Recalcula la tabla de una fase desde sus partidos terminados.
+
+    Cada fase tiene **su** tabla: una liguilla entre los clasificados empieza de
+    cero y no arrastra los partidos de la fase de grupos. Sin `stage_key` se
+    recalcula la fase en curso de la edición, que es lo que quiere el avance
+    diario.
+    """
     edition = session.get(m.CompetitionEdition, edition_id)
     if edition is None:
         raise NotFoundError(f"edición {edition_id} inexistente")
     ruleset = _load_ruleset(session, edition)
+    fase = stage_key or _current_stage_key(edition)
 
     # El orden importa y no puede venir de la base: con empates que los
     # desempates declarados no resuelven, la clasificación conserva el orden de
     # entrada, así que una consulta sin `ORDER BY` daría tablas distintas en
     # PostgreSQL y en SQLite —y entre dos días del mismo universo.
-    entries = session.scalars(
+    todas = session.scalars(
         select(m.EditionEntry)
         .where(m.EditionEntry.edition_id == edition_id)
         .order_by(m.EditionEntry.club_id, m.EditionEntry.id)
     ).all()
-    entry_by_club = {entry.club_id: entry for entry in entries}
     games = session.scalars(
         select(m.Game).where(
             m.Game.edition_id == edition_id,
-            m.Game.stage == "regular_season",
+            m.Game.stage == fase,
             m.Game.state == "final",
         )
     ).all()
+    # Los participantes de la fase son los que tienen partidos en ella, o los
+    # que ya tienen fila: una liguilla no lista a los que se quedaron fuera.
+    con_filas = {
+        row.entry_id
+        for row in session.scalars(
+            select(m.Standing).where(
+                m.Standing.edition_id == edition_id, m.Standing.stage_key == fase
+            )
+        ).all()
+    }
+    programados = session.scalars(
+        select(m.Game).where(m.Game.edition_id == edition_id, m.Game.stage == fase)
+    ).all()
+    con_partidos = {juego.home_club_id for juego in programados} | {
+        juego.away_club_id for juego in programados
+    }
+    entries = [
+        entrada
+        for entrada in todas
+        if entrada.id in con_filas or entrada.club_id in con_partidos
+    ] or list(todas)
+    entry_by_club = {entry.club_id: entry for entry in entries}
+    games = [
+        juego
+        for juego in games
+        if juego.home_club_id in entry_by_club and juego.away_club_id in entry_by_club
+    ]
     outcomes = [
         GameOutcome(
             home_key=game.home_club_id,
@@ -692,7 +727,9 @@ def recompute_standings(session: Session, edition_id: str) -> list[m.Standing]:
     existing = {
         row.entry_id: row
         for row in session.scalars(
-            select(m.Standing).where(m.Standing.edition_id == edition_id)
+            select(m.Standing).where(
+                m.Standing.edition_id == edition_id, m.Standing.stage_key == fase
+            )
         ).all()
     }
     out: list[m.Standing] = []
@@ -701,7 +738,10 @@ def recompute_standings(session: Session, edition_id: str) -> list[m.Standing]:
         row = existing.get(entry.id)
         if row is None:
             row = m.Standing(
-                universe_id=edition.universe_id, edition_id=edition_id, entry_id=entry.id
+                universe_id=edition.universe_id,
+                edition_id=edition_id,
+                entry_id=entry.id,
+                stage_key=fase,
             )
             session.add(row)
         row.wins = computed.wins

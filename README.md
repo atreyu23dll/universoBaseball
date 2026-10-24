@@ -132,8 +132,11 @@ clubes. Y mandar el campeón a una copa no le cuesta la independencia a nadie.
 ## Divisiones, si la competición las quiere
 
 Una competición puede jugarse en una tabla única o repartida en divisiones,
-grupos o conferencias. Se declara en el paso 6 del asistente: cuántas hay, con
-qué criterio se reparten y cuántas vueltas se juegan dentro y fuera.
+grupos o conferencias. **El paso 6 del asistente es un editor**: arrancas con
+una tabla única de tus equipos, añades divisiones y arrastras plazas de una a
+otra; cada división tiene sus propias vueltas, y pulsando la insignia de un
+puesto decides si clasifica directo o por repechaje. Debajo se dibuja en vivo lo
+que esa estructura produce.
 
 - **Quién va a cada división lo decide el motor**, no el formulario: por
   cercanía —los vecinos juntos, que es lo que abarata los viajes— o repartiendo
@@ -150,6 +153,10 @@ qué criterio se reparten y cuántas vueltas se juegan dentro y fuera.
 - **A la postemporada entran los campeones de división y los repechajes.** Con
   divisiones, las plazas las fija la estructura: un grupo fuerte puede meter a
   tres clubes y uno flojo solo a su campeón.
+- **Las divisiones no tienen que parecerse entre sí.** Seis equipos jugando dos
+  vueltas internas junto a cuatro jugando tres es una estructura legítima: cada
+  división es un subproceso de la liga. La consecuencia —que no todos jueguen el
+  mismo número de partidos— se dice, no se disimula.
 - **El reparto se rehace cada temporada.** Un club que asciende entra en la
   división que le toca por geografía, sin que nadie lo coloque a mano.
 - **Las plazas de playoff no tienen que ser potencia de dos.** Seis
@@ -365,7 +372,8 @@ incluidas las que no se han corregido.
   [gazetteer mundial](docs/adr/0006-gazetteer-mundial-geonames.md) ·
   [liquidación de temporada y vida institucional](docs/adr/0007-liquidacion-de-temporada-y-vida-institucional.md) ·
   [divisiones dentro de una competición](docs/adr/0008-divisiones-dentro-de-una-competicion.md) ·
-  [postemporada con pase directo y asistente visual](docs/adr/0009-postemporada-con-pase-directo-y-asistente-visual.md)
+  [postemporada con pase directo y asistente visual](docs/adr/0009-postemporada-con-pase-directo-y-asistente-visual.md) ·
+  [estructura por fases y editor gráfico](docs/adr/0010-estructura-por-fases-y-editor-grafico.md)
 
 ## Licencias y atribución
 

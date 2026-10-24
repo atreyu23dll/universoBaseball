@@ -29,6 +29,7 @@ from simulation.competitions.ruleset import (
     StructureRules,
 )
 from simulation.competitions.schedule import build_schedule
+from simulation.competitions.structure import GateRoute, validate_sequence
 from simulation.core.errors import RuleValidationError, ScheduleError
 
 #: Tope de clubes de la previsualización. Es el mismo del reglamento.
@@ -36,15 +37,32 @@ MAX_CLUBS = 64
 
 
 def preview_schedule(payload: dict) -> dict:
-    """Calendario, cruces y cuadro que saldrían de estos parámetros."""
+    """Calendario, cruces y cuadro que saldrían de estos parámetros.
+
+    Acepta las dos formas de declarar la estructura: la corta (`count`,
+    `intra_cycles`…) y la de fases con divisiones asimétricas y puertas, que es
+    la que escribe el editor. Lo que se dibuja sale del mismo motor en los dos
+    casos.
+    """
+    club_count = int(payload.get("club_count", 0) or 0)
     try:
-        club_count = int(payload.get("club_count", 0))
         structure = StructureRules.model_validate(payload.get("structure") or {})
         playoffs = PlayoffRules.model_validate(
             payload.get("playoffs") or {"slots": 0, "format": "none", "round_lengths": []}
         )
     except (ValueError, TypeError) as exc:
-        raise ValidationFailure(f"los parámetros del calendario no son válidos: {exc}") from exc
+        # Mientras alguien arrastra divisiones, el borrador pasa por estados que
+        # el reglamento no aceptaría. Eso no es un error de la petición: es lo
+        # que el editor tiene que **mostrar**, así que se devuelve como problema
+        # y no como 422 con la vista en blanco.
+        return {
+            "ok": False,
+            "error": "la estructura todavía no es válida",
+            "suggestions": [],
+            "issues": _pydantic_issues(exc),
+            "structure": None,
+            "playoffs": None,
+        }
 
     if not 2 <= club_count <= MAX_CLUBS:
         raise ValidationFailure(
@@ -60,6 +78,9 @@ def preview_schedule(payload: dict) -> dict:
 
     etiquetas, grupo_de = _fake_groups(club_count, structure)
     club_keys = [f"c{i + 1:02d}" for i in range(club_count)]
+    # Los desajustes de la estructura se cuentan todos, no solo el primero: el
+    # editor los marca mientras el usuario arrastra.
+    problemas = validate_sequence(structure.stages, club_count) if structure.declared else []
 
     try:
         informe = build_schedule(
@@ -70,14 +91,17 @@ def preview_schedule(payload: dict) -> dict:
             games_per_series=games_per_series,
             days_between_series=days_between,
             groups=grupo_de if structure.has_groups else None,
-            intra_cycles=structure.intra_cycles,
-            inter_cycles=structure.inter_cycles,
+            cycles_between=structure.cycles_between_labels(club_count, playoffs),
+            # El editor por fases deriva esta cifra de sus vueltas; no es un
+            # objetivo independiente contra el que haya que advertir.
+            target_is_derived=structure.declared,
         )
     except ScheduleError as exc:
         return {
             "ok": False,
             "error": exc.message,
             "suggestions": list(exc.suggestions),
+            "issues": problemas,
             "structure": _structure_view(structure, etiquetas, grupo_de, club_count),
             "playoffs": _bracket_view(playoffs, structure, etiquetas),
         }
@@ -137,9 +161,23 @@ def preview_schedule(payload: dict) -> dict:
         # los días de descanso y los días entre series.
         "first_dates": _calendar_strip(informe, por_fecha, rest_days),
         "warnings": list(informe.warnings),
+        # Desajustes de la estructura declarada: faltan plazas, una puerta saca
+        # a un puesto que no existe, una fase no recibe a nadie…
+        "issues": problemas,
         "structure": _structure_view(structure, etiquetas, grupo_de, club_count),
         "playoffs": _bracket_view(playoffs, structure, etiquetas),
     }
+
+
+def _pydantic_issues(exc: Exception) -> list[str]:
+    """Los mensajes de validación, uno por línea y sin el ruido del enlace."""
+    errores = getattr(exc, "errors", None)
+    if callable(errores):
+        return [
+            f"{'.'.join(str(p) for p in e.get('loc', ())) or 'estructura'}: {e.get('msg', '')}"
+            for e in errores()
+        ]
+    return [str(exc).split("\nFor further information")[0]]
 
 
 def _parse_date(value: object) -> date:
@@ -222,20 +260,83 @@ def _structure_view(
     cuenta: dict[str, int] = dict.fromkeys(etiquetas, 0)
     for etiqueta in grupo_de.values():
         cuenta[etiqueta] = cuenta.get(etiqueta, 0) + 1
+    fase = structure.table_stage
     return {
         "has_groups": structure.has_groups,
-        "count": structure.count,
+        "declared": structure.declared,
+        "count": len(etiquetas),
         "assignment": str(structure.assignment),
         "intra_cycles": structure.intra_cycles,
         "inter_cycles": structure.inter_cycles,
         "qualifiers_per_group": structure.qualifiers_per_group,
         "wildcards": structure.wildcards,
         "playoff_slots": structure.playoff_slots if structure.has_groups else None,
-        "groups": [{"label": etiqueta, "clubs": cuenta.get(etiqueta, 0)} for etiqueta in etiquetas],
+        "symmetric": fase.is_symmetric if fase else True,
+        # Cada división con lo suyo: no tienen por qué parecerse.
+        "groups": [
+            {
+                "label": etiqueta,
+                "clubs": cuenta.get(etiqueta, 0),
+                "key": _division_key(fase, etiqueta),
+                "intra_cycles": _division_attr(fase, etiqueta, "intra_cycles", structure),
+                "inter_cycles": _division_attr(fase, etiqueta, "inter_cycles", structure),
+                "gates": _gates_of(fase, etiqueta),
+            }
+            for etiqueta in etiquetas
+        ],
+        "overall_gates": _gates_of(fase, None),
         "undersized": [
             etiqueta for etiqueta, cuantos in cuenta.items() if structure.has_groups and cuantos < 2
         ],
     }
+
+
+def _division_key(fase, etiqueta: str) -> str:
+    if fase is None:
+        return etiqueta
+    division = next((d for d in fase.divisions if d.label == etiqueta), None)
+    return division.key if division else etiqueta
+
+
+def _division_attr(fase, etiqueta: str, campo: str, structure: StructureRules) -> int:
+    if fase is None:
+        return getattr(structure, campo)
+    division = next((d for d in fase.divisions if d.label == etiqueta), None)
+    return getattr(division, campo) if division else getattr(structure, campo)
+
+
+def _gates_of(fase, etiqueta: str | None) -> list[dict]:
+    """Puertas de una división, o las de la tabla general si `etiqueta` es None."""
+    if fase is None:
+        return []
+    clave = _division_key(fase, etiqueta) if etiqueta is not None else None
+    salida = []
+    for gate in fase.gates:
+        if gate.division != clave:
+            continue
+        salida.append(
+            {
+                "positions": list(gate.positions),
+                "route": str(gate.route),
+                "label": gate.describe(etiqueta),
+                "size": gate.size,
+            }
+        )
+    return salida
+
+
+def _gate_seed_label(gate, puesto: int, division: str | None) -> str:
+    """Cómo se llama una plaza del cuadro antes de que nadie la ocupe."""
+    orden = {1: "1.º", 2: "2.º", 3: "3.º", 4: "4.º"}.get(puesto, f"{puesto}.º")
+    if gate.route is GateRoute.WILDCARD:
+        return (
+            f"{gate.label or 'Repechaje'} {puesto}"
+            if len(gate.positions) > 1
+            else (gate.label or "Repechaje")
+        )
+    if division is None:
+        return f"{orden} de la tabla"
+    return f"{orden} de {division}"
 
 
 def _bracket_view(playoffs: PlayoffRules, structure: StructureRules, etiquetas: list[str]) -> dict:
@@ -255,35 +356,25 @@ def _bracket_view(playoffs: PlayoffRules, structure: StructureRules, etiquetas: 
             "rounds": [],
         }
 
+    # Los clasificados salen de las **puertas** de la fase de tabla, sea la
+    # estructura declarada por el usuario o derivada de la forma corta. Así no
+    # hay una segunda idea de «quién clasifica» que pueda discrepar del motor.
     clasificados: list[dict] = []
-    if structure.has_groups:
-        for puesto in range(structure.qualifiers_per_group):
-            for etiqueta in etiquetas:
-                clasificados.append(
-                    {
-                        "seed": len(clasificados) + 1,
-                        "route": "group_winner",
-                        "label": f"{puesto + 1}.º de {etiqueta}",
-                        "group": etiqueta,
-                    }
-                )
-        for numero in range(structure.wildcards):
+    fase = structure.effective_stages(max(2, sum(1 for _ in etiquetas) * 2), playoffs)[0]
+    division_label = {d.key: d.label for d in fase.divisions}
+    for gate in fase.gates:
+        etiqueta_division = division_label.get(gate.division) if gate.division else None
+        for puesto in gate.positions:
             clasificados.append(
                 {
                     "seed": len(clasificados) + 1,
-                    "route": "wildcard",
-                    "label": f"Repechaje {numero + 1}",
-                    "group": "",
-                }
-            )
-    else:
-        for puesto in range(playoffs.slots):
-            clasificados.append(
-                {
-                    "seed": puesto + 1,
-                    "route": "overall",
-                    "label": f"{puesto + 1}.º de la tabla",
-                    "group": "",
+                    "route": (
+                        "wildcard"
+                        if gate.route is GateRoute.WILDCARD
+                        else ("group_winner" if gate.division else "overall")
+                    ),
+                    "label": _gate_seed_label(gate, puesto, etiqueta_division),
+                    "group": etiqueta_division or "",
                 }
             )
     clasificados = clasificados[: playoffs.slots]

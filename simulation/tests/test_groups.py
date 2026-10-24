@@ -232,13 +232,15 @@ def test_la_tabla_de_grupo_es_la_general_mirada_por_divisiones() -> None:
 
 
 def test_a_la_postemporada_entran_campeones_de_grupo_y_repechajes() -> None:
+    # Las etiquetas son las que la estructura declara: es lo que guarda la
+    # inscripción de cada club, y lo que las puertas referencian.
     ranked = [
-        ("a1", "Norte"),
-        ("a2", "Norte"),
-        ("a3", "Norte"),
-        ("b1", "Sur"),
-        ("b2", "Sur"),
-        ("b3", "Sur"),
+        ("a1", "Grupo 1"),
+        ("a2", "Grupo 1"),
+        ("a3", "Grupo 1"),
+        ("b1", "Grupo 2"),
+        ("b2", "Grupo 2"),
+        ("b3", "Grupo 2"),
     ]
     estructura = StructureRules(
         count=2, intra_cycles=4, inter_cycles=2, qualifiers_per_group=1, wildcards=2

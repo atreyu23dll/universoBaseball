@@ -119,6 +119,24 @@ export interface StandingRow {
   group_rank: number;
 }
 
+/** Una división del editor: su grupo de plazas y sus propias vueltas. */
+export interface EditorDivision {
+  key: string;
+  label: string;
+  slots: number;
+  intra_cycles: number;
+  inter_cycles: number;
+}
+
+/** Una puerta de clasificación: qué puestos salen y por qué ruta. */
+export interface EditorGate {
+  /** Clave de la división, o `null` para la tabla general (repechaje). */
+  division: string | null;
+  positions: number[];
+  route: 'direct' | 'wildcard';
+  label?: string;
+}
+
 /** Clasificado del cuadro previsto: una posición, no un club todavía. */
 export interface BracketQualifier {
   seed: number;
@@ -179,8 +197,13 @@ export interface SchedulePreview {
   matchups: Record<string, Record<string, number>>;
   first_dates: Array<{ date: string; weekday: number; games: number; rest_day: boolean }>;
   warnings: string[];
-  structure: {
+  /** Desajustes de la estructura declarada, todos a la vez. */
+  issues?: string[];
+  /** `null` cuando el borrador todavía no valida como reglamento. */
+  structure: null | {
     has_groups: boolean;
+    /** `true` si la estructura se declaró por fases desde el editor. */
+    declared: boolean;
     count: number;
     assignment: string;
     intra_cycles: number;
@@ -188,11 +211,21 @@ export interface SchedulePreview {
     qualifiers_per_group: number;
     wildcards: number;
     playoff_slots: number | null;
-    groups: Array<{ label: string; clubs: number }>;
+    /** `false` si alguna división tiene otro tamaño u otras vueltas. */
+    symmetric: boolean;
+    groups: Array<{
+      label: string;
+      clubs: number;
+      key: string;
+      intra_cycles: number;
+      inter_cycles: number;
+      gates: Array<{ positions: number[]; route: string; label: string; size: number }>;
+    }>;
+    overall_gates: Array<{ positions: number[]; route: string; label: string; size: number }>;
     /** Divisiones que se quedarían con menos de dos clubes. */
     undersized: string[];
   };
-  playoffs: BracketPreview;
+  playoffs: BracketPreview | null;
 }
 
 /** Estructura de grupos de una edición, `null` si es de tabla única. */

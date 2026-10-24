@@ -300,7 +300,21 @@ Implementado:
       primeras semanas día a día y el cuadro de postemporada con la ruta de cada
       clasificado y los pases directos.
 
+- [x] **Estructura por fases con divisiones asimétricas y editor gráfico.** Una
+      competición es una secuencia de fases; una fase de tabla tiene divisiones
+      que **no tienen por qué parecerse** —otras plazas, otras vueltas, otros
+      clasificados— y las **puertas** (`Gate`) dicen qué puestos pasan y por qué
+      ruta. El paso 6 del asistente es un editor donde las plazas se arrastran
+      entre divisiones y la insignia de cada puesto cicla entre no clasifica,
+      pase directo y repechaje. Ver
+      `docs/adr/0010-estructura-por-fases-y-editor-grafico.md`.
+
 Falta para cerrar la etapa:
+
+- [ ] **Una segunda fase de tabla** (liguilla entre los clasificados antes de
+      los cruces). Cabe en el modelo y el reglamento la rechaza con un mensaje
+      explícito en vez de aceptarla sin jugarla: hace falta una clasificación
+      **por fase**, no por edición.
 - [ ] Promoción por repechaje interregional entre ramas (hoy el reparto de
       plazas es por cuota y territorio, sin eliminatoria entre alimentadoras).
 

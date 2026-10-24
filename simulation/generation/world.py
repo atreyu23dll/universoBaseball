@@ -171,8 +171,9 @@ def generate_competition_world(
             games_per_series=ruleset.season.games_per_series,
             days_between_series=ruleset.season.days_between_series,
             groups=group_of or None,
-            intra_cycles=ruleset.structure.intra_cycles,
-            inter_cycles=ruleset.structure.inter_cycles,
+            cycles_between=ruleset.structure.cycles_between_labels(
+                ruleset.generation.club_count, ruleset.playoffs
+            ),
         )
     else:
         schedule = ScheduleReport(
