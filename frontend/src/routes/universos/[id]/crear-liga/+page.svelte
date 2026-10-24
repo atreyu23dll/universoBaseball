@@ -17,6 +17,7 @@
     CONFIDENCE_LABEL,
     DRAFT_STATE_LABEL,
     GEO_CONFIDENCE_LABEL,
+    GROUP_ASSIGNMENT_LABEL,
     ISSUE_CODE_LABEL,
     GEO_KIND_LABEL,
     GOVERNANCE_LABEL,
@@ -27,8 +28,10 @@
     INSTITUTION_LABEL,
     VENUE_LABEL
   } from '$lib/format';
+  import BracketPreview from '$lib/components/BracketPreview.svelte';
   import ConfidenceTag from '$lib/components/ConfidenceTag.svelte';
   import ErrorNotice from '$lib/components/ErrorNotice.svelte';
+  import SchedulePreview from '$lib/components/SchedulePreview.svelte';
 
   /** De la lista de competiciones aquí solo hacen falta el id y el nombre. */
   type CompetitionOption = { id: string; name: string };
@@ -113,6 +116,17 @@
   let foreignLimit = $state(5);
 
   // --- Paso 6: calendario y estructura ---
+  //
+  // Los grupos no son una pregunta sobre los clubes —el motor decide quién va a
+  // cada división— sino sobre la competición: cuántas divisiones hay, con qué
+  // criterio se reparten, cuántas veces se juega dentro y fuera, y cómo se
+  // clasifica.
+  let groupCount = $state(1);
+  let groupAssignment = $state('geographic');
+  let intraCycles = $state(2);
+  let interCycles = $state(1);
+  let qualifiersPerGroup = $state(1);
+  let wildcards = $state(0);
   let gamesTarget = $state(44);
   let gamesPerSeries = $state(1);
   let daysBetweenSeries = $state(0);
@@ -215,7 +229,22 @@
   function dropEntity(id: string) {
     chosen = chosen.filter((e) => e.id !== id);
   }
-  const expectedRounds = $derived(playoffSlots >= 2 ? Math.log2(playoffSlots) : 0);
+  /** Plazas de playoff que rigen: con divisiones las fija la estructura. */
+  const effectivePlayoffSlots = $derived(
+    groupCount > 1 ? groupCount * qualifiersPerGroup + wildcards : playoffSlots
+  );
+  /** Longitudes de ronda ya parseadas: las usan el reglamento y la vista. */
+  const parsedRoundLengths = $derived(
+    roundLengths
+      .split(',')
+      .map((value) => Number(value.trim()))
+      .filter((value) => Number.isFinite(value) && value > 0)
+  );
+  /** Rondas que pide el cuadro: con plazas que no son potencia de dos, las
+   * mejores siembras esperan, pero las rondas son las del cuadro completo. */
+  const expectedRounds = $derived(
+    effectivePlayoffSlots >= 2 ? Math.ceil(Math.log2(effectivePlayoffSlots)) : 0
+  );
   const partner = $derived(competitions.find((c) => c.id === linkPartnerId) ?? null);
   const isHierarchy = $derived(
     relationshipMode === 'dependent' && linkRelation === 'promotion_relegation'
@@ -254,10 +283,7 @@
 
   /** Reglamento de la competición. Aquí no hay un solo campo sobre los clubes. */
   function buildRuleset() {
-    const lengths = roundLengths
-      .split(',')
-      .map((value) => Number(value.trim()))
-      .filter((value) => Number.isFinite(value) && value > 0);
+    const lengths = parsedRoundLengths;
     return {
       name,
       kind,
@@ -307,11 +333,29 @@
         extra_innings: extraInnings,
         ...(mercyEnabled ? { mercy_rule_run_diff: mercyRunDiff } : {})
       },
+      structure:
+        groupCount > 1
+          ? {
+              count: groupCount,
+              assignment: groupAssignment,
+              intra_cycles: intraCycles,
+              inter_cycles: interCycles,
+              qualifiers_per_group: qualifiersPerGroup,
+              wildcards
+            }
+          : { count: 1 },
       standings: { primary: standingsPrimary, tiebreakers },
       playoffs:
         playoffFormat === 'none'
           ? { slots: 0, format: 'none', round_lengths: [] }
-          : { slots: playoffSlots, format: playoffFormat, round_lengths: lengths },
+          : {
+              // Con divisiones las plazas las fija la estructura: dos números
+              // que pudieran contradecirse no existen, y el reglamento rechaza
+              // el que no cuadre.
+              slots: effectivePlayoffSlots,
+              format: playoffFormat,
+              round_lengths: lengths
+            },
       generation: {
         club_count: clubCount,
         talent_pool: talentPool,
@@ -867,48 +911,152 @@
 {:else if step === 6}
   <div class="panel">
     <h2>Paso 6 — Calendario y estructura</h2>
-    <div class="grid two">
+    <p class="small muted" style="margin-top:0">
+      Estos controles se multiplican entre sí, así que el panel de la derecha
+      dibuja lo que producen mientras los mueves: partidos, jornadas, días de
+      temporada, cruces y cuadro de postemporada. Lo calcula el mismo motor que
+      construirá el calendario, no es una maqueta.
+    </p>
+
+    <div class="grid sidebar">
       <div>
-        <div class="field">
-          <label for="partidos">Partidos por club (objetivo)</label>
-          <input id="partidos" type="number" min="2" max="250" bind:value={gamesTarget} />
-          <p class="small muted" style="margin:6px 0 0">
-            Si el objetivo no cuadra en jornadas completas, la previsualización lo
-            avisa y propone los valores exactos. No se ajusta en silencio.
+        <fieldset>
+          <legend>Divisiones</legend>
+          <p class="small muted" style="margin-top:0">
+            Una tabla única o varias divisiones. Quién va a cada una lo decide el
+            generador por cercanía; aquí se dice cuántas hay.
           </p>
-        </div>
-        <div class="field">
-          <label for="serie">Partidos por serie</label>
-          <input id="serie" type="number" min="1" max="7" bind:value={gamesPerSeries} />
-        </div>
-        <div class="field">
-          <label for="entre-series">Días de descanso entre series</label>
-          <input id="entre-series" type="number" min="0" max="14" bind:value={daysBetweenSeries} />
-        </div>
-      </div>
-      <div>
-        <div class="field">
-          <label for="pretemporada">Días entre temporadas</label>
-          <input id="pretemporada" type="number" min="1" max="180" bind:value={offseasonDays} />
-          <p class="small muted" style="margin:6px 0 0">
-            El hueco en el que se resuelven ascensos y descensos antes de que la
-            temporada siguiente tenga calendario.
-          </p>
-        </div>
-        <div class="field" role="group" aria-labelledby="descanso-leyenda">
-          <span class="small muted" id="descanso-leyenda">Días de descanso semanal</span>
-          <div class="row">
-            {#each weekdays as day, index}
-              <button
-                type="button"
-                class={restDays.includes(index) ? 'button' : 'button ghost'}
-                onclick={() => toggleRestDay(index)}
-              >{day}</button>
-            {/each}
+          <div class="field">
+            <span class="small muted" id="grupos-leyenda">Número de divisiones</span>
+            <div class="row" role="group" aria-labelledby="grupos-leyenda">
+              {#each [1, 2, 3, 4, 6, 8] as cuantos}
+                <button
+                  type="button"
+                  class={groupCount === cuantos ? 'button' : 'button ghost'}
+                  onclick={() => (groupCount = cuantos)}
+                >{cuantos === 1 ? 'Ninguna' : cuantos}</button>
+              {/each}
+            </div>
           </div>
-        </div>
+          {#if groupCount > 1}
+            <div class="field">
+              <label for="criterio">Criterio de reparto</label>
+              <select id="criterio" bind:value={groupAssignment}>
+                <option value="geographic">Por cercanía geográfica</option>
+                <option value="balanced">Repartiendo los clubes con más recursos</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="vueltas-dentro">
+                Vueltas contra cada rival de su división: <strong>{intraCycles}</strong>
+              </label>
+              <input id="vueltas-dentro" type="range" min="0" max="8" bind:value={intraCycles} />
+            </div>
+            <div class="field">
+              <label for="vueltas-fuera">
+                Vueltas contra cada rival de las otras: <strong>{interCycles}</strong>
+              </label>
+              <input id="vueltas-fuera" type="range" min="0" max="8" bind:value={interCycles} />
+              <p class="small muted" style="margin:6px 0 0">
+                De estas dos cifras salen los partidos por club. El objetivo de
+                abajo pasa a ser una referencia, y el motor avisa de la
+                diferencia en vez de cambiar las reglas por su cuenta.
+              </p>
+            </div>
+          {/if}
+        </fieldset>
+
+        <fieldset>
+          <legend>Temporada regular</legend>
+          <div class="field">
+            <label for="partidos">Partidos por club (objetivo)</label>
+            <input id="partidos" type="number" min="2" max="250" bind:value={gamesTarget} />
+          </div>
+          <div class="field">
+            <label for="serie">
+              Partidos seguidos en el mismo campo: <strong>{gamesPerSeries}</strong>
+            </label>
+            <input id="serie" type="range" min="1" max="7" bind:value={gamesPerSeries} />
+            <p class="small muted" style="margin:6px 0 0">
+              Una serie es la visita completa: con 3, los dos equipos juegan tres
+              días en el mismo estadio antes de cambiar de rival.
+            </p>
+          </div>
+          <div class="field">
+            <label for="entre-series">
+              Días de descanso entre series: <strong>{daysBetweenSeries}</strong>
+            </label>
+            <input id="entre-series" type="range" min="0" max="14" bind:value={daysBetweenSeries} />
+          </div>
+          <div class="field" role="group" aria-labelledby="descanso-leyenda">
+            <span class="small muted" id="descanso-leyenda">
+              Días en los que no se juega nunca
+            </span>
+            <div class="row">
+              {#each weekdays as day, index}
+                <button
+                  type="button"
+                  class={restDays.includes(index) ? 'button' : 'button ghost'}
+                  onclick={() => toggleRestDay(index)}
+                  aria-pressed={restDays.includes(index)}
+                >{day}</button>
+              {/each}
+            </div>
+          </div>
+          <div class="field">
+            <label for="pretemporada">Días entre temporadas</label>
+            <input id="pretemporada" type="number" min="1" max="180" bind:value={offseasonDays} />
+            <p class="small muted" style="margin:6px 0 0">
+              El hueco en el que se resuelven ascensos y descensos antes de que
+              la temporada siguiente tenga calendario.
+            </p>
+          </div>
+        </fieldset>
+
+        {#if groupCount > 1}
+          <fieldset>
+            <legend>Cómo se clasifica</legend>
+            <div class="field">
+              <label for="clasifican">
+                Clasificados por división: <strong>{qualifiersPerGroup}</strong>
+              </label>
+              <input id="clasifican" type="range" min="0" max="4" bind:value={qualifiersPerGroup} />
+            </div>
+            <div class="field">
+              <label for="repechajes">
+                Plazas de repechaje: <strong>{wildcards}</strong>
+              </label>
+              <input id="repechajes" type="range" min="0" max="8" bind:value={wildcards} />
+              <p class="small muted" style="margin:6px 0 0">
+                Salen de la tabla general entre los que no clasificaron por su
+                división. Postemporada:
+                <strong>{effectivePlayoffSlots} plazas</strong>, que ya no tienen
+                que ser potencia de dos: las mejores siembras esperan en la
+                segunda ronda.
+              </p>
+            </div>
+          </fieldset>
+        {/if}
       </div>
+
+      <SchedulePreview
+        clubCount={clubCount}
+        gamesTarget={gamesTarget}
+        gamesPerSeries={gamesPerSeries}
+        daysBetweenSeries={daysBetweenSeries}
+        restDays={restDays}
+        groupCount={groupCount}
+        groupAssignment={groupAssignment}
+        intraCycles={intraCycles}
+        interCycles={interCycles}
+        qualifiersPerGroup={qualifiersPerGroup}
+        wildcards={wildcards}
+        playoffFormat={playoffFormat}
+        playoffSlots={effectivePlayoffSlots}
+        roundLengths={parsedRoundLengths}
+      />
     </div>
+
     <div class="row">
       <button class="ghost" onclick={() => (step = 5)}>Atrás</button>
       <button onclick={() => (step = 7)}>Continuar</button>
@@ -974,23 +1122,66 @@
           </select>
         </div>
         {#if playoffFormat !== 'none'}
-          <div class="field">
-            <label for="plazas">Plazas de playoff (potencia de 2)</label>
-            <select id="plazas" bind:value={playoffSlots}>
-              <option value={2}>2</option>
-              <option value={4}>4</option>
-              <option value={8}>8</option>
-              <option value={16}>16</option>
-            </select>
-          </div>
+          {#if groupCount > 1}
+            <div class="notice info">
+              Las plazas de playoff las fija la estructura de divisiones del paso
+              6: <strong>{effectivePlayoffSlots}</strong>
+              ({qualifiersPerGroup} por división × {groupCount}{#if wildcards} +
+              {wildcards} repechaje(s){/if}). Aquí no se pueden declarar otras, para
+              que no haya dos números que se contradigan.
+            </div>
+          {:else}
+            <div class="field">
+              <label for="plazas">Clasificados a la postemporada</label>
+              <select id="plazas" bind:value={playoffSlots}>
+                {#each [2, 3, 4, 5, 6, 8, 10, 12, 16] as plazas}
+                  <option value={plazas}>{plazas}</option>
+                {/each}
+              </select>
+              <p class="small muted" style="margin:6px 0 0">
+                Ya no tienen que ser potencia de dos: si no lo son, las mejores
+                siembras esperan en la segunda ronda, como en las ligas de verdad.
+              </p>
+            </div>
+          {/if}
           {#if playoffFormat === 'best_of_series'}
             <div class="field">
-              <label for="rondas">Longitud de cada ronda ({expectedRounds} necesarias)</label>
+              <label for="rondas">
+                Longitud de cada ronda ({expectedRounds} necesarias, separadas por comas)
+              </label>
               <input id="rondas" bind:value={roundLengths} placeholder="3,5" />
+              {#if parsedRoundLengths.length !== expectedRounds}
+                <p class="small" style="margin:6px 0 0;color:var(--accent-2)">
+                  Declaraste {parsedRoundLengths.length} y el cuadro necesita
+                  {expectedRounds}. Cada número es «al mejor de N» y tiene que ser impar.
+                </p>
+              {/if}
             </div>
           {/if}
         {/if}
       </fieldset>
+
+      {#if playoffFormat !== 'none'}
+        <!-- El cuadro que saldría, con la ruta de cada clasificado y los pases
+             directos. Es la misma vista del paso 6, limitada a la postemporada. -->
+        <SchedulePreview
+          view="bracket"
+          clubCount={clubCount}
+          gamesTarget={gamesTarget}
+          gamesPerSeries={gamesPerSeries}
+          daysBetweenSeries={daysBetweenSeries}
+          restDays={restDays}
+          groupCount={groupCount}
+          groupAssignment={groupAssignment}
+          intraCycles={intraCycles}
+          interCycles={interCycles}
+          qualifiersPerGroup={qualifiersPerGroup}
+          wildcards={wildcards}
+          playoffFormat={playoffFormat}
+          playoffSlots={effectivePlayoffSlots}
+          roundLengths={parsedRoundLengths}
+        />
+      {/if}
 
       <fieldset>
         <legend>Requisitos de admisión y normas económicas</legend>
@@ -1298,6 +1489,23 @@
       </p>
     {/if}
 
+    {#if preview.context.structure}
+      <h3>Divisiones</h3>
+      <p class="small muted">
+        {preview.context.structure.count} divisiones repartidas
+        {GROUP_ASSIGNMENT_LABEL[preview.context.structure.assignment ?? ''] ??
+          preview.context.structure.assignment}:
+        {#each preview.context.structure.groups as grupo, i}{i > 0 ? ' · ' : ''}<strong
+            >{grupo.label}</strong
+          > ({grupo.clubs} clubes){/each}.
+        {#if preview.context.schedule.intra_group_games}
+          Del calendario, {preview.context.schedule.intra_group_games} partidos son
+          dentro de la división y {preview.context.schedule.inter_group_games} contra
+          las otras.
+        {/if}
+      </p>
+    {/if}
+
     <h3>Instituciones que el motor propone</h3>
     <p class="small muted">
       Ninguna de estas características se eligió en el formulario: cada club
@@ -1308,6 +1516,7 @@
         <tr>
           <th>Club</th>
           <th>Zona</th>
+          {#if preview.context.structure}<th>División</th>{/if}
           <th>Gobierno</th>
           <th>Sede</th>
           <th class="num">Aforo</th>
@@ -1325,6 +1534,14 @@
               </span>
             </td>
             <td class="small">{club.place}</td>
+            {#if preview.context.structure}
+              <td class="small">
+                {club.group}
+                {#if club.group_reason}
+                  <div class="muted">{club.group_reason}</div>
+                {/if}
+              </td>
+            {/if}
             <td class="small">
               {GOVERNANCE_LABEL[club.governance ?? ''] ?? club.governance ?? '—'}
               {#if club.has_owner === false}<span class="tag">sin propietario</span>{/if}

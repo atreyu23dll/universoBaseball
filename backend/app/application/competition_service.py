@@ -345,6 +345,13 @@ def preview_generation(session: Session, universe_id: str, payload: dict) -> dic
             "resource_multiplier": club.resource_multiplier,
             "primary_color": club.brand.primary_color,
             "secondary_color": club.brand.secondary_color,
+            # División en la que jugaría, con el motivo del reparto. Vacío si la
+            # competición es de tabla única.
+            "group": world.group_of.get(club.key, ""),
+            "group_reason": next(
+                (p.reason for p in world.groups if p.club_key == club.key),
+                "",
+            ),
         }
         for club in world.clubs
     ]
@@ -393,7 +400,28 @@ def preview_generation(session: Session, universe_id: str, payload: dict) -> dic
             "adjusted": world.schedule.adjusted,
             "first_date": world.schedule.first_date,
             "last_date": world.schedule.last_date,
+            "intra_group_games": sum(1 for game in world.schedule.games if game.matchup == "intra"),
+            "inter_group_games": sum(1 for game in world.schedule.games if game.matchup == "inter"),
         },
+        "structure": (
+            {
+                "count": ruleset.structure.count,
+                "assignment": str(ruleset.structure.assignment),
+                "intra_cycles": ruleset.structure.intra_cycles,
+                "inter_cycles": ruleset.structure.inter_cycles,
+                "qualifiers_per_group": ruleset.structure.qualifiers_per_group,
+                "wildcards": ruleset.structure.wildcards,
+                "groups": [
+                    {
+                        "label": etiqueta,
+                        "clubs": sum(1 for p in world.groups if p.group_key == etiqueta),
+                    }
+                    for etiqueta in ruleset.structure.labels
+                ],
+            }
+            if ruleset.structure.has_groups
+            else None
+        ),
         "warnings": territory_warnings + world.warnings + _viability_warnings(ruleset, world),
         "provenance": [record.as_dict() for record in world.records[:2]],
     }
@@ -986,6 +1014,7 @@ def generate_edition(
             participant_kind="club",
             club_id=club_row.id,
             seed_rank=0,
+            group_key=world.group_of.get(club.key, ""),
         )
         session.add(entry)
         entries.append(entry)

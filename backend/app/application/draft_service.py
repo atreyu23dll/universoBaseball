@@ -448,6 +448,9 @@ def create_preview(
                 "free_agents": resultado["free_agents"],
                 "provenance": resultado["provenance"],
                 "modality": str(ruleset.participation_modality),
+                # Divisiones que tendría la competición, con cuántos clubes caen
+                # en cada una. `None` si es de tabla única.
+                "structure": resultado["structure"],
             }
         ),
         candidates=jsonable(resultado["clubs"]),

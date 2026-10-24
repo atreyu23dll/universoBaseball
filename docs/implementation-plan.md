@@ -17,6 +17,11 @@ Dos defectos observados que este repositorio tiene hoy, medidos, no supuestos:
    derivado del nivel de liga, así que la mediana de presupuesto de una liga
    municipal de Ciudad Juárez con `contextual_auto` es de **1 876 351 MXN**
    (amateur: 433 794; profesional: 3 553 002). V2 §7.2 lo prohíbe expresamente.
+   **Corregido en P3**, y **recalibrado el 24/10/2026** después de que el usuario
+   observara que una llanera seguía manejando 136 427 MXN de mediana: hoy son
+   **73 969 MXN** (6,2 meses de gasto de un hogar) y la etiqueta no mueve la
+   cifra —profesional entre llanera = 1,19×—. El desglose de las seis causas
+   está en `docs/simulation-calibration.md` §7 bis.
 
 A eso se añade lo que falta por completo: modalidad de participación como
 concepto de la competición, categorías de edad y elegibilidad, salvaguarda de
@@ -203,7 +208,7 @@ implementado:
 |---|---|---|
 | 0 | Monorepo, FastAPI, SvelteKit, Postgres/SQLite, Alembic, tests, Docker | **Hecho** |
 | 1 | Vertical: universo → liga independiente → generación → calendario → partidos → tabla → avanzar → persistir | **Hecho** |
-| 2 | Motor declarativo de relaciones, ascenso/descenso transaccional, grupos/divisiones | **Movilidad hecha**; faltan grupos y divisiones |
+| 2 | Motor declarativo de relaciones, ascenso/descenso transaccional, grupos/divisiones | **Hecha** (movilidad, divisiones y siembra por grupo); faltan byes en playoffs y repechaje interregional |
 | 3 | Internacional: franquicias por ciudad, selecciones, elegibilidad por liga doméstica | No empezado |
 | 4 | Personas e IA: desarrollo por edad, scouts falibles, ledger, patrocinios, fichajes | Scouts falibles y **ledger de temporada** hechos; faltan desarrollo por edad, patrocinios como entidad y fichajes |
 | 5 | Béisbol detallado lanzamiento por lanzamiento, clima, parque 2D, replay | No empezado |
@@ -269,12 +274,33 @@ Implementado:
 - [x] Casos de la especificación C04, C05, C06, C07 cubiertos con temporadas
       simuladas de verdad, no con validaciones.
 
-Falta para cerrar la etapa:
+- [x] **Grupos, divisiones y conferencias** dentro de una misma competición:
+      bloque `structure` del reglamento, reparto geográfico o por recursos con
+      su motivo registrado, calendario asimétrico (más vueltas dentro del grupo
+      que fuera) con localías repartidas por orientación euleriana, tabla con
+      puesto de división y siembra de playoffs por campeones de grupo más
+      repechajes. El reparto se rehace cada temporada, así que un club
+      ascendido entra en la división que le toca por geografía. Ver
+      `docs/adr/0008-divisiones-dentro-de-una-competicion.md`.
 
-- [ ] Grupos, divisiones y conferencias dentro de una misma competición:
-      calendario con balance intra/intergrupo, clasificación por grupo y siembra
-      de playoffs por división. Hoy toda competición es una tabla única.
-- [ ] Playoffs con byes y plazas que no sean potencia de dos.
+- [x] **Playoffs con pase directo y plazas que no sean potencia de dos.** Seis
+      clasificados —dos campeones de división y dos repechajes— caben en un
+      cuadro de ocho donde las dos mejores siembras esperan en la segunda
+      ronda. `PlayoffRules` deriva `bracket_size`, `byes` y `rounds`;
+      `seed_bracket` devuelve la primera ronda **y** los que esperan;
+      `next_round` los incorpora resembrando con todos. Los pases directos se
+      guardan en `competition_editions.playoff_byes` porque la ronda siguiente
+      se construye otro día y en otra transacción.
+- [x] **El asistente dibuja lo que producen sus números.** `POST
+      /schedule/preview` calcula con el mismo motor el calendario, los cruces y
+      el cuadro de unos parámetros cualesquiera, sin universo y sin escribir
+      nada; el paso 6 lo pinta mientras el usuario mueve los controles: resumen
+      de partidos y días, barra por club con su reparto dentro y fuera de la
+      división, matriz de cruces con colores por tipo de enfrentamiento, las dos
+      primeras semanas día a día y el cuadro de postemporada con la ruta de cada
+      clasificado y los pases directos.
+
+Falta para cerrar la etapa:
 - [ ] Promoción por repechaje interregional entre ramas (hoy el reparto de
       plazas es por cuota y territorio, sin eliminatoria entre alimentadoras).
 
@@ -295,11 +321,9 @@ creadas antes de esta migración; las ediciones ya jugadas no se reescriben.
 
 ## Orden recomendado para la siguiente iteración
 
-1. Grupos/divisiones y conferencias en `competitions/schedule.py` y
-   `competitions/standings.py`, con siembra de playoffs por grupo.
-2. `QualificationPath` ejecutándose (casos C08 y C12): extracción de cupos a
+1. `QualificationPath` ejecutándose (casos C08 y C12): extracción de cupos a
    copas sin crear jerarquía, con regla de reasignación si dos vías clasifican
    al mismo club.
-3. Mover el avance a un proceso worker con cola en Postgres y añadir WebSocket.
-4. Liga internacional de clubes con franquicias por ciudad (C11) y selecciones
+2. Mover el avance a un proceso worker con cola en Postgres y añadir WebSocket.
+3. Liga internacional de clubes con franquicias por ciudad (C11) y selecciones
    nacionales con elegibilidad por liga doméstica (C09, C10).

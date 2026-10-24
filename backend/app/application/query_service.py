@@ -223,6 +223,35 @@ def edition_detail(session: Session, edition_id: str) -> dict:
             "effective_from": rules.effective_from,
             "rules_json": rules.rules_json,
         },
+        "structure": _structure_view(session, edition, rules.rules_json),
+    }
+
+
+def _structure_view(
+    session: Session, edition: m.CompetitionEdition, rules_json: dict
+) -> dict | None:
+    """Grupos de esta edición y qué deciden, o `None` si es de tabla única."""
+    structure = (rules_json or {}).get("structure") or {}
+    if int(structure.get("count", 1)) < 2:
+        return None
+    entries = session.scalars(
+        select(m.EditionEntry).where(m.EditionEntry.edition_id == edition.id)
+    ).all()
+    por_grupo: dict[str, int] = {}
+    for entry in entries:
+        if entry.group_key:
+            por_grupo[entry.group_key] = por_grupo.get(entry.group_key, 0) + 1
+    return {
+        "count": int(structure.get("count", 1)),
+        "assignment": structure.get("assignment"),
+        "intra_cycles": structure.get("intra_cycles"),
+        "inter_cycles": structure.get("inter_cycles"),
+        "qualifiers_per_group": structure.get("qualifiers_per_group"),
+        "wildcards": structure.get("wildcards"),
+        "standings_scope": structure.get("standings_scope"),
+        "groups": [
+            {"label": etiqueta, "clubs": cuantos} for etiqueta, cuantos in sorted(por_grupo.items())
+        ],
     }
 
 
@@ -271,6 +300,10 @@ def edition_standings(session: Session, edition_id: str) -> list[dict]:
                 ),
                 "last_ten": row.last_ten,
                 "tiebreak_note": row.tiebreak_note,
+                # Grupo, división o conferencia. Vacío en competiciones de tabla
+                # única: la interfaz muestra entonces una sola tabla.
+                "group": entry.group_key,
+                "group_rank": row.group_rank,
             }
         )
     return out

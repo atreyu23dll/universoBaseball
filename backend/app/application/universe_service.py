@@ -131,6 +131,23 @@ def _seed_geography(
     session.flush()
 
 
+#: Longitud de la columna `simulation_events.headline`. Un titular más largo
+#: hace fallar el INSERT en PostgreSQL —SQLite no comprueba longitudes—, y un
+#: titular no puede tumbar la simulación de un día: se recorta y el detalle
+#: completo sigue en `payload`, que es JSON y no tiene ese límite.
+HEADLINE_LIMIT = 240
+
+
+def _fit_headline(text: str | None) -> str | None:
+    if text is None or len(text) <= HEADLINE_LIMIT:
+        return text
+    corte = text[: HEADLINE_LIMIT - 1]
+    espacio = corte.rfind(" ")
+    if espacio > HEADLINE_LIMIT // 2:
+        corte = corte[:espacio]
+    return corte.rstrip(" ,;:") + "…"
+
+
 def record_event(
     session: Session, universe: m.Universe, event: SimulationEvent
 ) -> m.SimulationEventRow:
@@ -140,7 +157,7 @@ def record_event(
         event_type=str(event.event_type),
         entities=event.entities,
         payload=event.payload,
-        headline=event.headline,
+        headline=_fit_headline(event.headline),
     )
     session.add(row)
     return row

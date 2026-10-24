@@ -131,7 +131,8 @@ def test_el_sorteo_de_desempate_es_reproducible():
 
 def test_el_bracket_se_siembra_por_clasificacion():
     rules = PlayoffRules(slots=4, format="best_of_series", round_lengths=[3, 5])
-    series = seed_bracket(["a", "b", "c", "d", "e"], rules)
+    series, byes = seed_bracket(["a", "b", "c", "d", "e"], rules)
+    assert byes == []
     assert [(s.high_seed, s.low_seed) for s in series] == [("a", "d"), ("b", "c")]
     assert all(s.best_of == 3 for s in series)
 
@@ -147,7 +148,7 @@ def test_no_se_puede_armar_un_playoff_sin_clasificados_suficientes():
 
 def test_la_siguiente_ronda_resiembra_por_la_temporada_regular():
     rules = PlayoffRules(slots=4, format="best_of_series", round_lengths=[3, 5])
-    series = seed_bracket(["a", "b", "c", "d"], rules)
+    series, _ = seed_bracket(["a", "b", "c", "d"], rules)
     series[0].wins["d"] = 2  # gana el peor sembrado
     series[1].wins["b"] = 2
     siguiente = next_round(series, ["a", "b", "c", "d"], rules)
@@ -158,7 +159,7 @@ def test_la_siguiente_ronda_resiembra_por_la_temporada_regular():
 
 def test_una_serie_sin_resolver_no_genera_la_ronda_siguiente():
     rules = PlayoffRules(slots=4, format="best_of_series", round_lengths=[3, 5])
-    series = seed_bracket(["a", "b", "c", "d"], rules)
+    series, _ = seed_bracket(["a", "b", "c", "d"], rules)
     series[0].wins["a"] = 2
     with pytest.raises(RuleValidationError):
         next_round(series, ["a", "b", "c", "d"], rules)
@@ -166,7 +167,58 @@ def test_una_serie_sin_resolver_no_genera_la_ronda_siguiente():
 
 def test_el_patron_de_localias_favorece_al_mejor_sembrado():
     rules = PlayoffRules(slots=2, format="best_of_series", round_lengths=[5])
-    series = seed_bracket(["a", "b"], rules)[0]
+    series = seed_bracket(["a", "b"], rules)[0][0]
     locales = [series.home_key_for(i)[0] for i in range(5)]
     assert locales.count("a") == 3
     assert locales[0] == "a" and locales[-1] == "a"
+
+
+def test_seis_plazas_dan_pase_directo_a_las_dos_mejores_siembras():
+    """Lo que pide una competición con divisiones: dos campeones y dos repechajes.
+
+    Seis no es potencia de dos, así que el cuadro es de ocho y las dos mejores
+    siembras esperan en la segunda ronda. Antes había que redondear el
+    reglamento a cuatro u ocho plazas.
+    """
+    rules = PlayoffRules(slots=6, format="best_of_series", round_lengths=[3, 5, 7])
+    assert (rules.bracket_size, rules.byes, rules.rounds) == (8, 2, 3)
+
+    orden = ["a", "b", "c", "d", "e", "f", "g", "h"]
+    primera, byes = seed_bracket(orden, rules)
+    assert byes == ["a", "b"], "las dos mejores siembras esperan"
+    assert [(s.high_seed, s.low_seed) for s in primera] == [("c", "f"), ("d", "e")]
+
+    # Segunda ronda: los que esperaban entran y se resiembra con todos.
+    primera[0].wins["c"] = 2
+    primera[1].wins["e"] = 2
+    segunda = next_round(primera, orden, rules, byes)
+    assert len(segunda) == 2
+    assert [(s.high_seed, s.low_seed) for s in segunda] == [("a", "e"), ("b", "c")]
+    assert all(s.best_of == 5 for s in segunda)
+
+    # Y la final sale de esa ronda, sin nadie esperando ya.
+    segunda[0].wins["a"] = 3
+    segunda[1].wins["b"] = 3
+    final = next_round(segunda, orden, rules)
+    assert len(final) == 1
+    assert (final[0].high_seed, final[0].low_seed) == ("a", "b")
+    assert final[0].best_of == 7
+
+
+def test_cinco_plazas_dejan_una_sola_serie_en_la_primera_ronda():
+    rules = PlayoffRules(slots=5, format="best_of_series", round_lengths=[1, 3, 5])
+    assert (rules.bracket_size, rules.byes, rules.first_round_series) == (8, 3, 1)
+    primera, byes = seed_bracket(["a", "b", "c", "d", "e"], rules)
+    assert byes == ["a", "b", "c"]
+    assert [(s.high_seed, s.low_seed) for s in primera] == [("d", "e")]
+
+    primera[0].wins["d"] = 1
+    segunda = next_round(primera, ["a", "b", "c", "d", "e"], rules, byes)
+    assert [(s.high_seed, s.low_seed) for s in segunda] == [("a", "d"), ("b", "c")]
+
+
+def test_el_reglamento_pide_tantas_rondas_como_necesita_el_cuadro():
+    with pytest.raises(ValueError, match="3 rondas"):
+        PlayoffRules(slots=6, format="best_of_series", round_lengths=[3, 5])
+    # Y con las tres, pasa.
+    assert PlayoffRules(slots=6, format="best_of_series", round_lengths=[3, 5, 7]).rounds == 3

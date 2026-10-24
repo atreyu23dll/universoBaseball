@@ -14,7 +14,6 @@ izquierdo y una barda baja produce más jonrones, y el motor de partidos lo nota
 
 from __future__ import annotations
 
-import math
 import random
 
 from simulation.core.provenance import Confidence, GenerationRecord
@@ -32,16 +31,24 @@ from simulation.organizations.model import (
 PROCEDURE_VERSION = "venues/1.0.0"
 
 
-#: Rango de aforo que permite cada forma de acceso al terreno, antes de
-#: escalarlo por el mercado. Un campo público compartido no tiene gradas de
-#: estadio por mucho dinero que tenga quien lo usa esa tarde.
+#: Rango de aforo que permite cada forma de acceso al terreno. Es un **tope**,
+#: no un objetivo: un campo público compartido no tiene gradas de estadio por
+#: mucho dinero que tenga quien lo usa esa tarde, y un recinto propio puede
+#: tenerlas si hay público que las llene.
 _CAPACITY_BY_AGREEMENT = {
-    VenueAgreement.PUBLIC_SHARED: (150, 2_500),
-    VenueAgreement.SCHOOL_FACILITY: (200, 3_000),
-    VenueAgreement.ITINERANT: (100, 1_200),
-    VenueAgreement.RENTED: (600, 18_000),
-    VenueAgreement.OWNED: (500, 62_000),
+    VenueAgreement.PUBLIC_SHARED: (120, 2_500),
+    VenueAgreement.SCHOOL_FACILITY: (150, 3_000),
+    VenueAgreement.ITINERANT: (80, 1_200),
+    VenueAgreement.RENTED: (200, 18_000),
+    VenueAgreement.OWNED: (250, 62_000),
 }
+
+#: Parte de la base social que aparece en un partido cualquiera. Las gradas se
+#: dimensionan para eso, no para la población de la ciudad.
+TYPICAL_ATTENDANCE_SHARE = 0.25
+#: Holgura sobre el público típico: un recinto se construye con sitio para un
+#: día bueno, no para la media.
+CAPACITY_HEADROOM = (1.4, 3.0)
 
 
 def _venue_type(agreement: VenueAgreement, capacity: int, rng: random.Random) -> VenueType:
@@ -67,33 +74,40 @@ def generate_venue(
     market: MarketProfile,
     agreement: VenueAgreement,
     community_reach: float,
+    follower_base: int,
     world_year: int,
     record: GenerationRecord,
 ) -> Venue:
     """Resuelve el recinto de un club a partir de su acuerdo de sede.
 
+    **El aforo lo decide el público del club**, no el tamaño de su ciudad. Antes
+    se situaba dentro del rango del acuerdo de sede por población del mercado, y
+    eso daba el resultado absurdo de un club llanero con 1 000 seguidores
+    jugando en un estadio para 15 000 porque su ciudad era grande. Las gradas se
+    construyen para la gente que viene.
+
     No recibe el presupuesto a propósito: el aforo es una **causa** de los
     ingresos de taquilla, no una consecuencia del dinero. Así no hay
     circularidad entre «tiene estadio porque es rico» y «es rico porque tiene
-    estadio».
+    estadio». La base social sí es una causa legítima: viene del territorio y
+    del arraigo del club, que son anteriores al dinero.
     """
     low, high = _CAPACITY_BY_AGREEMENT[agreement]
-    # El mercado y el alcance comunitario del club deciden dónde cae dentro del
-    # rango que su acuerdo de sede permite.
-    market_fit = min(1.0, math.log10(max(1_000, market.catchment_population)) / 7.0)
-    reach = 0.35 * community_reach + 0.45 * market_fit + 0.2 * market.culture_index
-    noise = clamped_normal(rng, 1.0, 0.22, 0.55, 1.6)
-    capacity = int(round((low + (high - low) * min(1.0, reach * noise)) / 50.0) * 50)
+    publico_tipico = follower_base * TYPICAL_ATTENDANCE_SHARE
+    holgura = rng.uniform(*CAPACITY_HEADROOM)
+    # La cultura local mueve un poco cuánta gente se acerca de verdad.
+    capacity = int(round(publico_tipico * holgura * (0.8 + 0.4 * market.culture_index) / 50.0) * 50)
     capacity = max(low, min(high, capacity))
     record.note(
         "venue_capacity",
         capacity,
         Confidence.FICTIONAL,
         (
-            f"sede {agreement} (rango {low}-{high}) situada por alcance comunitario "
-            f"({community_reach:.2f}), tamaño de mercado ({market_fit:.2f}) y cultura "
-            f"local ({market.culture_index:.2f}), con dispersión {noise:.2f}. "
-            "El presupuesto del club no interviene"
+            f"gradas para el público del club: {follower_base} seguidores × "
+            f"{TYPICAL_ATTENDANCE_SHARE:.0%} que acude a un partido cualquiera × "
+            f"holgura {holgura:.1f} para un día bueno, ajustado por la cultura local "
+            f"({market.culture_index:.2f}) y limitado por la sede {agreement} "
+            f"(entre {low} y {high}). El presupuesto del club no interviene"
         ),
     )
 

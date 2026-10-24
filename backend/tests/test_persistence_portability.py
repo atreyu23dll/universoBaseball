@@ -106,3 +106,41 @@ def test_borrar_un_universo_se_lo_lleva_todo(client: TestClient, universe: dict)
             ).all()
             assert not restantes, f"{modelo.__name__} quedó huérfano tras borrar el universo"
     assert client.get(f"/api/v1/universes/{universe['id']}").status_code == 404
+
+
+def test_ningun_titular_pasa_del_limite_de_su_columna(client: TestClient, universe: dict):
+    """SQLite no comprueba longitudes y PostgreSQL sí: aquí se cubre la grieta.
+
+    Un titular demasiado largo hacía fallar el INSERT solo en PostgreSQL, y con
+    él el avance del día entero. `record_event` lo recorta y el detalle completo
+    queda en `payload`, que es JSON. Esta prueba vigila que ningún camino nuevo
+    vuelva a escribir un titular de cualquier longitud.
+    """
+    from app.application.universe_service import HEADLINE_LIMIT, _fit_headline
+
+    create_league(client, universe["id"])
+    client.post(
+        f"/api/v1/universes/{universe['id']}/sim/advance",
+        json={"days": 6},
+        headers={"Idempotency-Key": "titulares"},
+    )
+    with session_scope() as session:
+        filas = session.scalars(
+            select(m.SimulationEventRow).where(m.SimulationEventRow.universe_id == universe["id"])
+        ).all()
+        assert filas
+        for fila in filas:
+            assert fila.headline is None or len(fila.headline) <= HEADLINE_LIMIT, (
+                f"el evento {fila.event_type} escribió un titular de "
+                f"{len(fila.headline or '')} caracteres"
+            )
+
+    largo = "Clasificados a la postemporada: " + ", ".join(
+        f"Club de Nombre Larguísimo número {i}" for i in range(20)
+    )
+    recortado = _fit_headline(largo)
+    assert recortado is not None
+    assert len(recortado) <= HEADLINE_LIMIT
+    assert recortado.endswith("…")
+    assert _fit_headline("corto") == "corto"
+    assert _fit_headline(None) is None

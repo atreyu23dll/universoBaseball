@@ -71,6 +71,17 @@ Los tipos se eligieron portables a propósito: `JSONType` es `JSON` con variante
 columnas `Float` (`lat`, `lon`) más una columna opcional de geometría.
 Ver `docs/adr/0002-persistencia-dual-y-gis-diferido.md`.
 
+**Dos motores, dos niveles de rigor.** SQLite **no** comprueba la longitud
+declarada de una columna de texto y PostgreSQL sí. Una grieta así ya rompió un
+avance: un titular de evento de más de 240 caracteres pasaba en los tests y
+fallaba en el motor de referencia, tumbando el día entero. Por eso
+`record_event` recorta el titular al límite de su columna —el detalle completo
+vive en `payload`, que es JSON y no tiene ese tope— y hay una prueba de
+portabilidad que vigila que ningún camino nuevo escriba titulares de cualquier
+longitud. La regla general: lo que la base de referencia rechaza no puede
+depender de que la batería corra en SQLite, así que `make test-postgres` forma
+parte de la verificación, no de los extras.
+
 [PLANIFICADO] PostGIS: la geometría se consulta hoy con distancia haversine
 calculada en Python (`simulation/geography/distance.py`). El día que haga falta
 una consulta espacial real (polígonos, contención, vecindad) se añade la columna
@@ -187,9 +198,66 @@ con el intercambio— y en `club_organization_changes`, con la causa de cada
 cambio. La ficha del club lo muestra: lo real frente a lo previsto, asiento por
 asiento.
 
-[PLANIFICADO] Grupos, divisiones y conferencias dentro de una competición;
-extracción de cupos hacia copas (`QualificationPath` ejecutándose); fusiones y
-refundaciones de clubes, que V2 §6.3 menciona y aquí no existen.
+## 6 bis. Divisiones dentro de una competición
+
+[IMPLEMENTADO] El bloque `structure` del reglamento convierte una competición
+de tabla única en una de divisiones, grupos o conferencias. Lo que cambia:
+
+- **El reparto** (`simulation/competitions/groups.py`): por cercanía —los
+  vecinos juntos, que es lo que abarata los viajes— o repartiendo los clubes con
+  más recursos en serpiente. El usuario puede además declarar los nombres y las
+  plazas de cada grupo. Cada club queda con el motivo de su división escrito en
+  la procedencia.
+- **El calendario** (`simulation/competitions/schedule.py`): `intra_cycles`
+  vueltas contra los de su grupo e `inter_cycles` contra los demás. Esa
+  asimetría es el sentido de una división, y tiene dos consecuencias que se
+  declaran: los partidos por club dejan de ser el objetivo pedido y pasan a ser
+  una consecuencia de las vueltas, y con grupos de tamaños distintos no todos
+  juegan lo mismo. Las localías se reparten con una **orientación euleriana**
+  del grafo de enfrentamientos, que es lo que evita que una vuelta impar deje a
+  unos clubes jugando casi todo en casa. Si las vueltas dentro y fuera
+  coinciden, el calendario es el round-robin de siempre.
+- **La clasificación** (`simulation/competitions/standings.py`): sigue habiendo
+  una fila por club con **todos** sus partidos; el grupo solo añade el puesto
+  dentro de él. Una tabla de división no es un torneo aparte.
+- **La postemporada** (`simulation/competitions/playoffs.py`): clasifican los
+  primeros de cada grupo más los repechajes de la tabla general, y queda
+  registrado quién entró por qué ruta. Con divisiones, las plazas de playoff las
+  fija la estructura: el reglamento rechaza un `playoffs.slots` que no cuadre,
+  para que no existan dos números que puedan contradecirse.
+
+El grupo se guarda en `edition_entries.group_key`, por edición y no por club,
+porque el reparto se rehace cada temporada: un club que asciende entra en la
+división que le toca por geografía sin dejar de ser el mismo club.
+
+La postemporada admite **plazas que no son potencia de dos**: con seis
+clasificados el cuadro es de ocho y las dos mejores siembras esperan en la
+segunda ronda. `PlayoffRules` deriva el tamaño del cuadro, los pases directos y
+las rondas necesarias, de modo que el reglamento rechaza unas longitudes de
+serie que no cuadren con el cuadro real. Los pases directos se guardan en
+`competition_editions.playoff_byes` porque la ronda siguiente se construye otro
+día, en otra transacción.
+
+## 6 ter. El asistente ve lo que pide
+
+[IMPLEMENTADO] `POST /schedule/preview`
+(`app/application/schedule_preview_service.py`) responde a «¿y si pongo esto?»
+con el calendario, los cruces y el cuadro que producirían unos parámetros. No
+necesita universo ni competición y **no escribe nada**: llama a `build_schedule`,
+`group_sizes` y `seed_bracket`, los mismos que construyen la competición de
+verdad, así que lo que la interfaz dibuja no es una maqueta.
+
+Existe porque el paso del calendario pide seis números que se multiplican entre
+sí —partidos objetivo, partidos por serie, días entre series, descanso semanal,
+vueltas dentro y fuera de la división— y leerlos no dice nada. La vista pinta el
+resumen, el reparto de cada club entre partidos de su división y de fuera, la
+matriz de cruces, las dos primeras semanas día a día y el cuadro con la ruta de
+cada clasificado. Todo son tablas y listas reales, navegables con teclado, y
+cada color lleva su número al lado: el color guía, no informa por su cuenta.
+
+[PLANIFICADO] Extracción de cupos hacia copas (`QualificationPath`
+ejecutándose); fusiones y refundaciones de clubes, que V2 §6.3 menciona y aquí
+no existen.
 
 ## 7. Geografía: gazetteer mundial y qué se sabe de cada sitio
 

@@ -113,6 +113,98 @@ export interface StandingRow {
   streak: string;
   last_ten: string[];
   tiebreak_note: string;
+  /** Grupo, división o conferencia. Cadena vacía en competiciones de tabla única. */
+  group: string;
+  /** Puesto dentro de su grupo; 0 si no hay grupos. */
+  group_rank: number;
+}
+
+/** Clasificado del cuadro previsto: una posición, no un club todavía. */
+export interface BracketQualifier {
+  seed: number;
+  route: 'group_winner' | 'wildcard' | 'overall';
+  label: string;
+  group: string;
+}
+
+/** El cuadro de postemporada que saldría de un reglamento. */
+export interface BracketPreview {
+  format: string;
+  slots: number;
+  bracket_size?: number;
+  /** Clasificados que se saltan la primera ronda. */
+  byes?: number;
+  rounds_needed?: number;
+  declared_rounds?: number;
+  note: string;
+  qualifiers: BracketQualifier[];
+  rounds: Array<{
+    round: number;
+    best_of: number;
+    byes: string[];
+    series: Array<{ high: string; low: string }>;
+  }>;
+}
+
+/** Calendario, cruces y cuadro calculados por el motor sin escribir nada. */
+export interface SchedulePreview {
+  ok: boolean;
+  error?: string;
+  suggestions?: string[];
+  clubs: Array<{
+    key: string;
+    label: string;
+    group: string;
+    games: number;
+    intra_games: number;
+    inter_games: number;
+    home_games: number;
+  }>;
+  totals: {
+    games: number;
+    rounds: number;
+    games_per_club_min: number;
+    games_per_club_max: number;
+    requested_games_per_club: number;
+    adjusted: boolean;
+    intra_games: number;
+    inter_games: number;
+    first_date: string | null;
+    last_date: string | null;
+    calendar_days: number;
+    playing_days: number;
+    max_games_in_a_day: number;
+  };
+  /** Partidos entre cada par de clubes: `matchups[a][b]`. */
+  matchups: Record<string, Record<string, number>>;
+  first_dates: Array<{ date: string; weekday: number; games: number; rest_day: boolean }>;
+  warnings: string[];
+  structure: {
+    has_groups: boolean;
+    count: number;
+    assignment: string;
+    intra_cycles: number;
+    inter_cycles: number;
+    qualifiers_per_group: number;
+    wildcards: number;
+    playoff_slots: number | null;
+    groups: Array<{ label: string; clubs: number }>;
+    /** Divisiones que se quedarían con menos de dos clubes. */
+    undersized: string[];
+  };
+  playoffs: BracketPreview;
+}
+
+/** Estructura de grupos de una edición, `null` si es de tabla única. */
+export interface EditionStructure {
+  count: number;
+  assignment: string | null;
+  intra_cycles: number | null;
+  inter_cycles: number | null;
+  qualifiers_per_group: number | null;
+  wildcards: number | null;
+  standings_scope: string | null;
+  groups: Array<{ label: string; clubs: number }>;
 }
 
 export interface MarketPreview {
@@ -201,6 +293,10 @@ export interface GenerationPreview {
     resource_multiplier: number;
     primary_color: string;
     secondary_color: string;
+    /** División en la que jugaría. Vacío en competiciones de tabla única. */
+    group: string;
+    /** Por qué quedó en esa división. */
+    group_reason: string;
   }>;
   budget_range: { min: number; median: number; max: number };
   people_generated: number;
@@ -212,7 +308,12 @@ export interface GenerationPreview {
     adjusted: boolean;
     first_date: string | null;
     last_date: string | null;
+    /** Partidos dentro de la misma división y contra las otras. */
+    intra_group_games?: number;
+    inter_group_games?: number;
   };
+  /** Divisiones de la competición, `null` si es de tabla única. */
+  structure: EditionStructure | null;
   warnings: string[];
   provenance: Array<{
     entity_kind: string;
@@ -470,6 +571,8 @@ export interface Preview {
     people_generated: number;
     free_agents: number;
     provenance: GenerationPreview['provenance'];
+    /** Divisiones propuestas, `null` si la competición es de tabla única. */
+    structure: EditionStructure | null;
   };
   proposed_clubs: GenerationPreview['clubs'];
   issues: Issue[];

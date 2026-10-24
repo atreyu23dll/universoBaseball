@@ -206,6 +206,30 @@ class PlayoffFormat(StrEnum):
     SINGLE_ELIMINATION = "single_elimination"
 
 
+class GroupAssignment(StrEnum):
+    """Cómo se reparten los clubes entre los grupos de una competición."""
+
+    #: Por cercanía: los vecinos caen en el mismo grupo. Es lo que hacen las
+    #: divisiones de verdad, y abarata los viajes.
+    GEOGRAPHIC = "geographic"
+    #: Repartiendo los clubes fuertes para igualar los grupos. Es una decisión
+    #: de competitividad, no de geografía.
+    BALANCED = "balanced"
+    #: El usuario nombra los grupos y dice cuántas plazas tiene cada uno.
+    DECLARED = "declared"
+
+
+class StandingsScope(StrEnum):
+    """Qué tabla manda cuando hay grupos."""
+
+    #: Solo la tabla de cada grupo.
+    GROUP = "group"
+    #: Solo la tabla general.
+    OVERALL = "overall"
+    #: Las dos: la del grupo para clasificar, la general para los repechajes.
+    BOTH = "both"
+
+
 class TerritoryMode(StrEnum):
     """Cómo se delimita el territorio de una competición (FIX V2 §4.3)."""
 
@@ -316,20 +340,131 @@ class PlayoffRules(BaseModel):
             return self
         if self.slots < 2:
             raise ValueError("un playoff necesita al menos 2 plazas")
-        if self.slots & (self.slots - 1) != 0:
+        if self.format is PlayoffFormat.BEST_OF_SERIES and len(self.round_lengths) != self.rounds:
             raise ValueError(
-                "esta versión soporta brackets de potencia de 2 (2, 4, 8, 16); "
-                f"recibido {self.slots}. Byes y rondas desiguales son Etapa 2."
+                f"{self.slots} plazas requieren {self.rounds} rondas "
+                f"({self.byes} pase(s) directo(s) a la segunda); se declararon "
+                f"{len(self.round_lengths)} longitudes de serie"
             )
-        expected_rounds = self.slots.bit_length() - 1
-        if (
-            self.format is PlayoffFormat.BEST_OF_SERIES
-            and len(self.round_lengths) != expected_rounds
-        ):
+        return self
+
+    @property
+    def bracket_size(self) -> int:
+        """Tamaño del cuadro: la potencia de 2 que cabe a los clasificados."""
+        if self.slots < 2:
+            return 0
+        return 1 << (self.slots - 1).bit_length()
+
+    @property
+    def byes(self) -> int:
+        """Clasificados que se saltan la primera ronda.
+
+        Con seis plazas el cuadro es de ocho, así que dos siembras esperan en la
+        segunda ronda. Es lo que pasa cuando una competición clasifica a los
+        campeones de dos divisiones más un par de repechajes: seis no es potencia
+        de dos y antes había que redondear el reglamento a la fuerza.
+        """
+        return self.bracket_size - self.slots
+
+    @property
+    def rounds(self) -> int:
+        """Rondas que hacen falta para resolver el cuadro."""
+        return max(0, self.bracket_size.bit_length() - 1)
+
+    @property
+    def first_round_series(self) -> int:
+        """Series de la primera ronda: los que no tienen pase directo."""
+        return (self.slots - self.byes) // 2
+
+
+class GroupSlot(BaseModel):
+    """Un grupo declarado por el usuario, con su nombre y sus plazas."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: str = Field(min_length=1, max_length=40)
+    slots: int = Field(ge=2, le=32)
+
+
+class StructureRules(BaseModel):
+    """Grupos, divisiones o conferencias dentro de una misma competición.
+
+    Una competición sin grupos es `count = 1`, que es lo que había antes y
+    sigue comportándose igual: una tabla única y un calendario de vueltas
+    completas.
+
+    Con grupos, el calendario deja de ser un round-robin uniforme: cada club
+    juega `intra_cycles` vueltas contra los de su grupo y `inter_cycles`
+    contra los de los demás. Esa asimetría es el punto de tener divisiones
+    —se juega más contra el vecino— y es también la razón por la que el
+    objetivo de partidos por club pasa a ser una consecuencia del reglamento
+    en vez de una cifra que se pide: el motor dice cuántos salen y advierte si
+    no coincide con lo pedido, en vez de ajustar las reglas en silencio.
+
+    La clasificación sigue siendo **una sola** por club, calculada sobre todos
+    sus partidos: una tabla de grupo no es un torneo aparte, es la misma
+    temporada mirada por divisiones. Lo que el grupo decide es quién clasifica.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    #: Número de grupos. 1 = competición de tabla única.
+    count: int = Field(default=1, ge=1, le=16)
+    #: Nombres de los grupos. Si faltan, se numeran.
+    groups: list[GroupSlot] = Field(default_factory=list)
+    assignment: GroupAssignment = GroupAssignment.GEOGRAPHIC
+    #: Vueltas completas dentro del grupo.
+    intra_cycles: int = Field(default=2, ge=0, le=12)
+    #: Vueltas completas contra los clubes de los otros grupos.
+    inter_cycles: int = Field(default=1, ge=0, le=12)
+    standings_scope: StandingsScope = StandingsScope.BOTH
+    #: Clasificados directos por grupo.
+    qualifiers_per_group: int = Field(default=1, ge=0, le=8)
+    #: Plazas de repechaje, que salen de la tabla general entre los no
+    #: clasificados. Es lo que hace falta para que un grupo fuerte no pierda a
+    #: su segundo mejor club.
+    wildcards: int = Field(default=0, ge=0, le=16)
+
+    @property
+    def has_groups(self) -> bool:
+        return self.count > 1
+
+    @property
+    def labels(self) -> list[str]:
+        """Nombres de los grupos, declarados o numerados."""
+        if self.groups:
+            return [g.label for g in self.groups]
+        if self.count == 1:
+            return ["General"]
+        return [f"Grupo {i + 1}" for i in range(self.count)]
+
+    @property
+    def playoff_slots(self) -> int:
+        """Plazas de playoff que esta estructura produce."""
+        return self.count * self.qualifiers_per_group + self.wildcards
+
+    @model_validator(mode="after")
+    def _coherent(self) -> StructureRules:
+        if self.groups:
+            if len(self.groups) != self.count:
+                raise ValueError(
+                    f"se declararon {len(self.groups)} grupos y `count` dice "
+                    f"{self.count}: son el mismo número o no hay estructura"
+                )
+            etiquetas = [g.label.strip().casefold() for g in self.groups]
+            if len(set(etiquetas)) != len(etiquetas):
+                raise ValueError("dos grupos no pueden llamarse igual")
+        elif self.assignment is GroupAssignment.DECLARED and self.count > 1:
             raise ValueError(
-                f"{self.slots} plazas requieren {expected_rounds} rondas; "
-                f"se declararon {len(self.round_lengths)} longitudes de serie"
+                "con reparto declarado hay que nombrar los grupos y sus plazas en `groups`"
             )
+        if not self.has_groups:
+            return self
+        if self.intra_cycles == 0 and self.inter_cycles == 0:
+            raise ValueError("una competición con grupos necesita jugar alguna vuelta")
+        if self.qualifiers_per_group == 0 and self.wildcards == 0:
+            # No es un error: una liga por divisiones puede no tener playoff.
+            return self
         return self
 
 
@@ -498,6 +633,7 @@ class RuleSet(BaseModel):
     admission: AdmissionRules = Field(default_factory=AdmissionRules)
     financial_regulations: FinancialRegulations = Field(default_factory=FinancialRegulations)
     season: SeasonRules
+    structure: StructureRules = Field(default_factory=StructureRules)
     standings: StandingsRules = Field(default_factory=StandingsRules)
     playoffs: PlayoffRules = Field(default_factory=PlayoffRules)
     generation: GenerationRules
@@ -517,6 +653,31 @@ class RuleSet(BaseModel):
                 "implementadas; el motor rechaza crearlas en vez de generar una "
                 "liga de clubes disfrazada"
             )
+        if self.structure.has_groups:
+            if self.generation.club_count < 2 * self.structure.count:
+                raise ValueError(
+                    f"{self.structure.count} grupos con {self.generation.club_count} "
+                    "clubes: cada grupo necesita al menos dos para tener calendario"
+                )
+            if self.structure.groups:
+                plazas = sum(g.slots for g in self.structure.groups)
+                if plazas != self.generation.club_count:
+                    raise ValueError(
+                        f"las plazas de los grupos suman {plazas} y la competición "
+                        f"tiene {self.generation.club_count}: declara el mismo número"
+                    )
+            if self.playoffs.format is not PlayoffFormat.NONE:
+                # Autoridad única: con grupos, las plazas de playoff las fija la
+                # estructura. Dos números que pueden contradecirse no existen.
+                esperadas = self.structure.playoff_slots
+                if self.playoffs.slots != esperadas:
+                    raise ValueError(
+                        f"con {self.structure.count} grupos, "
+                        f"{self.structure.qualifiers_per_group} clasificado(s) por grupo "
+                        f"y {self.structure.wildcards} repechaje(s), el playoff tiene "
+                        f"{esperadas} plazas; el reglamento declara "
+                        f"{self.playoffs.slots}. Cambia la estructura, no las plazas."
+                    )
         if self.markets:
             declared = sum(m.slots for m in self.markets)
             if declared > self.generation.club_count:

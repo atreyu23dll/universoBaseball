@@ -38,25 +38,26 @@ Dos escenarios, elegidos porque deben diferir:
 
 ## 3. Resultados — escenario profesional
 
-Dos semillas, 720 partidos cada una. **Todas las métricas dentro de la banda de
-referencia.**
+Cuatro semillas, 720 partidos cada una, medido el 24 de octubre de 2026 tras la
+recalibración económica de §7 bis. **Todas las métricas dentro de la banda de
+referencia.** Nivel emergente del escenario: 0.667 (`established`).
 
 | Métrica | Medido | Referencia pro |
 |---|---|---|
-| Carreras por partido | 8.45 | 8.0 – 10.0 |
-| AVG de liga | .247 | .240 – .270 |
-| OBP de liga | .312 | .305 – .335 |
-| SLG de liga | .416 | .390 – .440 |
-| Ponches por turno | 20.0 % | 18 – 24 % |
-| Boletos por turno | 8.1 % | 7 – 10 % |
+| Carreras por partido | 8.73 | 8.0 – 10.0 |
+| AVG de liga | .250 | .240 – .270 |
+| OBP de liga | .317 | .305 – .335 |
+| SLG de liga | .419 | .390 – .440 |
+| Ponches por turno | 19.4 % | 18 – 24 % |
+| Boletos por turno | 8.4 % | 7 – 10 % |
 | Jonrones por turno | 3.31 % | 2.5 – 3.5 % |
-| Errores por partido | 0.78 | 0.50 – 0.90 |
-| ERA de liga | 4.01 | 3.80 – 4.80 |
-| Partidos a entradas extra | 10.1 % | 6 – 12 % |
-| Carreras sucias | 5.6 % | 5 – 11 % |
+| Errores por partido | 0.85 | 0.50 – 0.90 |
+| ERA de liga | 4.10 | 3.80 – 4.80 |
+| Partidos a entradas extra | 11.0 % | 6 – 12 % |
+| Carreras sucias | 6.2 % | 5 – 11 % |
 | AVG del campeón de bateo | .355 | .330 – .380 |
-| Porcentaje del campeón de liga | .661 | .580 – .700 |
-| Desviación de victorias entre clubes | .084 | ≈ .070 |
+| Porcentaje del campeón de liga | .647 | .580 – .700 |
+| Desviación de victorias entre clubes | .081 | ≈ .070 |
 
 Fuera de las bandas automáticas, medido aparte en el mismo escenario:
 **4.71 entradas por apertura** con **83.5 lanzamientos** de media, y **5.4
@@ -64,16 +65,22 @@ relevistas por partido**.
 
 ## 4. Resultados — escenario municipal
 
-El escenario modesto **debe** desviarse, y lo hace en la dirección correcta:
+El escenario modesto **debe** desviarse, y lo hace en la dirección correcta. Su
+nivel emergente bajó de 0.369 (`modest`) a **0.275 (`subsistence`)** con la
+recalibración de §7 bis —un club de barrio con 50 000 pesos de presupuesto es
+un club de subsistencia, que es lo que es— y las desviaciones se ensancharon en
+consecuencia:
 
 | Métrica | Municipal | Profesional | Dirección esperada |
 |---|---|---|---|
-| Errores por partido | 1.22 | 0.78 | ✔ más, defensa peor |
-| Boletos por turno | 9.1 % | 7.9 % | ✔ más, menos control |
-| Jonrones por turno | 2.98 % | 3.32 % | ✔ menos, menos potencia |
-| ERA de liga | 4.32 | 3.96 | ✔ más alta |
-| Carreras por partido | 9.34 | 8.38 | ✔ más ofensiva |
-| AVG del campeón de bateo | .390 | .353 | ✔ más extremo, liga más heterogénea |
+| Errores por partido | 1.57 | 0.85 | ✔ más, defensa peor |
+| Boletos por turno | 9.8 % | 8.4 % | ✔ más, menos control |
+| Jonrones por turno | 2.14 % | 3.31 % | ✔ menos, menos potencia |
+| SLG de liga | .386 | .419 | ✔ menos, menos potencia |
+| OBP de liga | .335 | .317 | ✔ más, muchos boletos |
+| ERA de liga | 4.15 | 4.10 | ≈ igual: más carreras pero también más sucias |
+| Carreras por partido | 9.17 | 8.73 | ✔ más ofensiva |
+| AVG del campeón de bateo | .374 | .355 | ✔ más extremo, liga más heterogénea |
 
 Las diferencias **no** salen de una tabla por etiqueta: salen de
 `LeagueRates.for_level()` aplicado al índice de profesionalización que el
@@ -140,19 +147,100 @@ Dicho claro, porque la alternativa sería fingir que no existen:
 | 22/10/2026 | `BASE_HOMERUN` | 0.0275 | 0.0245 | Al corregir la edad al corte del reglamento, la población envejeció medio año de media —antes un jugador «de 25» tenía 24,5 porque la fecha de nacimiento se sorteaba sin mirar el corte— y el escenario profesional se fue a 0.0371 jonrones por turno frente a la banda [0.025, 0.035]. Con 0.0245 queda en 0.0319. |
 | 22/10/2026 | `LEVEL_SCALE` | — (nuevo) | 2.96 | Función de transferencia de recursos a nivel de juego. Se ancla pidiendo que una liga nacional profesional, cuyos clubes reúnen del orden de 100 meses de gasto doméstico, caiga en 0.68, que es el nivel al que el motor reproduce béisbol profesional: `log10(103)/0.68 ≈ 2.96`. |
 
-Los dos reajustes son consecuencia de corregir el modelo, no de perseguir un
+| 24/10/2026 | Coeficientes económicos y orden del cálculo | ver §7 bis | ver §7 bis | Una liga llanera municipal daba presupuestos de 11 a 51 meses de gasto doméstico. Cinco causas de modelo —aforo desde el tamaño de la ciudad, precio de entrada único, bolsa publicitaria repartida entera, respaldo privado por etiqueta de gobierno, costes de club con empleados— y una sexta al corregirlas: la liga nacía quebrada porque los ingresos se calculaban antes de saber lo que cuesta la temporada. |
+
+Los reajustes son consecuencia de corregir el modelo, no de perseguir un
 número: el primero reequilibra una tasa después de arreglar un error de edades,
-y el segundo fija la escala de una función que antes no existía porque el nivel
-se elegía a mano en un formulario.
+el segundo fija la escala de una función que antes no existía porque el nivel se
+elegía a mano en un formulario, y el tercero sustituye coeficientes que no
+miraban la causa que tenían al lado.
+
+**Efecto del tercero sobre el motor de partidos**, comprobado con `make
+calibrate` el mismo día: el escenario profesional **no se mueve de banda** en
+ninguna métrica. El municipal baja de nivel `modest` a `subsistence`, que es lo
+que corresponde a un club de 50 000 pesos de presupuesto, y sus desviaciones se
+ensanchan en la dirección esperada (§4). No hizo falta retocar ninguna tasa del
+juego: bajar los presupuestos de una liga de barrio hace que juegue peor, y eso
+es el comportamiento correcto, no un efecto secundario que haya que compensar.
 
 ## 7. Resultados del modelo económico bottom-up
 
-Medido con el fixture mexicano, semilla 7, el 22 de octubre de 2026:
+Medido con el fixture mexicano, 12 clubes, 44 partidos por club, el 24 de
+octubre de 2026, **después** de la recalibración de §7 bis:
 
-| Escenario | Presupuestos | En meses de gasto doméstico | Nivel emergente |
+| Escenario | Mediana | Rango | Mediana en MXN |
 |---|---|---|---|
-| Llanera, Ciudad Juárez, 8 clubes, 20 partidos | 73 000 – 199 000 MXN | 6 – 17 | 0.37 (`modest`) |
-| Profesional, nacional, 8 clubes, 60 partidos | 0,9 – 3,4 M MXN | 74 – 280 | 0.69 (`established`) |
+| Municipal · llanera | 6,2 meses | 3,7 – 11,7 | 73 969 |
+| Municipal · escolar-formativa | 6,2 meses | 3,7 – 9,4 | 73 969 |
+| Municipal · amateur organizada | 5,8 meses | 3,8 – 8,1 | 69 683 |
+| Municipal · semiprofesional | 5,1 meses | 4,7 – 15,2 | 61 417 |
+| Municipal · profesional | 7,4 meses | 5,0 – 21,3 | 89 079 |
+| Nacional · amateur organizada | 47,8 meses | 45,4 – 74,7 | 573 395 |
+| Nacional · semiprofesional | 42,4 meses | 40,0 – 95,1 | 509 030 |
+| Nacional · profesional | 44,5 meses | 44,4 – 57,3 | 534 047 |
+
+La columna que importa es la primera: **la modalidad no mueve la mediana**
+(profesional entre llanera = 1,19×, y la prueba `test_d02` falla por encima de
+2×). Lo que la mueve es el territorio: pasar de municipal a nacional multiplica
+por siete, y eso sale de los mercados, de la audiencia y de los viajes.
+
+## 7 bis. Recalibración del 24 de octubre de 2026
+
+El usuario observó una liga llanera municipal con mediana de **136 427 MXN** y
+un club en **614 398**: 11 y 51 meses de gasto de un hogar para equipos sin
+propietario. Al desglosarlo aparecieron cinco defectos, todos de causa y no de
+escala:
+
+| Defecto | Qué hacía | Corrección |
+|---|---|---|
+| **Aforo desde el tamaño de la ciudad** | Un club con 1 000 seguidores recibía un recinto para 15 000 porque Juárez es grande; la taquilla se calculaba sobre ese público imaginario | Las gradas se dimensionan para **el público del club** (base social × la parte que acude × holgura), con el acuerdo de sede como tope |
+| **Precio de entrada único** | 48 MXN por entrar a un campo de barrio, lo mismo que a un estadio | El precio sale del recinto: de 10 MXN de cooperación en un campo sin accesos a 60 en uno de 12 000 de aforo |
+| **La bolsa publicitaria se repartía entera** | Los clubes de una competición se repartían toda la publicidad deportiva de su zona, dieran la audiencia que dieran: 194 746 MXN de patrocinio para un club con 973 seguidores | Dos topes y manda el menor: la bolsa finita de la zona (ADR 0005) **y** lo que un anunciante paga por seguidor |
+| **Respaldo privado por forma de gobierno** | Un rango fijo por etiqueta de gobierno: 2–14 meses para `business_backed`, fuera un club de barrio o uno nacional | El mismo rango escalado por la audiencia del club: quien respalda pone en proporción a lo que el club mueve |
+| **Costes de club formal para un club autogestionado** | 2 400 MXN por jugador en material y uniformes, 960 por partido de permiso de campo itinerante, 540 de arbitraje | Coeficientes a la baja y, donde el reglamento no admite pagar al jugador, la mitad del equipo personal la pone él: ahí el jugador no es un empleado |
+
+Y un sexto que solo se vio al bajar los costes: **la liga nacía quebrada**, con
+6 ó 7 de 12 clubes incapaces de cubrir sus obligaciones el primer año. Dos
+causas encadenadas:
+
+1. El club cobraba cuota a 2, 7 u 8 personas teniendo 26 inscritos, porque la
+   base de socios salía solo de la población captable de la zona. En una
+   competición sin salarios los que pagan la cuota son **los propios
+   jugadores**, así que la base no puede ser menor que la plantilla.
+2. **El orden del cálculo estaba invertido.** Se estimaban los ingresos y
+   después se miraba si cubrían los gastos. Un club de barrio funciona al
+   contrario: primero sabe lo que cuesta la temporada —árbitros, campo, viajes,
+   inscripción— y después reparte entre los que juegan. Ahora los gastos
+   obligatorios se calculan primero y **la cooperación se ajusta a ellos**, con
+   un tope de 0,06 del coste mensual (unos 720 MXN al mes por jugador) porque
+   por encima de eso la gente deja de apuntarse.
+
+Con las dos correcciones, las cuotas de una llanera quedan en 0,022–0,027 del
+coste mensual (265–325 MXN por jugador y mes, que es la cooperación real) y el
+déficit baja a 0 ó 1 club de cada ocho. El que queda en rojo es **el que tocó el
+tope de la cuota**: necesitaría más de 720 MXN mensuales por jugador para
+sostener su sede alquilada. Ese déficit ya no es un artefacto del modelo, es un
+club que no se sostiene, y es lo que el cierre de temporada de P5 debe liquidar.
+
+Resultado para el caso observado, mismo territorio y mismas reglas:
+
+| | Antes | Después |
+|---|---|---|
+| Mediana | 136 427 MXN (11,4 meses) | 73 969 MXN (6,2 meses) |
+| Club mayor | 614 398 MXN (51,2 meses) | 140 000 MXN (11,7 meses) |
+| Aforos | 850 – 15 150 | 120 – 850 |
+| Clubes sin cubrir obligaciones | 6–7 de 12 | 1–2 de 12 |
+
+Ninguna de las correcciones mira la modalidad: todas pasan por una causa
+—público, recinto, audiencia, quién es empleado y quién no— que ya existía en el
+modelo y no se estaba usando. Los guardarraíles `test_d03` y `test_d03b` fijan
+la banda y vigilan que no se vuelva ni a inflar ni a quebrar.
+
+Lo que **sigue sin resolverse** y se sabe: la base social de un club nacional
+profesional sale del orden de 10 000 seguidores, cuando un club de la Liga
+Mexicana tiene cientos de miles. De ahí vienen a la vez el aforo modesto de esos
+clubes (2 500–3 800) y su presupuesto corto. Es el mismo hueco que ya estaba
+anotado —sin derechos de televisión ni traspasos— visto desde el otro lado.
 
 Lo que esta tabla demuestra y lo que no:
 

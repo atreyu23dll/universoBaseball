@@ -40,6 +40,11 @@ class StandingRow:
     points: int = 0
     rank: int = 0
     tiebreak_note: str = ""
+    #: Grupo, división o conferencia del participante. Vacío si la competición
+    #: es de tabla única.
+    group_key: str = ""
+    #: Puesto dentro de su grupo. 0 si no hay grupos.
+    group_rank: int = 0
 
     @property
     def played(self) -> int:
@@ -68,8 +73,22 @@ def compute_standings(
     outcomes: list[GameOutcome],
     rules: StandingsRules,
     seed: int = 0,
+    groups: dict[str, str] | None = None,
 ) -> list[StandingRow]:
-    rows = {key: StandingRow(entry_key=key) for key in entry_keys}
+    """Clasificación de la edición, ordenada, con su puesto en cada tabla.
+
+    Con grupos sigue habiendo **una** fila por participante, calculada sobre
+    todos sus partidos: una tabla de división no es un torneo aparte, es la
+    misma temporada mirada por divisiones. Lo que el grupo añade es el puesto
+    dentro de él (`group_rank`), que es lo que decide quién clasifica.
+
+    No se recalculan los desempates dentro del grupo: el orden del grupo es el
+    orden general restringido a sus miembros, que es como se publican las
+    divisiones de verdad.
+    """
+    rows = {
+        key: StandingRow(entry_key=key, group_key=(groups or {}).get(key, "")) for key in entry_keys
+    }
     head_to_head: dict[tuple[str, str], int] = {}
 
     for game in outcomes:
@@ -124,6 +143,12 @@ def compute_standings(
     ordered = _order_rows(list(rows.values()), rules, head_to_head, seed)
     for position, row in enumerate(ordered, start=1):
         row.rank = position
+
+    if groups:
+        por_grupo: dict[str, int] = {}
+        for row in ordered:
+            por_grupo[row.group_key] = por_grupo.get(row.group_key, 0) + 1
+            row.group_rank = por_grupo[row.group_key]
     return ordered
 
 

@@ -3,7 +3,7 @@
   import { page } from '$app/stores';
   import { api } from '$lib/api/client';
   import type { GameBrief, MobilityProjection, StandingRow } from '$lib/api/types';
-  import { formatDate, formatPct, KIND_LABEL, SCOPE_LABEL } from '$lib/format';
+  import { formatDate, formatPct, GROUP_ASSIGNMENT_LABEL, KIND_LABEL, SCOPE_LABEL } from '$lib/format';
   import Crest from '$lib/components/Crest.svelte';
   import ErrorNotice from '$lib/components/ErrorNotice.svelte';
 
@@ -17,6 +17,18 @@
   let mobility = $state<MobilityProjection | null>(null);
   let error = $state<unknown>(null);
   let tab = $state<'tabla' | 'calendario' | 'postemporada' | 'lideres' | 'reglas'>('tabla');
+
+  /** Tablas que se muestran: una por división, o la única que hay. */
+  const tablas = $derived.by(() => {
+    const estructura = detail?.structure;
+    if (!estructura || standings.length === 0) {
+      return [{ label: '', rows: standings }];
+    }
+    return estructura.groups.map((grupo: { label: string }) => ({
+      label: grupo.label,
+      rows: standings.filter((row) => row.group === grupo.label)
+    }));
+  });
 
   /** Zona de ascenso o descenso de un club, según la proyección del motor. */
   function zone(clubId: string | undefined): 'promote' | 'relegate' | null {
@@ -84,8 +96,26 @@
   </div>
 
   {#if tab === 'tabla'}
+    {#if detail.structure}
+      <div class="notice info" style="margin-bottom:12px">
+        <strong>{detail.structure.count} divisiones</strong>, repartidas
+        {GROUP_ASSIGNMENT_LABEL[detail.structure.assignment ?? ''] ?? detail.structure.assignment}.
+        Cada club juega {detail.structure.intra_cycles} vuelta(s) contra los de su
+        división y {detail.structure.inter_cycles} contra los demás, así que no
+        todos se enfrentan el mismo número de veces: eso es lo que hace que una
+        división importe.
+        {#if detail.structure.qualifiers_per_group || detail.structure.wildcards}
+          <div class="small" style="margin-top:4px">
+            A la postemporada pasan {detail.structure.qualifiers_per_group} de cada
+            división{#if detail.structure.wildcards} más {detail.structure.wildcards}
+            repechaje(s) de la tabla general{/if}.
+          </div>
+        {/if}
+      </div>
+    {/if}
+    {#each tablas as grupo (grupo.label)}
     <div class="panel">
-      <h2>Clasificación</h2>
+      <h2>{grupo.label ? `Clasificación · ${grupo.label}` : 'Clasificación'}</h2>
       <table>
         <thead>
           <tr>
@@ -105,10 +135,10 @@
           </tr>
         </thead>
         <tbody>
-          {#each standings as row (row.club?.id)}
+          {#each grupo.rows as row (row.club?.id)}
             <tr class={zone(row.club?.id) ?? ''}>
               <td class="num">
-                {row.rank}
+                {grupo.label ? row.group_rank : row.rank}
                 {#if zone(row.club?.id) === 'promote'}<span class="arrow up">▲</span>{/if}
                 {#if zone(row.club?.id) === 'relegate'}<span class="arrow down">▼</span>{/if}
               </td>
@@ -139,8 +169,15 @@
       <p class="small muted">
         Se recalcula desde los partidos terminados en cada avance, no se acumula.
         Los empates valen media victoria en el porcentaje.
+        {#if grupo.label}
+          El puesto es el de la división; la columna PCT sale de <strong>todos</strong>
+          los partidos del club, también los de fuera de su grupo.
+        {/if}
       </p>
-      {#if mobility?.has_hierarchy}
+    </div>
+    {/each}
+    {#if mobility?.has_hierarchy}
+      <div class="panel">
         <div class="notice info">
           <strong>
             {mobility.direction === 'promoted'
@@ -156,8 +193,8 @@
             </ul>
           {/if}
         </div>
-      {/if}
-    </div>
+      </div>
+    {/if}
   {:else if tab === 'calendario'}
     <div class="panel">
       <h2>Calendario</h2>

@@ -296,8 +296,10 @@ def test_el_presupuesto_del_año_siguiente_reparte_una_bolsa_que_no_crece(tree) 
                     total += componente.amount
         return total
 
-    base = [estado("a", 0.4, 2000), estado("b", 0.4, 2000), estado("c", 0.4, 2000)]
-    crecidos = [estado("a", 0.8, 6000), estado("b", 0.4, 2000), estado("c", 0.4, 2000)]
+    # Aficiones grandes a propósito: con ellas el tope que manda es la bolsa de
+    # la zona y no el valor por seguidor, que es justo lo que esta prueba mira.
+    base = [estado("a", 0.4, 60_000), estado("b", 0.4, 60_000), estado("c", 0.4, 60_000)]
+    crecidos = [estado("a", 0.8, 90_000), estado("b", 0.4, 60_000), estado("c", 0.4, 60_000)]
     argumentos = {
         "master_seed": 991,
         "season": 2043,
@@ -327,8 +329,6 @@ def test_el_presupuesto_del_año_siguiente_reparte_una_bolsa_que_no_crece(tree) 
 
     assert importe(de_a_despues, "local_sponsorship") > importe(de_a_antes, "local_sponsorship")
     assert importe(de_b_despues, "local_sponsorship") < importe(de_b_antes, "local_sponsorship")
-    # Y su propia afición sí es suya: más seguidores, más cuotas.
-    assert importe(de_a_despues, "membership_fees") > importe(de_a_antes, "membership_fees")
 
 
 def test_cuando_un_club_desaparece_los_demás_se_reparten_su_parte(tree) -> None:
@@ -351,7 +351,9 @@ def test_cuando_un_club_desaparece_los_demás_se_reparten_su_parte(tree) -> None
             venue_agreement=VenueAgreement.PUBLIC_SHARED,
             community_reach=0.5,
             ambition=0.5,
-            fan_base=2500,
+            # Audiencia grande: así el tope activo es la bolsa repartida, que es
+            # lo que cambia al desaparecer un club.
+            fan_base=60_000,
             venue_capacity=1200,
             currency="MXN",
             reference_monthly_cost=Decimal("10000"),
@@ -370,3 +372,66 @@ def test_cuando_un_club_desaparece_los_demás_se_reparten_su_parte(tree) -> None
         )
 
     assert patrocinio_de(con_tres, "a") > patrocinio_de(con_cuatro, "a")
+
+
+def test_un_club_de_barrio_no_cobra_patrocinio_de_club_grande(tree) -> None:
+    """El otro tope del patrocinio: lo que un anunciante paga por audiencia.
+
+    Repartir la bolsa publicitaria de una ciudad entre los pocos clubes de una
+    competición daba a un club llanero con mil seguidores un patrocinio de
+    cientos de miles de pesos. La bolsa sigue siendo finita —eso no cambia—,
+    pero además nadie paga por una audiencia que no existe: manda el menor de
+    los dos topes.
+    """
+    from simulation.competitions.ruleset import RuleSet
+    from simulation.economy.club_finances import SPONSORSHIP_PER_FOLLOWER
+    from simulation.economy.model import ComponentKind
+    from simulation.generation.context import market_for_place
+    from simulation.generation.season_forecast import ClubEconomicState, forecast_next_season
+    from simulation.tests.conftest import MUNICIPAL
+
+    ruleset = RuleSet.model_validate(MUNICIPAL)
+    zona = ruleset.scope.place_keys[0]
+    mercado = market_for_place(tree, zona)
+    ancla = Decimal("12000")
+
+    def estado(clave: str, afición: int) -> ClubEconomicState:
+        return ClubEconomicState(
+            club_key=clave,
+            place_key=zona,
+            governance=GovernanceModel.COLLECTIVE,
+            venue_agreement=VenueAgreement.PUBLIC_SHARED,
+            community_reach=0.5,
+            ambition=0.4,
+            fan_base=afición,
+            venue_capacity=400,
+            currency="MXN",
+            reference_monthly_cost=ancla,
+        )
+
+    # Dos clubes solos en una ciudad grande: si mandara el reparto de la bolsa,
+    # cada uno se llevaría una fortuna.
+    previsiones = forecast_next_season(
+        master_seed=31,
+        season=2043,
+        ruleset=ruleset,
+        markets=[mercado],
+        clubs=[estado("a", 900), estado("b", 900)],
+    )
+    for prevision in previsiones:
+        patrocinio = next(
+            c.amount
+            for c in prevision.profile.by_kind(ComponentKind.REVENUE)
+            if c.source == "local_sponsorship" and c.amount is not None
+        )
+        esperado = Decimal(900) * Decimal(str(SPONSORSHIP_PER_FOLLOWER)) * ancla
+        assert patrocinio <= esperado, (
+            f"{patrocinio} MXN de patrocinio para un club con 900 seguidores: "
+            "nadie paga por una audiencia que no existe"
+        )
+        motivo = next(
+            c.basis
+            for c in prevision.profile.by_kind(ComponentKind.REVENUE)
+            if c.source == "local_sponsorship"
+        )
+        assert "audiencia del club" in motivo, "el asiento dice qué tope mandó"

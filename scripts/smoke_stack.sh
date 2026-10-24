@@ -119,6 +119,21 @@ comprobar "la misma cuota que ve la inferior" 2 "$plazas_abajo"
 comprobar "el grafo de competiciones carga"   200 "$(codigo "$FRONT/universos/$universo/grafo")"
 comprobar "el historial de movilidad carga"   200 "$(codigo "$FRONT/api/v1/universes/$universo/mobility-history")"
 
+# La previsualización del calendario es lo que dibuja el asistente mientras el
+# usuario mueve los controles: si no responde por el camino del navegador, el
+# paso 6 se queda en blanco y el usuario no ve nada.
+vista="$(curl -s -m 20 -X POST "$FRONT/api/v1/schedule/preview" \
+  -H 'content-type: application/json' \
+  -d '{"club_count":8,"season":{"games_per_club_target":20},"structure":{"count":2,"intra_cycles":4,"inter_cycles":2,"qualifiers_per_group":2,"wildcards":2},"playoffs":{"slots":6,"format":"best_of_series","round_lengths":[3,5,7]}}')"
+# El JSON trae varios «games» —uno por club— así que se acota al objeto
+# `totals` antes de leerlo. Y `byes` como número solo aparece en el cuadro: en
+# las rondas es una lista, que este patrón no casa.
+partidos=$(printf '%s' "$vista" | grep -o '"totals": *{[^}]*}' |
+  grep -o '"games": *[0-9]*' | head -1 | grep -o '[0-9]*')
+byes=$(printf '%s' "$vista" | grep -o '"byes": *[0-9][0-9]*' | head -1 | grep -o '[0-9]*')
+comprobar "la vista del calendario calcula los partidos" 80 "$partidos"
+comprobar "y el cuadro de 6 plazas da 2 pases directos"   2 "$byes"
+
 comprobar "borrar devuelve 204 sin cuerpo" 204 "$(codigo -X DELETE "$FRONT/api/v1/universes/$universo")"
 
 if (( fallos > 0 )); then

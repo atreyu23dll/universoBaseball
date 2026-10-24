@@ -11,10 +11,11 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 from simulation import SIM_VERSION
-from simulation.competitions.ruleset import RuleSet
+from simulation.competitions.groups import GroupCandidate, GroupPlacement, assign_groups
+from simulation.competitions.ruleset import GroupAssignment, RuleSet
 from simulation.competitions.schedule import ScheduleReport, build_schedule
 from simulation.core.events import EventType, SimulationEvent
-from simulation.core.provenance import GenerationRecord
+from simulation.core.provenance import Confidence, GenerationRecord
 from simulation.generation.clubs import assign_rosters, generate_clubs
 from simulation.generation.context import (
     CompetitionContext,
@@ -40,6 +41,13 @@ class GeneratedWorld:
     records: list[GenerationRecord]
     events: list[SimulationEvent] = field(default_factory=list)
     sim_version: str = SIM_VERSION
+    #: Grupo de cada club, con el motivo del reparto. Una lista vacía significa
+    #: competición de tabla única.
+    groups: list[GroupPlacement] = field(default_factory=list)
+
+    @property
+    def group_of(self) -> dict[str, str]:
+        return {placement.club_key: placement.group_key for placement in self.groups}
 
     @property
     def warnings(self) -> list[str]:
@@ -106,6 +114,53 @@ def generate_competition_world(
     )
     people = {member.person.key: member.person for member in pool}
 
+    # Grupos, divisiones o conferencias. Se reparten antes del calendario
+    # porque el calendario depende de ellos: dentro del grupo se juega más.
+    placements: list[GroupPlacement] = []
+    group_of: dict[str, str] = {}
+    extra_records: list[GenerationRecord] = []
+    if ruleset.structure.has_groups:
+        group_record = GenerationRecord(
+            entity_kind="competition_structure",
+            entity_key=edition_key,
+            procedure="assign_groups",
+            procedure_version=PROCEDURE_VERSION,
+            seed=seed,
+        )
+        placements = assign_groups(
+            [
+                GroupCandidate(
+                    key=club.key,
+                    name=club.name,
+                    lat=club.venue.lat,
+                    lon=club.venue.lon,
+                    strength=club.resource_multiplier,
+                )
+                for club in generated.clubs
+            ],
+            ruleset.structure,
+        )
+        group_of = {placement.club_key: placement.group_key for placement in placements}
+        for placement in placements:
+            group_record.note(
+                f"group[{placement.club_key}]",
+                placement.group_key,
+                Confidence.FICTIONAL,
+                placement.reason,
+            )
+        group_record.assumptions.append(
+            f"El reparto en {ruleset.structure.count} grupos es "
+            f"«{ruleset.structure.assignment}»: "
+            + (
+                "los clubes se agrupan por cercanía, que es lo que abarata los viajes"
+                if ruleset.structure.assignment is GroupAssignment.GEOGRAPHIC
+                else "los clubes se reparten por recursos para igualar los grupos"
+                if ruleset.structure.assignment is GroupAssignment.BALANCED
+                else "los grupos y sus plazas los declaró el usuario; el llenado es por cercanía"
+            )
+        )
+        extra_records.append(group_record)
+
     start = world_date + timedelta(days=ruleset.season.start_date_offset_days)
     if build_calendar:
         schedule = build_schedule(
@@ -115,6 +170,9 @@ def generate_competition_world(
             rest_days_weekday=ruleset.season.rest_days_weekday,
             games_per_series=ruleset.season.games_per_series,
             days_between_series=ruleset.season.days_between_series,
+            groups=group_of or None,
+            intra_cycles=ruleset.structure.intra_cycles,
+            inter_cycles=ruleset.structure.inter_cycles,
         )
     else:
         schedule = ScheduleReport(
@@ -169,8 +227,9 @@ def generate_competition_world(
         people=people,
         free_agents=[m.person.key for m in generated.unsigned],
         schedule=schedule,
-        records=[context.record, pool_record, *generated.records],
+        records=[context.record, pool_record, *generated.records, *extra_records],
         events=events,
+        groups=placements,
     )
 
 

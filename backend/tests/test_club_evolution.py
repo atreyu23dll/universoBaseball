@@ -272,24 +272,32 @@ def test_p5_07_el_presupuesto_del_año_siguiente_responde_a_lo_que_pasó(
     ]
     assert cambiados, "el presupuesto de la temporada siguiente se recalculó"
 
-    # Y el reparto de los recursos locales sigue siendo finito: la suma de lo
-    # que los clubes de una zona dicen captar de la bolsa publicitaria no puede
-    # crecer porque ellos crezcan.
-    def patrocinio_por_zona(fichas: dict) -> dict[str, Decimal]:
-        total: dict[str, Decimal] = {}
-        for ficha in fichas.values():
-            zona = ficha["home_place"]["key"]
-            for componente in (ficha["finances"]["assessment"] or {}).get("components", []):
-                if componente["source"] == "local_sponsorship" and componente["amount"]:
-                    total[zona] = total.get(zona, Decimal("0")) + Decimal(componente["amount"])
-        return total
+    # Y el patrocinio de cada club sigue atado a la audiencia que entrega: el
+    # asiento declara los dos topes —su parte de la bolsa de la zona y lo que
+    # valen sus seguidores— y el importe no puede pasarse de ninguno.
+    from simulation.economy.club_finances import SPONSORSHIP_PER_FOLLOWER
 
-    bolsa_antes = patrocinio_por_zona(antes)
-    bolsa_despues = patrocinio_por_zona(despues)
-    for zona, importe in bolsa_despues.items():
-        assert importe <= bolsa_antes[zona] * Decimal("1.02"), (
-            f"la bolsa publicitaria de {zona} no puede crecer porque crezcan los clubes"
+    for club_id, ficha in despues.items():
+        assessment = ficha["finances"]["assessment"] or {}
+        ancla = assessment.get("reference_monthly_cost")
+        if not ancla:
+            continue
+        patrocinio = next(
+            (
+                Decimal(c["amount"])
+                for c in assessment.get("components", [])
+                if c["source"] == "local_sponsorship" and c["amount"]
+            ),
+            Decimal("0"),
         )
+        tope_audiencia = (
+            Decimal(ficha["fan_base"]) * Decimal(str(SPONSORSHIP_PER_FOLLOWER)) * Decimal(ancla)
+        )
+        assert patrocinio <= tope_audiencia * Decimal("1.01"), (
+            f"{ficha['name']} capta {patrocinio} de patrocinio con "
+            f"{ficha['fan_base']} seguidores: nadie paga por una audiencia que no existe"
+        )
+        assert antes[club_id] is not None
 
     # La procedencia del número nuevo queda escrita.
     procedencias = [

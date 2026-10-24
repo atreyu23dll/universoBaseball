@@ -94,7 +94,9 @@ def close_edition_finances(
     report = EvolutionReport(season=edition.year)
 
     entradas = session.scalars(
-        select(m.EditionEntry).where(m.EditionEntry.edition_id == edition.id)
+        select(m.EditionEntry)
+        .where(m.EditionEntry.edition_id == edition.id)
+        .order_by(m.EditionEntry.club_id, m.EditionEntry.id)
     ).all()
     if not entradas:
         return report
@@ -141,7 +143,9 @@ def _reforecast_edition(
         for club in (
             session.get(m.Club, entrada.club_id)
             for entrada in session.scalars(
-                select(m.EditionEntry).where(m.EditionEntry.edition_id == edition.id)
+                select(m.EditionEntry)
+                .where(m.EditionEntry.edition_id == edition.id)
+                .order_by(m.EditionEntry.club_id, m.EditionEntry.id)
             ).all()
             if entrada.club_id
         )

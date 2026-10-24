@@ -95,6 +95,15 @@
         entonces tampoco desciende nadie por ella.
       </li>
       <li>
+        <strong>Divisiones, grupos y conferencias</strong> dentro de una misma
+        competición: el reparto lo hace el motor por cercanía o por recursos y
+        deja escrito por qué cada club está donde está, el calendario juega más
+        veces contra los de la propia división, la tabla trae el puesto del
+        grupo sin dejar de contar todos los partidos, y a la postemporada entran
+        los campeones de división más los repechajes de la tabla general. El
+        reparto se rehace cada temporada con los clubes que hay.
+      </li>
+      <li>
         <strong>Temporadas encadenadas</strong>: cuando una edición termina, el
         mundo abre la siguiente con los clubes que ya existen —sin regenerar
         nada— y las ligas vinculadas esperan a que todas cierren antes de mover
@@ -120,6 +129,20 @@
         el club deja de competir: nadie le regala el dinero que le falta para
         mantener el número de equipos de la liga. Conserva su ficha, su historia
         y sus títulos; deja de jugar.
+      </li>
+      <li>
+        <strong>Postemporada con pases directos.</strong> Las plazas no tienen
+        que ser potencia de dos: con seis clasificados el cuadro es de ocho y las
+        dos mejores siembras esperan en la segunda ronda, como en las ligas de
+        verdad.
+      </li>
+      <li>
+        <strong>El asistente dibuja lo que pides.</strong> Los seis números del
+        calendario —partidos, series, descansos, vueltas dentro y fuera de la
+        división— se multiplican entre sí, así que el paso 6 muestra en vivo los
+        partidos que salen, el reparto de cada club, la matriz de cruces, las dos
+        primeras semanas día a día y el cuadro de postemporada. Lo calcula el
+        motor, no es una maqueta, y no escribe nada hasta que confirmas.
       </li>
       <li>Procedencia de cada número generado, consultable en la ficha del club.</li>
     </ul>
@@ -147,10 +170,6 @@
         moneda de 251 de 252, pero los importes solo se pueden calcular donde el
         ancla está curada: México, Argentina, Brasil, Cuba y República
         Dominicana.
-      </li>
-      <li>
-        <strong>Grupos, divisiones y conferencias</strong> dentro de una misma
-        competición. Hoy toda competición es una tabla única.
       </li>
       <li>
         <strong>Fusiones y refundaciones.</strong> Un club crece, se encoge o

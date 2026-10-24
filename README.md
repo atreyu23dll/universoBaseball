@@ -15,7 +15,7 @@ mundo avance solo.
 |---|---|---|
 | 0 | Monorepo, API, interfaz, base de datos, migraciones, pruebas, Docker | **Hecho** |
 | 1 | Vertical: universo → liga independiente → generación → calendario → partidos → clasificación → postemporada → avance persistente | **Hecho** |
-| 2 | Ascenso/descenso ejecutándose, grupos y divisiones | **Movilidad hecha** (intercambio, cuota única, requisitos, temporadas encadenadas); **sin grupos ni divisiones** |
+| 2 | Ascenso/descenso ejecutándose, grupos y divisiones | **Hecha**: intercambio, cuota única, requisitos, temporadas encadenadas, divisiones con calendario asimétrico y siembra por grupo |
 | 3 | Selecciones nacionales, elegibilidad por liga doméstica, franquicias internacionales | No empezado |
 | 4 | Economía con libro mayor, patrocinios, fichajes, desarrollo de jugadores | **Libro mayor de temporada hecho** (liquidación, deuda, desaparición de clubes); sin patrocinios como entidad, fichajes ni desarrollo |
 | 5 | Lanzamiento por lanzamiento, física de la pelota, parque 2D | No empezado |
@@ -128,6 +128,40 @@ entre dos que ya existen, desde el grafo de competiciones. A partir de ahí:
 
 Una **filial** o una **liga juvenil** son otra cosa: mueven jugadores y nunca
 clubes. Y mandar el campeón a una copa no le cuesta la independencia a nadie.
+
+## Divisiones, si la competición las quiere
+
+Una competición puede jugarse en una tabla única o repartida en divisiones,
+grupos o conferencias. Se declara en el paso 6 del asistente: cuántas hay, con
+qué criterio se reparten y cuántas vueltas se juegan dentro y fuera.
+
+- **Quién va a cada división lo decide el motor**, no el formulario: por
+  cercanía —los vecinos juntos, que es lo que abarata los viajes— o repartiendo
+  los clubes con más recursos para igualar los grupos. Cada club lleva escrito
+  por qué quedó donde quedó.
+- **El calendario es asimétrico a propósito**: más vueltas contra los de su
+  división que contra el resto. Eso hace que los partidos por club dejen de ser
+  la cifra que pediste y pasen a ser una consecuencia de las vueltas: el motor
+  dice cuántos salen y avisa de la diferencia, no cambia las reglas por su
+  cuenta.
+- **La tabla sigue siendo una por club**, con todos sus partidos; la división
+  solo añade el puesto dentro de ella. Una tabla de división no es un torneo
+  aparte.
+- **A la postemporada entran los campeones de división y los repechajes.** Con
+  divisiones, las plazas las fija la estructura: un grupo fuerte puede meter a
+  tres clubes y uno flojo solo a su campeón.
+- **El reparto se rehace cada temporada.** Un club que asciende entra en la
+  división que le toca por geografía, sin que nadie lo coloque a mano.
+- **Las plazas de playoff no tienen que ser potencia de dos.** Seis
+  clasificados —dos campeones de división y dos repechajes— caben en un cuadro
+  de ocho donde las dos mejores siembras esperan en la segunda ronda.
+
+Y como esos controles se multiplican entre sí, el asistente **dibuja lo que
+producen mientras los mueves**: partidos y jornadas, el reparto de cada club
+entre su división y el resto, la matriz de cuántas veces juega contra cada
+rival, las dos primeras semanas día a día y el cuadro de postemporada con la
+ruta de cada clasificado. Lo calcula el mismo motor que construirá el
+calendario, así que no es una maqueta.
 
 ## Lo que pasa cuando acaba el año
 
@@ -329,7 +363,9 @@ incluidas las que no se han corregido.
   [frontera de temporada y autoridad de la cuota](docs/adr/0004-frontera-de-temporada-y-autoridad-de-la-cuota.md) ·
   [economía bottom-up y modalidad reglamentaria](docs/adr/0005-economia-bottom-up-y-modalidad-reglamentaria.md) ·
   [gazetteer mundial](docs/adr/0006-gazetteer-mundial-geonames.md) ·
-  [liquidación de temporada y vida institucional](docs/adr/0007-liquidacion-de-temporada-y-vida-institucional.md)
+  [liquidación de temporada y vida institucional](docs/adr/0007-liquidacion-de-temporada-y-vida-institucional.md) ·
+  [divisiones dentro de una competición](docs/adr/0008-divisiones-dentro-de-una-competicion.md) ·
+  [postemporada con pase directo y asistente visual](docs/adr/0009-postemporada-con-pase-directo-y-asistente-visual.md)
 
 ## Licencias y atribución
 

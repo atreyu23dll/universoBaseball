@@ -144,6 +144,19 @@ a mercados de millones, con audiencia, patrocinio y viajes distintos.
 - **Los coeficientes son heurísticas sin calibrar.** Lo que está garantizado es
   la trazabilidad de cada importe, no su exactitud. Ver
   `docs/simulation-calibration.md`.
+
+  **Recalibrados el 24 de octubre de 2026** (§7 bis de ese documento) después de
+  que el usuario observara una liga llanera con mediana de 136 427 MXN: el
+  problema no era la escala de los coeficientes sino cinco causas que el modelo
+  no estaba mirando —el aforo salía del tamaño de la ciudad en vez del público
+  del club, el precio de la entrada era el mismo en un campo de barrio que en un
+  estadio, la bolsa publicitaria de la zona se repartía entera sin mirar la
+  audiencia que cada club entrega, el respaldo privado era un rango fijo por
+  forma de gobierno, y los costes por inscrito eran de un club con empleados— y
+  una sexta que apareció al corregirlas: en una competición sin salarios los que
+  pagan la cuota son los propios jugadores, así que la base de socios no puede
+  ser menor que la plantilla. La decisión de este ADR no cambia: ninguna de las
+  correcciones mira la modalidad.
 - **El territorio sigue siendo un fixture local.** Mientras la fase P2 no
   implemente GeoNames + PostGIS + geoBoundaries, el ancla monetaria solo existe
   para los cinco países del fixture, y Kampala no se puede elegir.

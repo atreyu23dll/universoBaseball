@@ -276,21 +276,11 @@ def generate_clubs(
         )
 
         name, nickname, short = club_name(rng, registry, market.place_name, str(institutional_type))
-        venue = generate_venue(
-            rng,
-            registry,
-            f"{edition_key}:club:{index}",
-            nickname,
-            market,
-            organization.venue_agreement,
-            organization.community_reach,
-            world_date.year,
-            record,
-        )
 
         # Base social: gente de la zona que sigue al club. Sale de su alcance
-        # comunitario y de la cultura local, no del aforo de su campo; el aforo
-        # solo limita cuánta de ella cabe en un partido.
+        # comunitario y de la cultura local, nunca del dinero. Se calcula
+        # **antes** del recinto porque las gradas se dimensionan para el público
+        # que puede venir, no para la población de la ciudad.
         fan_base = max(
             30,
             int(
@@ -300,6 +290,18 @@ def generate_clubs(
                     * clamped_normal(rng, 1.0, 0.3, 0.4, 2.0)
                 )
             ),
+        )
+        venue = generate_venue(
+            rng,
+            registry,
+            f"{edition_key}:club:{index}",
+            nickname,
+            market,
+            organization.venue_agreement,
+            organization.community_reach,
+            fan_base,
+            world_date.year,
+            record,
         )
         attendance = min(
             venue.capacity,
@@ -328,6 +330,7 @@ def generate_clubs(
                 sponsorship_months=sponsorship_months,
                 affiliable_people=affiliable,
                 attendance_per_game=attendance,
+                venue_capacity=venue.capacity,
                 follower_base=fan_base,
                 home_games=home_games,
                 away_games=away_games,

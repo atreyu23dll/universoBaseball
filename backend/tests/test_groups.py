@@ -1,0 +1,237 @@
+"""Divisiones de verdad, por la API: se generan, se juegan y clasifican.
+
+Cierra la Etapa 2: una competición con grupos reparte sus clubes, juega un
+calendario asimétrico, publica una tabla por división y siembra la postemporada
+con campeones de grupo y repechajes.
+"""
+
+from __future__ import annotations
+
+from app.infrastructure import models as m
+from fastapi.testclient import TestClient
+from sqlalchemy import select
+
+from backend.tests.conftest import create_league
+
+CON_DIVISIONES = {
+    "name": "Liga Nacional por Divisiones",
+    "kind": "national_league",
+    "participation_modality": "semi_professional",
+    "scope": {"level": "national", "country_code": "MX", "place_keys": ["MX"]},
+    "season": {"games_per_club_target": 12, "offseason_days": 5, "roster_size": 20},
+    "structure": {
+        "count": 2,
+        "assignment": "geographic",
+        "intra_cycles": 2,
+        "inter_cycles": 1,
+        "qualifiers_per_group": 1,
+        "wildcards": 2,
+    },
+    "standings": {"primary": "win_percentage", "tiebreakers": ["head_to_head"]},
+    "playoffs": {"slots": 4, "format": "best_of_series", "round_lengths": [1, 1]},
+    "generation": {"club_count": 8, "seed": 5150},
+}
+
+
+def _advance_to_season_end(client: TestClient, universe_id: str, key: str) -> dict:
+    response = client.post(
+        f"/api/v1/universes/{universe_id}/sim/advance",
+        json={"days": 1, "until_season_end": True},
+        headers={"Idempotency-Key": key},
+    )
+    assert response.status_code == 202, response.text
+    status = client.get(f"/api/v1/universes/{universe_id}/sim/status").json()
+    assert status["job"]["status"] == "succeeded", status["job"]
+    return status["job"]["progress"]
+
+
+def test_g01_la_competicion_reparte_sus_clubes_en_divisiones(
+    client: TestClient, universe: dict, session
+) -> None:
+    """Cada club queda en un grupo, con el motivo del reparto registrado."""
+    liga = create_league(client, universe["id"], CON_DIVISIONES)
+
+    entradas = session.scalars(
+        select(m.EditionEntry).where(m.EditionEntry.edition_id == liga["edition_id"])
+    ).all()
+    assert len(entradas) == 8
+    por_grupo: dict[str, int] = {}
+    for entrada in entradas:
+        assert entrada.group_key, "ningún club se queda sin división"
+        por_grupo[entrada.group_key] = por_grupo.get(entrada.group_key, 0) + 1
+    assert sorted(por_grupo.values()) == [4, 4]
+
+    # La ficha de la edición cuenta cómo está estructurada.
+    detalle = client.get(f"/api/v1/editions/{liga['edition_id']}").json()
+    estructura = detalle["structure"]
+    assert estructura["count"] == 2
+    assert estructura["assignment"] == "geographic"
+    assert [g["clubs"] for g in estructura["groups"]] == [4, 4]
+
+    # Y el reparto dice por qué, club por club.
+    procedencia = session.scalars(
+        select(m.GenerationProvenance).where(
+            m.GenerationProvenance.universe_id == universe["id"],
+            m.GenerationProvenance.entity_kind == "competition_structure",
+        )
+    ).all()
+    assert procedencia, "el reparto en grupos deja procedencia"
+    notas = procedencia[0].notes
+    assert len(notas) == 8
+    assert all(nota["derivation"] for nota in notas)
+    assert procedencia[0].assumptions
+
+
+def test_g02_se_juega_mas_dentro_del_grupo_que_fuera(
+    client: TestClient, universe: dict, session
+) -> None:
+    """El calendario es asimétrico a propósito: dos vueltas dentro, una fuera."""
+    liga = create_league(client, universe["id"], CON_DIVISIONES)
+
+    grupo_de = {
+        entrada.club_id: entrada.group_key
+        for entrada in session.scalars(
+            select(m.EditionEntry).where(m.EditionEntry.edition_id == liga["edition_id"])
+        ).all()
+    }
+    partidos = session.scalars(select(m.Game).where(m.Game.edition_id == liga["edition_id"])).all()
+    assert partidos
+
+    rivales: dict[tuple[str, str], int] = {}
+    for partido in partidos:
+        pareja = tuple(sorted((partido.home_club_id, partido.away_club_id)))
+        rivales[pareja] = rivales.get(pareja, 0) + 1
+
+    intra = {p: n for p, n in rivales.items() if grupo_de[p[0]] == grupo_de[p[1]]}
+    inter = {p: n for p, n in rivales.items() if grupo_de[p[0]] != grupo_de[p[1]]}
+    assert set(intra.values()) == {2}, "dos vueltas contra los de su división"
+    assert set(inter.values()) == {1}, "una vuelta contra los de la otra"
+
+    # Nadie juega dos partidos el mismo día.
+    por_dia: dict[object, list[str]] = {}
+    for partido in partidos:
+        por_dia.setdefault(partido.game_date, []).extend(
+            [partido.home_club_id, partido.away_club_id]
+        )
+    for dia, equipos in por_dia.items():
+        assert len(equipos) == len(set(equipos)), f"doble partido el {dia}"
+
+
+def test_g03_la_tabla_trae_el_puesto_de_cada_division(client: TestClient, universe: dict) -> None:
+    """Una fila por club, con su puesto general y su puesto en el grupo."""
+    liga = create_league(client, universe["id"], CON_DIVISIONES)
+    _advance_to_season_end(client, universe["id"], "g03")
+
+    tabla = client.get(f"/api/v1/editions/{liga['edition_id']}/standings").json()["items"]
+    assert len(tabla) == 8
+    por_grupo: dict[str, list[int]] = {}
+    for fila in tabla:
+        assert fila["group"], "cada fila dice en qué división juega"
+        assert fila["group_rank"] >= 1
+        por_grupo.setdefault(fila["group"], []).append(fila["group_rank"])
+    assert all(sorted(puestos) == [1, 2, 3, 4] for puestos in por_grupo.values())
+
+    # El orden del grupo es el orden general restringido a sus miembros.
+    for grupo, _ in por_grupo.items():
+        miembros = [fila for fila in tabla if fila["group"] == grupo]
+        assert [fila["group_rank"] for fila in miembros] == sorted(
+            fila["group_rank"] for fila in miembros
+        ), "la tabla general ya viene ordenada, y el grupo la respeta"
+
+
+def test_g04_a_la_postemporada_entran_campeones_de_division_y_repechajes(
+    client: TestClient, universe: dict, session
+) -> None:
+    """Con divisiones, clasificar no es «estar entre los cuatro mejores»."""
+    liga = create_league(client, universe["id"], CON_DIVISIONES)
+    _advance_to_season_end(client, universe["id"], "g04")
+
+    noticias = client.get(f"/api/v1/universes/{universe['id']}/history?limit=500").json()["items"]
+    clasificacion = [
+        evento
+        for evento in noticias
+        if evento["event_type"] == "playoff_round_built" and evento["payload"].get("qualifiers")
+    ]
+    assert clasificacion, "queda registrado quién clasificó y por qué"
+    clasificados = clasificacion[-1]["payload"]["qualifiers"]
+    assert len(clasificados) == 4
+    rutas = [q["route"] for q in clasificados]
+    assert rutas.count("group_winner") == 2, "un campeón por división"
+    assert rutas.count("wildcard") == 2, "y dos repechajes"
+    assert all(q["reason"] for q in clasificados)
+
+    # Los campeones de división son los primeros de su grupo en la tabla.
+    tabla = client.get(f"/api/v1/editions/{liga['edition_id']}/standings").json()["items"]
+    campeones_tabla = {fila["club"]["name"] for fila in tabla if fila["group_rank"] == 1}
+    campeones_evento = {q["club"] for q in clasificados if q["route"] == "group_winner"}
+    assert campeones_evento == campeones_tabla
+
+    # Y la edición terminó con campeón.
+    edicion = session.get(m.CompetitionEdition, liga["edition_id"])
+    assert edicion is not None
+    assert edicion.status == "completed"
+    assert edicion.champion_club_id
+
+
+def test_g05_la_temporada_siguiente_rehace_las_divisiones(
+    client: TestClient, universe: dict, session
+) -> None:
+    """El reparto se recalcula: no se hereda una división que ya no cuadra."""
+    create_league(client, universe["id"], CON_DIVISIONES)
+    _advance_to_season_end(client, universe["id"], "g05")
+
+    ediciones = session.scalars(
+        select(m.CompetitionEdition)
+        .where(m.CompetitionEdition.universe_id == universe["id"])
+        .order_by(m.CompetitionEdition.year)
+    ).all()
+    assert len(ediciones) >= 2, "se abrió la temporada siguiente"
+    nueva = ediciones[-1]
+
+    entradas = session.scalars(
+        select(m.EditionEntry).where(m.EditionEntry.edition_id == nueva.id)
+    ).all()
+    assert entradas
+    assert all(entrada.group_key for entrada in entradas), (
+        "la temporada nueva también tiene divisiones"
+    )
+    cuenta: dict[str, int] = {}
+    for entrada in entradas:
+        cuenta[entrada.group_key] = cuenta.get(entrada.group_key, 0) + 1
+    assert sorted(cuenta.values()) == [4, 4]
+
+    # Y su calendario vuelve a ser asimétrico.
+    grupo_de = {entrada.club_id: entrada.group_key for entrada in entradas}
+    rivales: dict[tuple[str, str], int] = {}
+    for partido in session.scalars(select(m.Game).where(m.Game.edition_id == nueva.id)).all():
+        pareja = tuple(sorted((partido.home_club_id, partido.away_club_id)))
+        rivales[pareja] = rivales.get(pareja, 0) + 1
+    intra = [n for p, n in rivales.items() if grupo_de[p[0]] == grupo_de[p[1]]]
+    inter = [n for p, n in rivales.items() if grupo_de[p[0]] != grupo_de[p[1]]]
+    assert set(intra) == {2} and set(inter) == {1}
+
+
+def test_g06_una_competicion_sin_grupos_sigue_igual(
+    client: TestClient, universe: dict, session
+) -> None:
+    """Sin estructura declarada, nada cambia: tabla única y grupo vacío."""
+    sin_grupos = {
+        **CON_DIVISIONES,
+        "name": "Liga de Tabla Única",
+        "structure": {"count": 1},
+        "playoffs": {"slots": 2, "format": "best_of_series", "round_lengths": [1]},
+        "generation": {"club_count": 6, "seed": 606},
+    }
+    liga = create_league(client, universe["id"], sin_grupos)
+
+    entradas = session.scalars(
+        select(m.EditionEntry).where(m.EditionEntry.edition_id == liga["edition_id"])
+    ).all()
+    assert all(entrada.group_key == "" for entrada in entradas)
+
+    detalle = client.get(f"/api/v1/editions/{liga['edition_id']}").json()
+    assert detalle["structure"] is None
+
+    _advance_to_season_end(client, universe["id"], "g06")
+    tabla = client.get(f"/api/v1/editions/{liga['edition_id']}/standings").json()["items"]
+    assert all(fila["group"] == "" and fila["group_rank"] == 0 for fila in tabla)

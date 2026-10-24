@@ -81,15 +81,63 @@ def test_d02_la_modalidad_no_decide_el_patrimonio(tree):
     )
 
 
-def test_d03_una_liga_llanera_no_tiene_presupuestos_de_millon(tree):
-    """El defecto exacto que el usuario observó."""
+def test_d03_una_liga_llanera_vive_con_lo_que_recauda_un_club_de_barrio(tree):
+    """El defecto exacto que el usuario observó, y su calibración.
+
+    La banda no es un número redondo: un club llanero de este tamaño —26
+    inscritos, 22 partidos en casa— paga árbitros, permiso de campo, pelotas,
+    uniformes, viajes e inscripción, y lo cubre con la cooperación de sus
+    jugadores, un patrocinio de barrio y lo que saque de rifas. Eso son unos
+    pocos meses de gasto de un hogar de su país, no decenas. El tope de 25 meses
+    deja sitio al club fuerte de la liga —el que tiene campo alquilado con
+    cooperación de entrada y un negocio detrás— sin dejar pasar un club de
+    barrio con presupuesto de equipo profesional.
+    """
     world = _world(tree, LLANERA_JUAREZ)
-    presupuestos = sorted(int(c.finances.annual_budget) for c in world.clubs)
-    mediana = presupuestos[len(presupuestos) // 2]
-    assert mediana < 400_000, (
-        f"mediana de {mediana:,} MXN para una liga llanera: o se justifica con "
-        "ingresos reales, o es una cifra inventada"
+    ancla = float(world.context.reference_monthly_cost)
+    meses = sorted(float(c.finances.annual_budget) / ancla for c in world.clubs)
+    mediana = meses[len(meses) // 2]
+
+    assert mediana < 10.0, (
+        f"mediana de {mediana:.1f} meses de gasto doméstico para una liga llanera "
+        f"({int(mediana * ancla):,} MXN): o se justifica con ingresos reales, o es "
+        "una cifra inventada"
     )
+    assert mediana > 1.0, (
+        f"mediana de {mediana:.1f} meses: un club que juega 22 partidos en casa "
+        "tiene que pagar árbitros y campo; esto es demasiado poco para ser cierto"
+    )
+    assert meses[-1] < 25.0, (
+        f"el club más grande de la llanera gasta {meses[-1]:.1f} meses "
+        f"({int(meses[-1] * ancla):,} MXN), que ya no es una liga de barrio"
+    )
+
+
+def test_d03b_una_liga_llanera_no_nace_en_quiebra(tree):
+    """Casi todos sus clubes cubren lo que deben, aunque sea al día.
+
+    Es el otro lado del defecto: bajar los presupuestos sin mirar los ingresos
+    dejaría una liga donde la mayoría no puede pagar al árbitro, y con el cierre
+    de temporada de P5 esa liga se vaciaría en dos años. En una llanera de
+    verdad se vive al borde del equilibrio y algún equipo no llega; lo que no
+    pasa es que no llegue la mitad.
+    """
+    world = _world(tree, LLANERA_JUAREZ)
+    en_rojo = [c for c in world.clubs if float(c.finances.profile.balance or 0) < 0]
+    assert len(en_rojo) <= len(world.clubs) // 3, (
+        f"{len(en_rojo)} de {len(world.clubs)} clubes no cubren sus obligaciones el "
+        "primer año: la liga nace quebrada"
+    )
+    for club in world.clubs:
+        perfil = club.finances.profile
+        cuotas = next(
+            (c for c in perfil.by_kind(ComponentKind.REVENUE) if c.source == "membership_fees"),
+            None,
+        )
+        assert cuotas is not None and cuotas.amount, (
+            f"{club.name} no cobra cuotas: en una competición sin salarios son los "
+            "propios inscritos los que pagan por jugar"
+        )
 
 
 def test_d04_patrimonio_gasto_e_ingreso_son_conceptos_distintos(tree):

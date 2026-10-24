@@ -408,6 +408,9 @@ class CompetitionEdition(Base):
         ForeignKey("clubs.id", ondelete="SET NULL")
     )
     warnings: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    #: Clasificados con pase directo que esperan la segunda ronda, cuando las
+    #: plazas de playoff no son potencia de dos. Se vacía en cuanto entran.
+    playoff_byes: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
 
     competition: Mapped[CompetitionDefinition] = relationship(back_populates="editions")
 
@@ -599,6 +602,11 @@ class EditionEntry(Base):
     club_id: Mapped[str | None] = mapped_column(ForeignKey("clubs.id", ondelete="CASCADE"))
     seed_rank: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="active")
+    #: Grupo, división o conferencia en la que juega esta temporada. Vacío si la
+    #: competición es de tabla única. Se guarda por edición y no por club,
+    #: porque el reparto se rehace cada temporada: un club ascendido cambia de
+    #: división sin cambiar de identidad.
+    group_key: Mapped[str] = mapped_column(String(40), nullable=False, default="")
 
     __table_args__ = (UniqueConstraint("edition_id", "club_id", name="uq_entry_edition_club"),)
 
@@ -787,6 +795,8 @@ class Standing(Base):
     home_losses: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     away_wins: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     away_losses: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    #: Puesto dentro de su grupo. 0 cuando la competición es de tabla única.
+    group_rank: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     streak: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_ten: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
     rank: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

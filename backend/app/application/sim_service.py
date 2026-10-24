@@ -34,6 +34,7 @@ from simulation.competitions.playoffs import (
     PlayoffSeries,
     next_playoff_date,
     next_round,
+    qualifiers_from_groups,
     schedule_series_game,
     seed_bracket,
 )
@@ -650,8 +651,14 @@ def recompute_standings(session: Session, edition_id: str) -> list[m.Standing]:
         raise NotFoundError(f"edición {edition_id} inexistente")
     ruleset = _load_ruleset(session, edition)
 
+    # El orden importa y no puede venir de la base: con empates que los
+    # desempates declarados no resuelven, la clasificación conserva el orden de
+    # entrada, así que una consulta sin `ORDER BY` daría tablas distintas en
+    # PostgreSQL y en SQLite —y entre dos días del mismo universo.
     entries = session.scalars(
-        select(m.EditionEntry).where(m.EditionEntry.edition_id == edition_id)
+        select(m.EditionEntry)
+        .where(m.EditionEntry.edition_id == edition_id)
+        .order_by(m.EditionEntry.club_id, m.EditionEntry.id)
     ).all()
     entry_by_club = {entry.club_id: entry for entry in entries}
     games = session.scalars(
@@ -675,6 +682,11 @@ def recompute_standings(session: Session, edition_id: str) -> list[m.Standing]:
         outcomes=outcomes,
         rules=ruleset.standings,
         seed=edition.seed,
+        groups=(
+            {entry.club_id: entry.group_key for entry in entries if entry.group_key}
+            if ruleset.structure.has_groups
+            else None
+        ),
     )
 
     existing = {
@@ -705,6 +717,7 @@ def recompute_standings(session: Session, edition_id: str) -> list[m.Standing]:
         row.streak = computed.streak
         row.last_ten = computed.last_ten
         row.rank = computed.rank
+        row.group_rank = computed.group_rank
         row.tiebreak_note = computed.tiebreak_note
         entry.seed_rank = computed.rank
         out.append(row)
@@ -810,7 +823,45 @@ def _close_regular_season(
         return True
 
     try:
-        series = seed_bracket(ranked_clubs, ruleset.playoffs)
+        if ruleset.structure.has_groups:
+            # Con divisiones no clasifican «los mejores N»: clasifican los
+            # primeros de cada grupo y los repechajes. Quién entra y por qué
+            # queda registrado.
+            grupo_por_club = {
+                entry.club_id: entry.group_key
+                for entry in session.scalars(
+                    select(m.EditionEntry).where(m.EditionEntry.edition_id == edition.id)
+                ).all()
+            }
+            clasificados = qualifiers_from_groups(
+                [(club_id, grupo_por_club.get(club_id, "")) for club_id in ranked_clubs],
+                ruleset.structure,
+                ruleset.playoffs,
+            )
+            record_event(
+                session,
+                universe,
+                SimulationEvent(
+                    event_type=EventType.PLAYOFF_ROUND_BUILT,
+                    world_date=universe.world_date,
+                    entities={"edition": edition.id},
+                    payload={
+                        "qualifiers": [
+                            {
+                                "club": _club_name(session, q.entry_key),
+                                "route": q.route,
+                                "group": q.group_key,
+                                "reason": q.reason,
+                            }
+                            for q in clasificados
+                        ]
+                    },
+                    headline=_qualifiers_headline(session, clasificados),
+                ),
+            )
+            series, byes = seed_bracket([q.entry_key for q in clasificados], ruleset.playoffs)
+        else:
+            series, byes = seed_bracket(ranked_clubs, ruleset.playoffs)
     except RuleValidationError as exc:
         # Se deja constancia y la edición no inventa participantes.
         edition.warnings = [*edition.warnings, exc.message]
@@ -819,6 +870,24 @@ def _close_regular_season(
         return False
 
     edition.stage = "playoffs"
+    # Los pases directos se guardan: entran en la ronda siguiente, que se
+    # construye otro día y en otra transacción.
+    edition.playoff_byes = list(byes)
+    if byes:
+        record_event(
+            session,
+            universe,
+            SimulationEvent(
+                event_type=EventType.PLAYOFF_ROUND_BUILT,
+                world_date=universe.world_date,
+                entities={"edition": edition.id},
+                payload={"byes": [_club_name(session, club_id) for club_id in byes]},
+                headline=(
+                    f"{len(byes)} club(es) con pase directo a la segunda ronda: "
+                    + ", ".join(_club_name(session, club_id) for club_id in byes)
+                ),
+            ),
+        )
     _persist_series(session, edition, series)
     _schedule_pending_series_games(session, universe, edition, ruleset, series)
     record_event(
@@ -1017,7 +1086,12 @@ def _progress_playoffs(
             .order_by(m.EditionEntry.seed_rank)
         ).all()
     ]
-    following = next_round(series, standings_order, ruleset.playoffs)
+    esperando = list(edition.playoff_byes or ())
+    following = next_round(series, standings_order, ruleset.playoffs, esperando)
+    if esperando:
+        # Ya entraron: la lista se vacía para que no vuelvan a aparecer en la
+        # ronda siguiente.
+        edition.playoff_byes = []
     if not following:
         champion = series[0].winner
         edition.stage = "completed"
@@ -1122,3 +1196,22 @@ def sim_status(session: Session, universe_id: str) -> dict:
             else None
         ),
     }
+
+
+def _qualifiers_headline(session: Session, clasificados: list) -> str:
+    """Titular corto de los clasificados: el detalle completo va en el payload.
+
+    Los motivos de cada clasificado son frases («campeón de Grupo 1»,
+    «repechaje: mejor registro entre los no clasificados») y juntarlas se pasa
+    del límite de la columna, así que el titular nombra a los campeones de
+    división y cuenta los repechajes.
+    """
+    campeones = [q for q in clasificados if q.route == "group_winner"]
+    repechajes = [q for q in clasificados if q.route == "wildcard"]
+    nombres = ", ".join(_club_name(session, q.entry_key) for q in campeones)
+    texto = f"{len(clasificados)} clasificados a la postemporada"
+    if nombres:
+        texto += f": {nombres} por división"
+    if repechajes:
+        texto += f", más {len(repechajes)} por repechaje"
+    return texto

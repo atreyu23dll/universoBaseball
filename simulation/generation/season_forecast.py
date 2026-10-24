@@ -162,6 +162,7 @@ def forecast_next_season(
                 sponsorship_months=patrocinio,
                 affiliable_people=afiliables,
                 attendance_per_game=asistencia,
+                venue_capacity=club.venue_capacity,
                 follower_base=club.fan_base,
                 home_games=en_casa,
                 away_games=fuera,

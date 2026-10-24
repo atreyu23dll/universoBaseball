@@ -39,27 +39,38 @@ PROCEDURE_VERSION = "economy/1.0.0"
 # solo sitio y para que nadie tenga que buscarlas repartidas por el código.
 # --------------------------------------------------------------------------- #
 
-#: Uso del terreno por partido en casa, según el acuerdo de sede.
+#: Uso del terreno por partido en casa, según el acuerdo de sede. Un campo
+#: público o itinerante se paga con un permiso y una cooperación para el
+#: cuidador, no con un alquiler de recinto.
 FIELD_COST_PER_HOME_GAME = {
-    VenueAgreement.PUBLIC_SHARED: 0.05,
-    VenueAgreement.SCHOOL_FACILITY: 0.02,
+    VenueAgreement.PUBLIC_SHARED: 0.03,
+    VenueAgreement.SCHOOL_FACILITY: 0.015,
     VenueAgreement.RENTED: 0.14,
     VenueAgreement.OWNED: 0.03,
-    VenueAgreement.ITINERANT: 0.08,
+    VenueAgreement.ITINERANT: 0.035,
 }
 #: Mantenimiento anual de una instalación propia.
 OWNED_VENUE_MAINTENANCE = 6.0
-#: Arbitraje por partido en casa.
-UMPIRING_PER_HOME_GAME = 0.045
+#: Arbitraje por partido en casa: dos árbitros de la zona.
+UMPIRING_PER_HOME_GAME = 0.035
 #: Transporte por kilómetro recorrido y partido de visita (autobús compartido).
 TRANSPORT_PER_KM = 0.0022
-#: Equipamiento y material deportivo por inscrito y temporada.
-EQUIPMENT_PER_PLAYER = 0.11
-#: Uniformes por inscrito y temporada.
-UNIFORM_PER_PLAYER = 0.09
-#: Administración, permisos y suministros: fijo más variable por inscrito.
-ADMIN_FIXED = 0.4
-ADMIN_PER_PLAYER = 0.015
+#: Material deportivo por inscrito y temporada: pelotas, bates y equipo de
+#: receptor, que son del club y se comparten.
+EQUIPMENT_PER_PLAYER = 0.05
+#: Uniformes por inscrito y temporada: jersey y gorra.
+UNIFORM_PER_PLAYER = 0.045
+#: Parte del material y el uniforme que **pone el jugador** cuando el
+#: reglamento no admite pagarle. No es un descuento por modalidad: es la
+#: consecuencia de que ahí el jugador no es un empleado, así que su guante, sus
+#: spikes y a menudo su jersey son suyos. Donde se admiten salarios, el club
+#: equipa a su plantilla entera.
+PLAYER_PAID_KIT_SHARE = 0.5
+#: Administración, permisos y suministros: fijo más variable por inscrito. El
+#: fijo es bajo a propósito: un club con oficina y personal lo paga en la
+#: partida de personal, que es discrecional y aparece solo si puede sostenerla.
+ADMIN_FIXED = 0.2
+ADMIN_PER_PLAYER = 0.008
 #: Seguro deportivo, cuando el reglamento lo exige o hay menores.
 INSURANCE_FIXED = 0.35
 INSURANCE_PER_PLAYER = 0.012
@@ -71,8 +82,27 @@ DEFAULT_ENTRY_FEE = 0.25
 #: Cuota mensual de socio o jugador, como fracción del coste de referencia.
 #: Con el ancla mexicana son del orden de 240 pesos al mes.
 MEMBERSHIP_FEE_RATE = 0.02
-#: Entrada a un partido, como fracción del coste de referencia: unos 50 pesos.
-TICKET_PRICE_RATE = 0.004
+#: Tope de esa cuota cuando se ajusta a lo que cuesta la temporada: unos 720
+#: pesos al mes con el ancla mexicana. Por encima, la gente deja de apuntarse,
+#: y un club que necesitaría más que eso es un club que no se sostiene.
+MEMBERSHIP_FEE_CEILING = 0.06
+#: Entrada a un partido, como fracción del coste de referencia. No es un precio
+#: único: se cobra lo que el recinto permite cobrar. En un campo de barrio es
+#: una cooperación voluntaria; en un estadio con accesos, una entrada.
+TICKET_PRICE_FLOOR = 0.0008
+TICKET_PRICE_CEILING = 0.005
+#: Aforo desde el que se puede cobrar como en un recinto formal.
+TICKET_PRICE_FULL_CAPACITY = 12_000
+#: Lo que un patrocinador paga por seguidor y temporada. Es el otro tope del
+#: patrocinio, además de la bolsa finita de la zona: un anunciante paga por la
+#: gente a la que llega, así que un club de barrio con mil seguidores no cobra
+#: lo que cobraría si se repartiera entre pocos toda la bolsa publicitaria de
+#: su ciudad. Manda el menor de los dos topes.
+SPONSORSHIP_PER_FOLLOWER = 0.0015
+#: Escala de audiencia del respaldo privado y del apoyo institucional: quien
+#: respalda a un club pone en proporción a lo que ese club mueve.
+BACKING_AUDIENCE_FLOOR = 0.25
+BACKING_AUDIENCE_FULL = 5_000
 #: Derechos de emisión y merchandising por seguidor y temporada. Solo aparecen
 #: cuando hay audiencia que los justifique: no es un ingreso por categoría.
 BROADCASTING_PER_FOLLOWER = 0.0022
@@ -85,13 +115,27 @@ INSTITUTIONAL_SUPPORT = {
     GovernanceModel.SCHOOL_PROGRAM: (1.0, 5.0),
     GovernanceModel.FOUNDATION: (1.5, 8.0),
 }
-#: Aportación del respaldo privado, según la forma de gobierno.
+#: Aportación del respaldo privado, según la forma de gobierno, antes de
+#: escalarla por la audiencia del club.
 PRIVATE_BACKING = {
-    GovernanceModel.BUSINESS_BACKED: (2.0, 14.0),
-    GovernanceModel.FAMILY_PRIVATE: (0.5, 5.0),
+    GovernanceModel.BUSINESS_BACKED: (1.0, 8.0),
+    GovernanceModel.FAMILY_PRIVATE: (0.4, 3.0),
     GovernanceModel.SPORTS_COMPANY: (8.0, 60.0),
     GovernanceModel.FRANCHISE: (20.0, 160.0),
 }
+
+
+def audience_scale(follower_base: int) -> float:
+    """Cuánto pesa la audiencia de un club en lo que otros ponen por él.
+
+    Un negocio del barrio pone para los uniformes; un patrocinador de un club
+    con cien mil seguidores paga por aparecer delante de ellos. Sin esto, la
+    forma de gobierno sola decidiría el importe, que es la clase de atajo que
+    el ADR 0005 prohíbe.
+    """
+    return BACKING_AUDIENCE_FLOOR + (1.0 - BACKING_AUDIENCE_FLOOR) * min(
+        1.0, follower_base / BACKING_AUDIENCE_FULL
+    )
 
 
 @dataclass(frozen=True)
@@ -107,6 +151,9 @@ class ClubEconomicContext:
     affiliable_people: int
     #: Público medio que puede reunir por partido, si puede cobrar entrada.
     attendance_per_game: int
+    #: Aforo del recinto. Decide lo que se puede cobrar por entrar: en un campo
+    #: de barrio se pasa la gorra, en un estadio con accesos se vende entrada.
+    venue_capacity: int
     #: Seguidores del club: la base social, que no cabe entera en el campo.
     follower_base: int
     home_games: int
@@ -163,129 +210,13 @@ def estimate_club_finances(
         return months
 
     # ----------------------------------------------------------------- #
-    # Ingresos: lo que el entorno permite recaudar
-    # ----------------------------------------------------------------- #
-    income = 0.0
-
-    members = int(round(context.affiliable_people * clamped_normal(rng, 0.55, 0.22, 0.1, 1.0)))
-    if members > 0:
-        fee = MEMBERSHIP_FEE_RATE * clamped_normal(rng, 1.0, 0.25, 0.4, 1.9)
-        months = members * fee * context.active_months
-        income += add(
-            ComponentKind.REVENUE,
-            "membership_fees",
-            "Cuotas de socios y jugadores",
-            months,
-            (
-                f"{members} personas afiliadas de las {context.affiliable_people} "
-                f"captables en {context.place_name} × cuota de {fee:.3f} del coste "
-                f"mensual de referencia × {context.active_months:.0f} meses de actividad"
-            ),
-        )
-
-    if context.sponsorship_months > 0:
-        months = context.sponsorship_months
-        income += add(
-            ComponentKind.REVENUE,
-            "local_sponsorship",
-            "Patrocinio local",
-            months,
-            (
-                f"parte del club en la bolsa publicitaria de {pool.place_name}: "
-                f"{pool.sponsorship_months:.1f} meses repartidos entre "
-                f"{pool.claimants} clubes que compiten por ella"
-            ),
-        )
-
-    if context.venue_agreement.can_charge_admission and context.attendance_per_game > 0:
-        price = TICKET_PRICE_RATE * clamped_normal(rng, 1.0, 0.3, 0.4, 2.2)
-        months = context.attendance_per_game * price * context.home_games
-        income += add(
-            ComponentKind.REVENUE,
-            "gate_receipts",
-            "Taquilla",
-            months,
-            (
-                f"{context.attendance_per_game} espectadores de media × "
-                f"entrada de {price:.3f} del coste mensual × {context.home_games} "
-                f"partidos en casa (puede cobrarse: sede {context.venue_agreement})"
-            ),
-        )
-    elif context.attendance_per_game > 0:
-        components.append(
-            FinancialComponent(
-                kind=ComponentKind.REVENUE,
-                source="gate_receipts",
-                label="Taquilla",
-                amount=money(0),
-                confidence=confidence,
-                basis=(
-                    f"no cobra entrada: la sede es {context.venue_agreement} y el club "
-                    "no controla el acceso al recinto"
-                ),
-            )
-        )
-
-    if context.follower_base >= BROADCASTING_AUDIENCE_FLOOR:
-        months = context.follower_base * BROADCASTING_PER_FOLLOWER
-        income += add(
-            ComponentKind.REVENUE,
-            "broadcasting",
-            "Derechos de emisión",
-            months,
-            (
-                f"{context.follower_base} seguidores, por encima del umbral de "
-                f"{BROADCASTING_AUDIENCE_FLOOR} a partir del cual hay alguien dispuesto "
-                "a pagar por emitir los partidos"
-            ),
-        )
-    if context.follower_base > 1_500:
-        months = context.follower_base * MERCHANDISING_PER_FOLLOWER
-        income += add(
-            ComponentKind.REVENUE,
-            "merchandising",
-            "Venta de artículos del club",
-            months,
-            f"{context.follower_base} seguidores × gasto medio en artículos del club",
-        )
-
-    support_range = INSTITUTIONAL_SUPPORT.get(context.governance)
-    if support_range is not None:
-        months = rng.uniform(*support_range)
-        income += add(
-            ComponentKind.REVENUE,
-            "institutional_support",
-            "Apoyo institucional",
-            months,
-            f"forma de gobierno {context.governance}: aportación de la entidad que lo sostiene",
-        )
-
-    backing_range = PRIVATE_BACKING.get(context.governance)
-    if backing_range is not None:
-        months = rng.uniform(*backing_range) * (0.6 + 0.8 * context.ambition)
-        income += add(
-            ComponentKind.REVENUE,
-            "private_backing",
-            "Aportación de su propiedad o respaldo",
-            months,
-            (
-                f"forma de gobierno {context.governance} con ambición "
-                f"{context.ambition:.2f}: lo que su respaldo pone cada temporada"
-            ),
-        )
-
-    if rng.random() < 0.45:
-        months = rng.uniform(0.1, 1.6)
-        income += add(
-            ComponentKind.REVENUE,
-            "donations",
-            "Donaciones y recaudaciones",
-            months,
-            "rifas, eventos y aportaciones puntuales de la comunidad",
-        )
-
-    # ----------------------------------------------------------------- #
     # Gastos obligatorios: lo que cuesta competir
+    #
+    # Van **antes** de los ingresos porque en un club autogestionado el orden
+    # real es ese: primero se sabe lo que cuesta la temporada —árbitros, campo,
+    # viajes, inscripción— y después se reparte entre los que juegan. Calcular
+    # los ingresos primero dejaba a un tercio de los clubes de una liga de
+    # barrio sin poder pagar al árbitro, que es un club que no existiría.
     # ----------------------------------------------------------------- #
     mandatory = 0.0
 
@@ -330,20 +261,32 @@ def estimate_club_finances(
             mandatory=True,
         )
 
+    # Si el reglamento no admite pagar al jugador, el jugador no es un empleado:
+    # su guante, sus spikes y a menudo su jersey los pone él. El club compra lo
+    # que es del club. Donde se admiten salarios, el club equipa a todos.
+    paga_el_club = 1.0 if ruleset.allows_player_salaries else 1.0 - PLAYER_PAID_KIT_SHARE
+    reparto = (
+        ""
+        if paga_el_club == 1.0
+        else (
+            f"; el club pone el {paga_el_club:.0%} porque el reglamento no admite "
+            "pagar al jugador y el resto del equipo personal es suyo"
+        )
+    )
     mandatory += add(
         ComponentKind.EXPENSE,
         "equipment",
         "Material deportivo",
-        EQUIPMENT_PER_PLAYER * context.roster_size,
-        f"{EQUIPMENT_PER_PLAYER} por inscrito × {context.roster_size} inscritos",
+        EQUIPMENT_PER_PLAYER * context.roster_size * paga_el_club,
+        f"{EQUIPMENT_PER_PLAYER} por inscrito × {context.roster_size} inscritos{reparto}",
         mandatory=True,
     )
     mandatory += add(
         ComponentKind.EXPENSE,
         "uniforms",
         "Uniformes",
-        UNIFORM_PER_PLAYER * context.roster_size,
-        f"{UNIFORM_PER_PLAYER} por inscrito × {context.roster_size} inscritos",
+        UNIFORM_PER_PLAYER * context.roster_size * paga_el_club,
+        f"{UNIFORM_PER_PLAYER} por inscrito × {context.roster_size} inscritos{reparto}",
         mandatory=True,
     )
     mandatory += add(
@@ -408,6 +351,185 @@ def estimate_club_finances(
                 else "requisito de licencia de la competición"
             ),
             mandatory=True,
+        )
+
+    # ----------------------------------------------------------------- #
+    # Ingresos: lo que el entorno permite recaudar
+    # ----------------------------------------------------------------- #
+    income = 0.0
+
+    members = int(round(context.affiliable_people * clamped_normal(rng, 0.55, 0.22, 0.1, 1.0)))
+    por_plantilla = False
+    if not ruleset.allows_player_salaries and members < context.roster_size:
+        # Donde el reglamento no admite pagar al jugador, el jugador **paga por
+        # jugar**: la cooperación semanal es lo que cubre el árbitro y el campo.
+        # La base de cuotas no puede ser menor que la plantilla inscrita, y eso
+        # no contradice los recursos finitos de la zona: los inscritos ya están
+        # ahí, lo que la bolsa limita es cuántos aficionados más se afilian.
+        members = context.roster_size
+        por_plantilla = True
+    fee_base = MEMBERSHIP_FEE_RATE * clamped_normal(rng, 1.0, 0.25, 0.4, 1.9)
+
+    if context.sponsorship_months > 0:
+        # Dos topes y manda el menor: la bolsa publicitaria de la zona es finita
+        # y se reparte (ADR 0005), pero además un anunciante paga por la gente a
+        # la que llega. Sin el segundo tope, los pocos clubes de una competición
+        # pequeña se reparten toda la publicidad deportiva de su ciudad.
+        por_bolsa = context.sponsorship_months
+        por_audiencia = context.follower_base * SPONSORSHIP_PER_FOLLOWER
+        months = min(por_bolsa, por_audiencia)
+        manda = "la audiencia del club" if por_audiencia < por_bolsa else "la bolsa de la zona"
+        income += add(
+            ComponentKind.REVENUE,
+            "local_sponsorship",
+            "Patrocinio local",
+            months,
+            (
+                f"manda {manda}: su parte de la bolsa publicitaria de "
+                f"{pool.place_name} daría {por_bolsa:.1f} meses "
+                f"({pool.sponsorship_months:.1f} repartidos entre {pool.claimants} "
+                f"clubes) y sus {context.follower_base} seguidores valen "
+                f"{por_audiencia:.1f} a {SPONSORSHIP_PER_FOLLOWER} por seguidor"
+            ),
+        )
+
+    if context.venue_agreement.can_charge_admission and context.attendance_per_game > 0:
+        # El precio sale del recinto: en un campo de barrio se pasa la gorra, en
+        # un estadio con accesos se vende entrada. Un precio único daba a un club
+        # llanero la taquilla de un club profesional.
+        formalidad = min(1.0, context.venue_capacity / TICKET_PRICE_FULL_CAPACITY)
+        price = (
+            TICKET_PRICE_FLOOR + (TICKET_PRICE_CEILING - TICKET_PRICE_FLOOR) * formalidad
+        ) * clamped_normal(rng, 1.0, 0.25, 0.5, 1.8)
+        months = context.attendance_per_game * price * context.home_games
+        income += add(
+            ComponentKind.REVENUE,
+            "gate_receipts",
+            "Taquilla",
+            months,
+            (
+                f"{context.attendance_per_game} espectadores de media × "
+                f"{price:.4f} del coste mensual por entrada —lo que permite cobrar un "
+                f"recinto de {context.venue_capacity} de aforo— × "
+                f"{context.home_games} partidos en casa (sede {context.venue_agreement})"
+            ),
+        )
+    elif context.attendance_per_game > 0:
+        components.append(
+            FinancialComponent(
+                kind=ComponentKind.REVENUE,
+                source="gate_receipts",
+                label="Taquilla",
+                amount=money(0),
+                confidence=confidence,
+                basis=(
+                    f"no cobra entrada: la sede es {context.venue_agreement} y el club "
+                    "no controla el acceso al recinto"
+                ),
+            )
+        )
+
+    if context.follower_base >= BROADCASTING_AUDIENCE_FLOOR:
+        months = context.follower_base * BROADCASTING_PER_FOLLOWER
+        income += add(
+            ComponentKind.REVENUE,
+            "broadcasting",
+            "Derechos de emisión",
+            months,
+            (
+                f"{context.follower_base} seguidores, por encima del umbral de "
+                f"{BROADCASTING_AUDIENCE_FLOOR} a partir del cual hay alguien dispuesto "
+                "a pagar por emitir los partidos"
+            ),
+        )
+    if context.follower_base > 1_500:
+        months = context.follower_base * MERCHANDISING_PER_FOLLOWER
+        income += add(
+            ComponentKind.REVENUE,
+            "merchandising",
+            "Venta de artículos del club",
+            months,
+            f"{context.follower_base} seguidores × gasto medio en artículos del club",
+        )
+
+    support_range = INSTITUTIONAL_SUPPORT.get(context.governance)
+    escala = audience_scale(context.follower_base)
+    if support_range is not None:
+        months = rng.uniform(*support_range) * escala
+        income += add(
+            ComponentKind.REVENUE,
+            "institutional_support",
+            "Apoyo institucional",
+            months,
+            (
+                f"forma de gobierno {context.governance}: aportación de la entidad que "
+                f"lo sostiene, en proporción a los {context.follower_base} vecinos a los "
+                f"que llega (factor {escala:.2f})"
+            ),
+        )
+
+    backing_range = PRIVATE_BACKING.get(context.governance)
+    if backing_range is not None:
+        months = rng.uniform(*backing_range) * (0.6 + 0.8 * context.ambition) * escala
+        income += add(
+            ComponentKind.REVENUE,
+            "private_backing",
+            "Aportación de su propiedad o respaldo",
+            months,
+            (
+                f"forma de gobierno {context.governance} con ambición "
+                f"{context.ambition:.2f}: lo que su respaldo pone cada temporada, en "
+                f"proporción a los {context.follower_base} seguidores del club "
+                f"(factor {escala:.2f})"
+            ),
+        )
+
+    if rng.random() < 0.45:
+        months = rng.uniform(0.1, 1.6)
+        income += add(
+            ComponentKind.REVENUE,
+            "donations",
+            "Donaciones y recaudaciones",
+            months,
+            "rifas, eventos y aportaciones puntuales de la comunidad",
+        )
+
+    if members > 0:
+        fee = fee_base
+        ajustada = False
+        if not ruleset.allows_player_salaries:
+            # La cooperación se fija por lo que cuesta jugar. Un club de barrio
+            # no pone una cuota y después mira si llega: si sube el árbitro,
+            # sube la cooperacha. El tope existe porque por encima de cierto
+            # importe la gente deja de apuntarse.
+            falta = mandatory - income
+            if falta > 0:
+                necesaria = falta / (members * max(1.0, context.active_months))
+                if necesaria > fee:
+                    fee = min(necesaria, MEMBERSHIP_FEE_CEILING)
+                    ajustada = True
+        months = members * fee * context.active_months
+        origen = (
+            f"los {context.roster_size} inscritos, que pagan por jugar porque la "
+            "competición no admite salarios"
+            if por_plantilla
+            else (
+                f"{members} personas afiliadas de las {context.affiliable_people} "
+                f"captables en {context.place_name}"
+            )
+        )
+        motivo_cuota = (
+            f"cuota de {fee:.3f} del coste mensual de referencia, ajustada a lo que "
+            f"cuesta la temporada ({mandatory:.1f} meses de obligaciones)"
+            if ajustada
+            else f"cuota de {fee:.3f} del coste mensual de referencia"
+        )
+        income += add(
+            ComponentKind.REVENUE,
+            "membership_fees",
+            "Cuotas de socios y jugadores",
+            months,
+            f"{origen} × {motivo_cuota} × {context.active_months:.0f} meses de actividad",
         )
 
     # ----------------------------------------------------------------- #
@@ -512,6 +634,10 @@ def estimate_club_finances(
             f"En {pool.place_name} hay {pool.usable_fields} campo(s) utilizable(s) para "
             f"{pool.claimants} clubes: la sede es compartida y el calendario puede chocar."
         )
+
+    # El cálculo va «primero lo que cuesta, después de dónde sale», pero la
+    # ficha se lee mejor al revés: ingresos y luego gastos.
+    components.sort(key=lambda c: 0 if c.kind is ComponentKind.REVENUE else 1)
 
     profile = ClubFinancialProfile(
         currency=currency,

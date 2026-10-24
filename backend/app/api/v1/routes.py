@@ -30,6 +30,7 @@ from app.application import (
     mobility_service,
     query_service,
     relationship_service,
+    schedule_preview_service,
     sim_service,
     universe_service,
 )
@@ -182,6 +183,17 @@ def history(
 # --------------------------------------------------------------------------- #
 # Competiciones
 # --------------------------------------------------------------------------- #
+
+
+@router.post("/schedule/preview", tags=["competiciones"])
+def preview_schedule(payload: dict[str, Any]) -> dict[str, Any]:
+    """Calendario, cruces y cuadro que saldrían de unos parámetros.
+
+    No necesita universo ni competición y **no escribe nada**: es la cuenta que
+    el asistente antes dejaba a cargo del usuario. Usa el mismo motor que
+    construye el calendario de verdad.
+    """
+    return schedule_preview_service.preview_schedule(payload)
 
 
 @router.get("/universes/{universe_id}/competitions", tags=["competiciones"])

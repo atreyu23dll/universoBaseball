@@ -147,6 +147,13 @@ export const RESOURCE_TIER_LABEL: Record<string, string> = {
   major: 'de gran escala'
 };
 
+/** Cómo se repartieron los clubes entre los grupos de una competición. */
+export const GROUP_ASSIGNMENT_LABEL: Record<string, string> = {
+  geographic: 'por cercanía geográfica',
+  balanced: 'repartiendo los clubes con más recursos',
+  declared: 'con los grupos y plazas que declaró el usuario'
+};
+
 export const OUTCOME_LABEL: Record<string, string> = {
   healthy: 'cerró en orden',
   strained: 'cerró en apuros',

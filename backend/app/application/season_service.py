@@ -25,14 +25,16 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, aliased
 
 from app.application import club_evolution_service, mobility_service
-from app.application.competition_service import current_rule_version
+from app.application.competition_service import current_rule_version, store_provenance
 from app.application.universe_service import record_event
 from app.infrastructure import models as m
 from simulation import SIM_VERSION
+from simulation.competitions.groups import GroupCandidate, assign_groups
 from simulation.competitions.ruleset import RuleSet
 from simulation.competitions.schedule import build_schedule
-from simulation.core.errors import ScheduleError
+from simulation.core.errors import RuleValidationError, ScheduleError
 from simulation.core.events import EventType, SimulationEvent
+from simulation.core.provenance import Confidence, GenerationRecord
 from simulation.core.rng import derive_seed, rng_for
 
 
@@ -303,6 +305,11 @@ def open_next_edition(
     rng_for(seed, "schedule-order", season).shuffle(club_order)
     by_key = {club.club_key: club for club in clubs}
 
+    # Los grupos se rehacen cada temporada con los clubes que hay: los que
+    # ascendieron, descendieron o desaparecieron cambian el mapa, y una división
+    # heredada del año anterior dejaría a alguien sin rivales.
+    grupos = _assign_groups_for_season(session, universe, competition, ruleset, clubs, season)
+
     start = universe.world_date + timedelta(days=max(1, ruleset.season.offseason_days))
     try:
         schedule = build_schedule(
@@ -312,6 +319,9 @@ def open_next_edition(
             rest_days_weekday=ruleset.season.rest_days_weekday,
             games_per_series=ruleset.season.games_per_series,
             days_between_series=ruleset.season.days_between_series,
+            groups={club.club_key: grupos[club.id] for club in clubs} if grupos else None,
+            intra_cycles=ruleset.structure.intra_cycles,
+            inter_cycles=ruleset.structure.inter_cycles,
         )
     except ScheduleError as exc:
         record_event(
@@ -360,6 +370,7 @@ def open_next_edition(
             participant_kind="club",
             club_id=club.id,
             seed_rank=0,
+            group_key=grupos.get(club.id, ""),
         )
         session.add(entry)
         entries[club.club_key] = entry
@@ -464,3 +475,82 @@ def _joined_by(
         )
         or 0
     ) > 0
+
+
+def _assign_groups_for_season(
+    session: Session,
+    universe: m.Universe,
+    competition: m.CompetitionDefinition,
+    ruleset: RuleSet,
+    clubs: list[m.Club],
+    season: int,
+) -> dict[str, str]:
+    """Grupo de cada club para la temporada que empieza, con su procedencia.
+
+    Devuelve un diccionario vacío si la competición es de tabla única. El
+    reparto usa la sede real de cada club —el estadio, no el reglamento—, así
+    que un club que ascendió entra en la división que le corresponde por
+    geografía sin que nadie lo coloque a mano.
+    """
+    if not ruleset.structure.has_groups:
+        return {}
+
+    venues = {
+        venue.club_id: venue
+        for venue in session.scalars(
+            select(m.Venue).where(m.Venue.club_id.in_([club.id for club in clubs]))
+        ).all()
+    }
+    candidatos = []
+    for club in clubs:
+        venue = venues.get(club.id)
+        if venue is None or venue.lat is None or venue.lon is None:
+            # Sin coordenadas no se puede agrupar por cercanía; se deja fuera
+            # del criterio geográfico en vez de inventarle una sede.
+            continue
+        candidatos.append(
+            GroupCandidate(
+                key=club.id,
+                name=club.name,
+                lat=venue.lat,
+                lon=venue.lon,
+                strength=club.resource_multiplier,
+            )
+        )
+    if len(candidatos) != len(clubs):
+        return {}
+
+    try:
+        placements = assign_groups(candidatos, ruleset.structure)
+    except RuleValidationError as exc:
+        # Los grupos declarados ya no cuadran con los clubes que quedan: se
+        # juega a tabla única y se dice por qué, en vez de repartir a medias.
+        record_event(
+            session,
+            universe,
+            SimulationEvent(
+                event_type=EventType.SEASON_STARTED,
+                world_date=universe.world_date,
+                entities={"competition": competition.id},
+                payload={"season": season, "groups": False, "error": exc.message},
+                headline=(f"La temporada {season} se juega sin divisiones: {exc.message}"),
+            ),
+        )
+        return {}
+
+    record = GenerationRecord(
+        entity_kind="competition_structure",
+        entity_key=f"{competition.id}:{season}",
+        procedure="assign_groups",
+        procedure_version="season/1.0.0",
+        seed=universe.master_seed,
+    )
+    for placement in placements:
+        record.note(
+            f"group[{placement.club_key}]",
+            placement.group_key,
+            Confidence.FICTIONAL,
+            placement.reason,
+        )
+    store_provenance(session, universe.id, [record])
+    return {placement.club_key: placement.group_key for placement in placements}
