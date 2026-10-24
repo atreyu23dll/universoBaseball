@@ -34,6 +34,8 @@ export function formatPct(value: number | null | undefined): string {
 export const CONFIDENCE_LABEL: Record<string, string> = {
   observed: 'dato observado',
   estimated: 'estimación',
+  scenario_assumption: 'supuesto declarado',
+  missing: 'sin datos',
   fictional: 'ficticio',
   user_configured: 'configurado por ti'
 };
@@ -55,6 +57,119 @@ export const KIND_LABEL: Record<string, string> = {
   continental_club_cup: 'copa continental de clubes',
   youth_league: 'liga juvenil',
   reserve_league: 'liga filial'
+};
+
+/** Estados del borrador de competición (FIX V2 §12.1). */
+export const DRAFT_STATE_LABEL: Record<string, string> = {
+  draft: 'borrador',
+  geography_pending: 'falta resolver el territorio',
+  geography_resolved: 'territorio resuelto',
+  context_ready: 'listo para previsualizar',
+  preview_ready: 'propuesta lista',
+  preview_warning: 'propuesta con advertencias',
+  preview_blocked: 'propuesta bloqueada',
+  committed: 'creada'
+};
+
+/** Códigos de problema del §10.4, en lenguaje de persona. */
+export const ISSUE_CODE_LABEL: Record<string, string> = {
+  RULESET_INVALID: 'reglamento inválido',
+  GEOGRAPHY_UNRESOLVED: 'territorio sin resolver',
+  GEOGRAPHY_AMBIGUOUS: 'territorio ambiguo',
+  GEOGRAPHY_BOUNDARY_MISSING: 'sin límite administrativo',
+  ELIGIBILITY_INVALID_AGE_RANGE: 'rango de edad imposible',
+  MINOR_SAFEGUARDING_REQUIRED: 'salvaguarda de menores',
+  PARTICIPANTS_INFEASIBLE: 'participantes inviables',
+  REGIONAL_TALENT_SHORTAGE: 'falta de jugadores en la zona',
+  SCHEDULE_UNSATISFIABLE: 'calendario irrealizable',
+  VENUE_CONFLICT: 'conflicto de instalaciones',
+  ADMISSION_REQUIREMENTS_INCONSISTENT: 'requisitos incoherentes',
+  HIERARCHY_INVALID_LINK: 'vínculo inválido',
+  CONTEXT_DATA_UNCERTAIN: 'datos del entorno inciertos',
+  UNEXPLAINED_BUDGET: 'presupuesto sin sostener',
+  INSUFFICIENT_RESOURCE_EVIDENCE: 'faltan datos económicos',
+  PREVIEW_BLOCKED: 'propuesta bloqueada',
+  DEPRECATED_CLUB_GENERATION_FIELD: 'campo retirado'
+};
+
+export const GEO_KIND_LABEL: Record<string, string> = {
+  country: 'país',
+  region: 'región',
+  city: 'localidad',
+  district: 'barrio'
+};
+
+/** Etiquetas de confianza del FIX V2: el supuesto no es un dato. */
+export const GEO_CONFIDENCE_LABEL: Record<string, string> = {
+  observed: 'dato con fuente',
+  estimated: 'estimación',
+  scenario_assumption: 'supuesto declarado',
+  missing: 'sin datos',
+  fictional: 'ficticio',
+  user_configured: 'configurado por ti'
+};
+
+export const MODALITY_LABEL: Record<string, string> = {
+  llanera: 'llanera',
+  amateur_organized: 'amateur organizada',
+  school_formative: 'escolar / formativa',
+  semi_professional: 'semiprofesional',
+  professional: 'profesional'
+};
+
+/** Formas de gobierno que el motor genera. Ninguna la elige el usuario. */
+export const GOVERNANCE_LABEL: Record<string, string> = {
+  collective: 'colectivo sin propietario',
+  members_assembly: 'asociación de socios',
+  family_private: 'proyecto familiar',
+  business_backed: 'respaldado por un negocio',
+  school_program: 'programa escolar',
+  municipal_program: 'programa municipal',
+  foundation: 'fundación',
+  sports_company: 'sociedad deportiva',
+  franchise: 'franquicia'
+};
+
+export const VENUE_USAGE_LABEL: Record<string, string> = {
+  public_shared: 'campo público compartido',
+  school_facility: 'instalación escolar',
+  rented: 'sede alquilada',
+  owned: 'instalación propia',
+  itinerant: 'sin sede fija'
+};
+
+/** Nivel de recursos ya calculado. Es una lectura, no una categoría elegida. */
+export const RESOURCE_TIER_LABEL: Record<string, string> = {
+  subsistence: 'de subsistencia',
+  modest: 'modesto',
+  established: 'establecido',
+  well_resourced: 'con recursos',
+  major: 'de gran escala'
+};
+
+export const OUTCOME_LABEL: Record<string, string> = {
+  healthy: 'cerró en orden',
+  strained: 'cerró en apuros',
+  insolvent: 'no pudo cubrir sus obligaciones'
+};
+
+/** Qué cambió en una institución entre temporadas. */
+export const CHANGE_FIELD_LABEL: Record<string, string> = {
+  fan_base: 'base social',
+  governance: 'forma de gobierno',
+  venue_agreement: 'uso de la sede',
+  community_reach: 'alcance en su zona'
+};
+
+export const COMPONENT_LABEL: Record<string, string> = {
+  revenue: 'ingreso',
+  expense: 'gasto'
+};
+
+export const FINANCIAL_CONFIDENCE_LABEL: Record<string, string> = {
+  estimated: 'estimado',
+  scenario_assumption: 'supuesto de escenario',
+  insufficient_data: 'datos insuficientes'
 };
 
 export const TIER_LABEL: Record<string, string> = {

@@ -14,12 +14,20 @@ from sqlalchemy.orm import Session
 
 from app.api.schemas import (
     AdvanceRequest,
+    CommitRequest,
+    CustomAreaRequest,
+    DraftWrite,
+    PreviewRequest,
     QualificationPathCreate,
     RelationshipCreate,
+    RelationshipUpdate,
     UniverseCreate,
 )
 from app.application import (
     competition_service,
+    draft_service,
+    geography_service,
+    mobility_service,
     query_service,
     relationship_service,
     sim_service,
@@ -110,6 +118,56 @@ def geography(session: SessionDep, universe_id: str) -> dict[str, Any]:
     }
 
 
+# --------------------------------------------------------------------------- #
+# Geografía mundial
+# --------------------------------------------------------------------------- #
+
+
+@router.get("/geography/status", tags=["geografía"])
+def geography_status(session: SessionDep) -> dict[str, Any]:
+    """¿Hay gazetteer importado y qué cubre?"""
+    return geography_service.gazetteer_status(session).as_dict()
+
+
+@router.get("/geography/search", tags=["geografía"])
+def geography_search(
+    session: SessionDep,
+    q: str = Query(min_length=1, description="nombre o variante de un lugar"),
+    limit: int = Query(default=10, ge=1, le=25),
+    country: str | None = Query(default=None, max_length=2, description="filtro ISO 3166-1"),
+    kind: str | None = Query(default=None, description="country | region | city | district"),
+    min_population: int = Query(default=0, ge=0),
+) -> dict[str, Any]:
+    """Búsqueda mundial por nombre y variantes, con candidatos desambiguados."""
+    return geography_service.search(
+        session, q, limit=limit, country=country, kind=kind, min_population=min_population
+    )
+
+
+@router.get("/geography/entities/{entity_id}", tags=["geografía"])
+def geography_entity(session: SessionDep, entity_id: str) -> dict[str, Any]:
+    """Ficha de una entidad resuelta: jerarquía, moneda, límite y estado."""
+    return geography_service.entity_detail(session, entity_id)
+
+
+@router.get("/geography/entities/{entity_id}/context", tags=["geografía"])
+def geography_entity_context(session: SessionDep, entity_id: str) -> dict[str, Any]:
+    """Qué se sabe del territorio y qué no: población, moneda, índices y huecos."""
+    return geography_service.entity_context(session, entity_id)
+
+
+@router.post("/geography/resolve-custom-area", tags=["geografía"])
+def geography_resolve_custom_area(session: SessionDep, body: CustomAreaRequest) -> dict[str, Any]:
+    """Delimita por radio desde una entidad resuelta, cuando no hay polígono."""
+    return geography_service.resolve_custom_area(
+        session,
+        center_entity_id=body.center_entity_id,
+        radius_km=body.radius_km,
+        limit=body.limit,
+        min_population=body.min_population,
+    )
+
+
 @router.get("/universes/{universe_id}/history", tags=["historia"])
 def history(
     session: SessionDep,
@@ -151,6 +209,78 @@ def create_competition(
     }
 
 
+# --------------------------------------------------------------------------- #
+# Borradores y previsualizaciones (FIX V2 §12)
+# --------------------------------------------------------------------------- #
+
+
+@router.get("/universes/{universe_id}/competitions/drafts", tags=["competiciones"])
+def list_drafts(session: SessionDep, universe_id: str) -> dict[str, Any]:
+    items = draft_service.list_drafts(session, universe_id)
+    return {"items": items, "total": len(items)}
+
+
+@router.post(
+    "/universes/{universe_id}/competitions/drafts", status_code=201, tags=["competiciones"]
+)
+def create_draft(session: SessionDep, universe_id: str, body: DraftWrite) -> dict[str, Any]:
+    """Guarda una intención sin crear nada en el mundo."""
+    borrador = draft_service.create_draft(session, universe_id, body.intent)
+    return draft_service.draft_view(session, borrador)
+
+
+@router.get("/competitions/drafts/{draft_id}", tags=["competiciones"])
+def get_draft(session: SessionDep, draft_id: str) -> dict[str, Any]:
+    return draft_service.draft_view(session, draft_service.get_draft(session, draft_id))
+
+
+@router.patch("/competitions/drafts/{draft_id}", tags=["competiciones"])
+def update_draft(session: SessionDep, draft_id: str, body: DraftWrite) -> dict[str, Any]:
+    """Actualiza la intención. Si cambia, la propuesta anterior deja de valer."""
+    borrador = draft_service.update_draft(session, draft_id, body.intent)
+    return draft_service.draft_view(session, borrador)
+
+
+@router.post("/universes/{universe_id}/competitions/validate", tags=["competiciones"])
+def validate_competition(session: SessionDep, universe_id: str, body: DraftWrite) -> dict[str, Any]:
+    """Revisa una intención y devuelve sus problemas tipados, sin generar nada."""
+    universe_service.get_universe(session, universe_id)
+    problemas = draft_service.validate_intent(session, universe_id, body.intent)
+    return {
+        "intent_fingerprint": draft_service.intent_fingerprint(body.intent),
+        "blocking": [p.as_dict() for p in problemas if p.severity == draft_service.BLOCKING],
+        "warnings": [p.as_dict() for p in problemas if p.severity == draft_service.WARNING],
+        "can_commit": not any(p.severity == draft_service.BLOCKING for p in problemas),
+    }
+
+
+@router.post(
+    "/universes/{universe_id}/competitions/previews", status_code=201, tags=["competiciones"]
+)
+def create_preview(session: SessionDep, universe_id: str, body: PreviewRequest) -> dict[str, Any]:
+    """Genera una propuesta inmutable. No escribe nada en el mundo."""
+    propuesta = draft_service.create_preview(
+        session, universe_id, body.intent, draft_id=body.draft_id
+    )
+    return draft_service.preview_view(propuesta)
+
+
+@router.get("/competitions/previews/{preview_id}", tags=["competiciones"])
+def get_preview(session: SessionDep, preview_id: str) -> dict[str, Any]:
+    return draft_service.preview_view(draft_service.get_preview(session, preview_id))
+
+
+@router.post("/competitions/commit", status_code=201, tags=["competiciones"])
+def commit_preview(
+    session: SessionDep,
+    body: CommitRequest,
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> dict[str, Any]:
+    """Crea la competición de una propuesta ya vista. Idempotente."""
+    clave = idempotency_key or f"commit:{body.preview_id}"
+    return draft_service.commit_preview(session, body.preview_id, body.intent_fingerprint, clave)
+
+
 @router.post("/universes/{universe_id}/competitions/preview", tags=["competiciones"])
 def preview_competition(
     session: SessionDep, universe_id: str, body: dict[str, Any]
@@ -190,6 +320,7 @@ def create_relationship(
     relationship = relationship_service.create_relationship(
         session, competition_id, body.model_dump()
     )
+    moves_clubs = relationship.relation_kind in relationship_service.HIERARCHY_KINDS
     return {
         "id": relationship.id,
         "upper": relationship.source_id,
@@ -197,12 +328,47 @@ def create_relationship(
         "relation_kind": relationship.relation_kind,
         "config": relationship.config,
         "effective_from_season": relationship.effective_from_season,
+        "effective_rules": mobility_service.effective_rules(session, relationship.source_id),
         "warning": (
-            "La relación queda registrada y validada, y es la autoridad única de "
-            "sus plazas. El intercambio de clubes al cerrar temporada es Etapa 2 "
-            "y todavía NO está implementado: nadie subirá ni bajará aún."
+            "La relación es la autoridad única de sus plazas: la misma cuota la "
+            "ven las dos competiciones. El intercambio se aplica cuando todas "
+            "las ligas vinculadas cierran su temporada."
+            if moves_clubs
+            else "Vínculo de desarrollo: mueve jugadores, nunca clubes. Ninguna "
+            "competición cambia de categoría por esto."
         ),
     }
+
+
+@router.get("/competitions/{competition_id}/mobility", tags=["competiciones"])
+def competition_mobility(session: SessionDep, competition_id: str) -> dict[str, Any]:
+    """Regla efectiva de ascenso y descenso vista desde esta competición."""
+    competition_service.get_competition(session, competition_id)
+    return mobility_service.effective_rules(session, competition_id)
+
+
+@router.patch("/relationships/{relationship_id}", tags=["competiciones"])
+def update_relationship(
+    session: SessionDep, relationship_id: str, body: RelationshipUpdate
+) -> dict[str, Any]:
+    relationship, warnings = relationship_service.update_relationship(
+        session, relationship_id, body.model_dump(exclude_unset=True)
+    )
+    return {
+        "id": relationship.id,
+        "upper": relationship.source_id,
+        "lower": relationship.target_id,
+        "relation_kind": relationship.relation_kind,
+        "config": relationship.config,
+        "effective_from_season": relationship.effective_from_season,
+        "effective_rules": mobility_service.effective_rules(session, relationship.source_id),
+        "warnings": warnings,
+    }
+
+
+@router.delete("/relationships/{relationship_id}", tags=["competiciones"])
+def delete_relationship(session: SessionDep, relationship_id: str) -> dict[str, Any]:
+    return relationship_service.delete_relationship(session, relationship_id)
 
 
 @router.post(
@@ -265,6 +431,12 @@ def edition_playoffs(session: SessionDep, edition_id: str) -> dict[str, Any]:
     return {"items": items, "total": len(items)}
 
 
+@router.get("/editions/{edition_id}/mobility-projection", tags=["ediciones"])
+def edition_mobility_projection(session: SessionDep, edition_id: str) -> dict[str, Any]:
+    """Quién subiría o bajaría si la temporada acabara con la tabla de hoy."""
+    return mobility_service.projection(session, edition_id)
+
+
 @router.get("/editions/{edition_id}/leaders", tags=["ediciones"])
 def edition_leaders(
     session: SessionDep, edition_id: str, limit: int = Query(default=10, ge=1, le=50)
@@ -275,6 +447,18 @@ def edition_leaders(
 # --------------------------------------------------------------------------- #
 # Clubes, personas y partidos
 # --------------------------------------------------------------------------- #
+
+
+@router.get("/universes/{universe_id}/mobility-history", tags=["competiciones"])
+def mobility_history(
+    session: SessionDep,
+    universe_id: str,
+    limit: int = Query(default=50, ge=1, le=200),
+) -> dict[str, Any]:
+    """Ascensos y descensos ya aplicados, con el motivo de cada movimiento."""
+    universe_service.get_universe(session, universe_id)
+    items = mobility_service.history(session, universe_id, limit=limit)
+    return {"items": items, "total": len(items)}
 
 
 @router.get("/universes/{universe_id}/clubs", tags=["clubes"])

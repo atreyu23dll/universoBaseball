@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import statistics
 
+import pytest
+from pydantic import ValidationError
+
 from simulation.competitions.ruleset import RuleSet
 from simulation.core.provenance import Confidence
 from simulation.generation.context import build_context
@@ -55,11 +58,18 @@ def test_la_semilla_del_reglamento_manda_sobre_la_del_universo(tree):
 
 
 def test_c02_contexto_municipal_frente_a_nacional(tree):
-    """Dos ligas distintas generan ecosistemas distintos por razones rastreables."""
+    """Dos ligas distintas generan ecosistemas distintos por razones rastreables.
+
+    La diferencia no viene de una etiqueta: viene de que una se juega en
+    subzonas de una ciudad y la otra en mercados de millones de habitantes, con
+    más público, más patrocinio disponible y más viaje que pagar.
+    """
     municipal = build_world(tree, MUNICIPAL)
     nacional = build_world(tree, NATIONAL_PRO, seed=4242, edition_key="ed-nac")
 
-    assert municipal.context.professionalization_score < nacional.context.professionalization_score
+    assert municipal.context.market_score < nacional.context.market_score
+    # El nivel competitivo es un resultado, y se calcula después de las cuentas.
+    assert municipal.context.effective_level < nacional.context.effective_level
 
     presupuesto_municipal = statistics.median(
         float(c.finances.annual_budget) for c in municipal.clubs
@@ -73,9 +83,12 @@ def test_c02_contexto_municipal_frente_a_nacional(tree):
     aforo_nacional = statistics.median(c.venue.capacity for c in nacional.clubs)
     assert aforo_nacional > aforo_municipal
 
-    # Y la diferencia está explicada, no es una etiqueta.
+    # Y la diferencia está explicada partida por partida, no por una etiqueta.
     derivaciones = [n.field for n in municipal.context.record.notes]
-    assert "professionalization_score" in derivaciones
+    assert "market_score" in derivaciones and "effective_level" in derivaciones
+    perfil = municipal.clubs[0].finances.profile
+    assert perfil is not None and perfil.components
+    assert all(componente.basis for componente in perfil.components)
 
 
 def test_la_desigualdad_intra_liga_existe_pero_es_acotada(municipal_world):
@@ -143,16 +156,25 @@ def test_procedencia_registra_confianza_de_los_datos(municipal_world):
     )
 
 
-def test_el_usuario_puede_imponer_el_nivel(tree):
-    auto = build_context(tree, RuleSet.model_validate(MUNICIPAL))
-    forzado = build_context(
-        tree,
-        RuleSet.model_validate(
-            {**MUNICIPAL, "generation": {**MUNICIPAL["generation"], "professionalization": "elite"}}
-        ),
-    )
-    assert forzado.professionalization_score > auto.professionalization_score
-    nota = next(n for n in forzado.record.notes if n.field == "professionalization_score")
-    assert nota.confidence is Confidence.USER_CONFIGURED
-    # Y se conserva cuál habría sido el valor contextual, para poder explicarlo.
-    assert "contextual_would_be" in nota.inputs
+def test_el_usuario_no_puede_imponer_la_riqueza_de_los_clubes(tree):
+    """Lo contrario de lo que esta prueba comprobaba antes, y a propósito.
+
+    El FIX V2 de Fase 1 prohíbe que el formulario decida el patrimonio, la
+    propiedad, el personal o la riqueza de las instituciones. El reglamento
+    rechaza esos campos en vez de aceptarlos y esconderlos.
+    """
+    for campo in ("professionalization", "economy", "institutional_maturity"):
+        with pytest.raises(ValidationError):
+            RuleSet.model_validate(
+                {**MUNICIPAL, "generation": {**MUNICIPAL["generation"], campo: "elite"}}
+            )
+
+    # Lo que sí puede elegir es la modalidad, que son reglas de participación.
+    reglamento = RuleSet.model_validate({**MUNICIPAL, "participation_modality": "llanera"})
+    assert reglamento.effective_compensation_rule.value == "expenses_only"
+    assert reglamento.allows_player_salaries is False
+    contexto = build_context(tree, reglamento)
+    # Y el nivel no existe todavía: depende de unos clubes que aún no hay.
+    assert contexto.effective_level is None
+    with pytest.raises(ValueError, match="no está disponible"):
+        _ = contexto.level

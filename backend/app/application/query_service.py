@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
+from app.application import club_evolution_service
 from app.application.errors import NotFoundError
 from app.application.universe_service import get_universe
 from app.infrastructure import models as m
@@ -74,6 +75,26 @@ def universe_dashboard(session: Session, universe_id: str) -> dict:
     for edition in editions:
         editions_by_competition.setdefault(edition.competition_id, []).append(edition)
 
+    # Relación de movilidad de cada competición, para que el panel diga siempre
+    # con quién intercambia clubes y cuántos. La cuota sale de la relación.
+    competition_names = {competition.id: competition.name for competition in competitions}
+    mobility: dict[str, dict] = {}
+    for relationship in session.scalars(
+        select(m.CompetitionRelationship).where(
+            m.CompetitionRelationship.universe_id == universe_id,
+            m.CompetitionRelationship.relation_kind == "promotion_relegation",
+        )
+    ).all():
+        slots = relationship.config.get("exchange_slots")
+        mobility.setdefault(relationship.source_id, {"role": "upper", "slots": slots, "with": []})
+        mobility[relationship.source_id]["with"].append(
+            competition_names.get(relationship.target_id, relationship.target_id)
+        )
+        mobility.setdefault(relationship.target_id, {"role": "lower", "slots": slots, "with": []})
+        mobility[relationship.target_id]["with"].append(
+            competition_names.get(relationship.source_id, relationship.source_id)
+        )
+
     return {
         "universe": {
             "id": universe.id,
@@ -114,6 +135,7 @@ def universe_dashboard(session: Session, universe_id: str) -> dict:
                 "kind": competition.kind,
                 "scope_level": competition.scope_level,
                 "relationship_mode": competition.relationship_mode,
+                "mobility": mobility.get(competition.id),
                 "editions": [
                     {
                         "id": edition.id,
@@ -332,15 +354,37 @@ def list_clubs(session: Session, universe_id: str) -> list[dict]:
             select(m.Venue).where(m.Venue.universe_id == universe_id)
         ).all()
     }
+    competition_names = {
+        competition.id: competition.name
+        for competition in session.scalars(
+            select(m.CompetitionDefinition).where(
+                m.CompetitionDefinition.universe_id == universe_id
+            )
+        ).all()
+    }
+    # Competición vigente de cada club: la que importa para listarlo. Las que
+    # dejó atrás al ascender o descender están en su ficha.
+    current_competition: dict[str, str] = {}
+    for membership in session.scalars(
+        select(m.ClubMembership).where(
+            m.ClubMembership.universe_id == universe_id,
+            m.ClubMembership.end_season.is_(None),
+        )
+    ).all():
+        current_competition[membership.club_id] = membership.competition_id
+
     out = []
     for club in clubs:
         place = places.get(club.home_place_id)
         venue = venues.get(club.id)
+        competition_id = current_competition.get(club.id)
         out.append(
             {
                 **_club_brief(club),
                 "institutional_type": club.institutional_type,
                 "foundation_year": club.foundation_year,
+                "competition_id": competition_id,
+                "competition_name": competition_names.get(competition_id or ""),
                 "home_place": place.name if place else None,
                 "home_place_confidence": place.confidence if place else None,
                 "fan_base": club.fan_base,
@@ -348,6 +392,10 @@ def list_clubs(session: Session, universe_id: str) -> list[dict]:
                 "annual_budget": str(club.annual_budget),
                 "resource_multiplier": club.resource_multiplier,
                 "reputation": club.reputation,
+                # Un club que desapareció conserva su ficha y su historia: la
+                # lista lo dice en vez de borrarlo.
+                "status": club.status,
+                "seasons_insolvent": club.seasons_insolvent,
                 "venue": (
                     {"name": venue.name, "capacity": venue.capacity, "type": venue.venue_type}
                     if venue
@@ -379,27 +427,61 @@ def club_detail(session: Session, club_id: str) -> dict:
         roster.append(_person_brief(session, person, club.universe_id))
     roster.sort(key=lambda p: (not p["is_pitcher"], -p["scouted_potential"]))
 
+    # `competitions` son las vigentes; `competition_history` incluye las que el
+    # club dejó al ascender o descender. Separarlas evita que la ficha diga que
+    # un club juega en dos categorías a la vez.
     memberships = session.scalars(
-        select(m.ClubMembership).where(m.ClubMembership.club_id == club_id)
+        select(m.ClubMembership)
+        .where(m.ClubMembership.club_id == club_id)
+        .order_by(m.ClubMembership.start_season, m.ClubMembership.id)
     ).all()
     competitions = []
+    competition_history = []
     for membership in memberships:
         competition = session.get(m.CompetitionDefinition, membership.competition_id)
-        if competition:
-            competitions.append(
-                {
-                    "id": competition.id,
-                    "name": competition.name,
-                    "kind": competition.kind,
-                    "membership_kind": membership.membership_kind,
-                }
-            )
+        if competition is None:
+            continue
+        item = {
+            "id": competition.id,
+            "name": competition.name,
+            "kind": competition.kind,
+            "membership_kind": membership.membership_kind,
+            "start_season": membership.start_season,
+            "end_season": membership.end_season,
+            "origin": membership.origin,
+            "current": membership.end_season is None,
+        }
+        competition_history.append(item)
+        if membership.end_season is None:
+            competitions.append(item)
 
     titles = session.scalars(
         select(m.CompetitionEdition).where(m.CompetitionEdition.champion_club_id == club_id)
     ).all()
+    movements = session.scalars(
+        select(m.SimulationEventRow)
+        .where(
+            m.SimulationEventRow.universe_id == club.universe_id,
+            m.SimulationEventRow.event_type.in_(("club_promoted", "club_relegated")),
+        )
+        .order_by(m.SimulationEventRow.world_date.desc())
+    ).all()
     return {
         **_club_brief(club),
+        "competition_history": competition_history,
+        "mobility": [
+            {
+                "direction": event.event_type.removeprefix("club_"),
+                "world_date": event.world_date,
+                "season": event.payload.get("season"),
+                "from_competition_id": event.payload.get("from_competition_id"),
+                "to_competition_id": event.payload.get("to_competition_id"),
+                "reason": event.payload.get("reason"),
+                "headline": event.headline,
+            }
+            for event in movements
+            if event.entities.get("club") == club_id
+        ],
         "institutional_type": club.institutional_type,
         "foundation_year": club.foundation_year,
         "history_note": club.history_note,
@@ -419,7 +501,18 @@ def club_detail(session: Session, club_id: str) -> dict:
             "annual_budget": str(club.annual_budget),
             "cash": str(club.cash),
             "debt": str(club.debt),
+            # Desglose con el origen y la base de cada importe: es lo que
+            # permite responder «¿de dónde salen estos 48.000 pesos?».
+            "assessment": club.finance_profile or None,
         },
+        # Cómo se organiza el club. Lo decidió él, no el usuario.
+        "organization": club.organization or None,
+        "status": club.status,
+        "seasons_insolvent": club.seasons_insolvent,
+        # Lo que de verdad cobró y pagó cada temporada cerrada, con lo previsto
+        # al lado, y los cambios de organización con su causa.
+        "season_ledgers": club_evolution_service.club_ledgers(session, club_id),
+        "institutional_history": club_evolution_service.club_history(session, club_id),
         "policies": club.policies,
         "reputation": club.reputation,
         "fan_base": club.fan_base,
@@ -447,7 +540,11 @@ def club_detail(session: Session, club_id: str) -> dict:
         "roster": roster,
         "competitions": competitions,
         "titles": [{"edition_id": e.id, "year": e.year} for e in titles],
-        "provenance": _provenance_for(session, club.universe_id, "club", club.club_key),
+        "provenance": [
+            *_provenance_for(session, club.universe_id, "club", club.club_key),
+            *_provenance_for(session, club.universe_id, "club_mobility", club.club_key),
+            *_provenance_for(session, club.universe_id, "club_forecast", club.club_key),
+        ],
     }
 
 
@@ -1061,6 +1158,23 @@ def universe_geography(session: Session, universe_id: str) -> list[dict]:
         ).all()
     }
     by_id = {place.id: place for place in places}
+    # Moneda heredada del país: la jurisdicción la resuelve, no el universo.
+    anchors: dict[str, dict | None] = {}
+
+    def anchor_of(place: m.Place) -> dict | None:
+        if place.id in anchors:
+            return anchors[place.id]
+        current: m.Place | None = place
+        visto: set[str] = set()
+        while current is not None and current.id not in visto:
+            visto.add(current.id)
+            if current.economy:
+                anchors[place.id] = current.economy
+                return current.economy
+            current = by_id.get(current.parent_id) if current.parent_id else None
+        anchors[place.id] = None
+        return None
+
     club_counts = dict(
         session.execute(
             select(m.Club.home_place_id, func.count())
@@ -1085,6 +1199,8 @@ def universe_geography(session: Session, universe_id: str) -> list[dict]:
                 "confidence": place.confidence,
                 "sources": place.sources,
                 "clubs": club_counts.get(place.id, 0),
+                "currency": (anchor_of(place) or {}).get("currency"),
+                "economy_anchor": anchor_of(place),
                 "profile": (
                     {
                         "ref_year": profile.ref_year,

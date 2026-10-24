@@ -3,6 +3,15 @@
 Todo lo que sale de aquí es inventado. No se copian nombres, apodos ni escudos
 de clubes reales, ni se usan marcas existentes: los patrocinadores que el motor
 llegue a generar serán empresas ficticias.
+
+**Límite conocido y visible:** este léxico es de español de México. Desde que el
+territorio se resuelve contra un gazetteer mundial, se puede crear una liga en
+Kampala o en Ulán Bator, y sus clubes saldrán con apodos como «Zopilotes» y sus
+jugadores con nombres mexicanos, que no es «nombre apropiado por contexto
+lingüístico» (especificación maestra §7.5). Hace falta léxico por idioma o
+región, con sus fuentes, y es trabajo de datos además de código. Está anotado en
+`docs/implementation-plan.md` y en la pantalla `/acerca` para que nadie se lleve
+la impresión de que el motor sabe nombrar lo que no sabe.
 """
 
 from __future__ import annotations

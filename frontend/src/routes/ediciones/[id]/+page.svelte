@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { api } from '$lib/api/client';
-  import type { GameBrief, StandingRow } from '$lib/api/types';
+  import type { GameBrief, MobilityProjection, StandingRow } from '$lib/api/types';
   import { formatDate, formatPct, KIND_LABEL, SCOPE_LABEL } from '$lib/format';
   import Crest from '$lib/components/Crest.svelte';
   import ErrorNotice from '$lib/components/ErrorNotice.svelte';
@@ -14,23 +14,33 @@
   let schedule = $state<GameBrief[]>([]);
   let playoffs = $state<any[]>([]);
   let leaders = $state<any>(null);
+  let mobility = $state<MobilityProjection | null>(null);
   let error = $state<unknown>(null);
   let tab = $state<'tabla' | 'calendario' | 'postemporada' | 'lideres' | 'reglas'>('tabla');
 
+  /** Zona de ascenso o descenso de un club, según la proyección del motor. */
+  function zone(clubId: string | undefined): 'promote' | 'relegate' | null {
+    if (!clubId || !mobility?.has_hierarchy || !mobility.ranked) return null;
+    if (!mobility.projected.some((item) => item.club_id === clubId)) return null;
+    return mobility.direction === 'promoted' ? 'promote' : 'relegate';
+  }
+
   onMount(async () => {
     try {
-      const [d, s, sc, po, ld] = await Promise.all([
+      const [d, s, sc, po, ld, mb] = await Promise.all([
         api.get<any>(`/editions/${editionId}`),
         api.get<{ items: StandingRow[] }>(`/editions/${editionId}/standings`),
         api.get<{ items: GameBrief[] }>(`/editions/${editionId}/schedule?limit=200`),
         api.get<{ items: any[] }>(`/editions/${editionId}/playoffs`),
-        api.get<any>(`/editions/${editionId}/leaders`)
+        api.get<any>(`/editions/${editionId}/leaders`),
+        api.get<MobilityProjection>(`/editions/${editionId}/mobility-projection`)
       ]);
       detail = d;
       standings = s.items;
       schedule = sc.items;
       playoffs = po.items;
       leaders = ld;
+      mobility = mb;
     } catch (err) {
       error = err;
     }
@@ -96,8 +106,12 @@
         </thead>
         <tbody>
           {#each standings as row (row.club?.id)}
-            <tr>
-              <td class="num">{row.rank}</td>
+            <tr class={zone(row.club?.id) ?? ''}>
+              <td class="num">
+                {row.rank}
+                {#if zone(row.club?.id) === 'promote'}<span class="arrow up">▲</span>{/if}
+                {#if zone(row.club?.id) === 'relegate'}<span class="arrow down">▼</span>{/if}
+              </td>
               <td>
                 <span class="row" style="gap:8px">
                   {#if row.club}
@@ -126,6 +140,23 @@
         Se recalcula desde los partidos terminados en cada avance, no se acumula.
         Los empates valen media victoria en el porcentaje.
       </p>
+      {#if mobility?.has_hierarchy}
+        <div class="notice info">
+          <strong>
+            {mobility.direction === 'promoted'
+              ? `Zona de ascenso: ${mobility.slots} plaza(s) hacia ${mobility.upper?.name}`
+              : `Zona de descenso: ${mobility.slots} plaza(s)`}
+          </strong>
+          <div class="small">{mobility.note}</div>
+          {#if mobility.projected.some((p) => p.unmet_requirements.length)}
+            <ul class="small">
+              {#each mobility.projected.filter((p) => p.unmet_requirements.length) as item}
+                <li>{item.club_name}: {item.unmet_requirements.join('; ')}</li>
+              {/each}
+            </ul>
+          {/if}
+        </div>
+      {/if}
     </div>
   {:else if tab === 'calendario'}
     <div class="panel">
@@ -255,3 +286,21 @@
 {:else if !error}
   <p class="muted">Cargando edición…</p>
 {/if}
+
+<style>
+  tr.promote td:first-child {
+    box-shadow: inset 3px 0 0 var(--accent, #15803d);
+  }
+  tr.relegate td:first-child {
+    box-shadow: inset 3px 0 0 var(--danger, #b91c1c);
+  }
+  .arrow {
+    font-size: 0.7em;
+  }
+  .arrow.up {
+    color: var(--accent, #15803d);
+  }
+  .arrow.down {
+    color: var(--danger, #b91c1c);
+  }
+</style>

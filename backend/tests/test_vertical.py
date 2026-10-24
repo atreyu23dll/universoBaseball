@@ -16,7 +16,11 @@ def test_health_declara_que_etapas_estan_implementadas(client: TestClient):
     body = client.get("/health").json()
     assert body["status"] == "ok"
     assert body["stages_implemented"] == ["0", "1"]
-    assert "2" in body["stages_pending"]
+    # La Etapa 2 está a medias y el servicio lo dice con precisión: el
+    # intercambio de clubes funciona, los grupos y divisiones no.
+    assert "2" in body["stages_partial"]
+    assert "grupos" in body["stages_partial"]["2"]
+    assert body["stages_pending"] == ["3", "4", "5", "6"]
 
 
 def test_el_universo_nace_con_su_geografia(client: TestClient, universe: dict):
@@ -58,12 +62,19 @@ def test_la_previsualizacion_no_guarda_nada(client: TestClient, universe: dict):
     assert preview.status_code == 200
     body = preview.json()
     assert len(body["clubs"]) == 12
-    assert body["context"]["professionalization_tier"] in (
-        "amateur",
-        "semi_professional",
-        "professional",
-        "elite",
+    assert body["context"]["participation_modality"] == "amateur_organized"
+    assert body["context"]["resource_tier"] in (
+        "subsistence",
+        "modest",
+        "established",
+        "well_resourced",
+        "major",
     )
+    # El presupuesto de cada club llega con su moneda y su desglose.
+    club = body["clubs"][0]
+    assert club["financial_assessment"]["currency"] == "MXN"
+    assert club["financial_assessment"]["components"]
+    assert club["governance"] and club["venue_usage"]
     # Dos previsualizaciones con la misma semilla dan lo mismo.
     repeat = client.post(
         f"/api/v1/universes/{universe['id']}/competitions/preview", json=MUNICIPAL_LEAGUE
@@ -97,9 +108,10 @@ def test_la_generacion_crea_el_mundo_entero(client: TestClient, universe: dict):
         note
         for record in detail["provenance"]
         for note in record["notes"]
-        if note["field"] == "annual_budget"
+        if note["field"] == "operating_budget_period"
     ]
-    assert presupuesto and "población" in presupuesto[0]["derivation"]
+    assert presupuesto, "el club no guarda de dónde salió su presupuesto"
+    assert "partidas de gasto" in presupuesto[0]["derivation"]
 
 
 def test_c13_c15_avanzar_el_reloj_produce_partidos_y_clasificacion(
@@ -245,7 +257,16 @@ def test_la_edicion_entera_termina_con_campeon(client: TestClient, universe: dic
     )
     status = client.get(f"/api/v1/universes/{universe['id']}/sim/status").json()
     assert status["job"]["status"] == "succeeded", status["job"]
-    assert status["pending_games"] == 0
+    # No se comprueba que no queden partidos pendientes en el universo: al
+    # cerrar la temporada el mundo abre la siguiente y publica su calendario.
+    edicion = client.get(f"/api/v1/editions/{edition_id}").json()
+    assert edicion["status"] == "completed"
+    assert (
+        client.get(
+            f"/api/v1/editions/{edition_id}/schedule", params={"state": "scheduled", "limit": 1}
+        ).json()["total"]
+        == 0
+    )
 
     edition = client.get(f"/api/v1/editions/{edition_id}").json()
     assert edition["status"] == "completed"

@@ -15,8 +15,12 @@ from simulation.competitions.ruleset import RuleSet
 from simulation.competitions.schedule import ScheduleReport, build_schedule
 from simulation.core.events import EventType, SimulationEvent
 from simulation.core.provenance import GenerationRecord
-from simulation.generation.clubs import generate_clubs
-from simulation.generation.context import CompetitionContext, build_context
+from simulation.generation.clubs import assign_rosters, generate_clubs
+from simulation.generation.context import (
+    CompetitionContext,
+    build_context,
+    resolve_effective_level,
+)
 from simulation.generation.naming import NameRegistry
 from simulation.generation.people import generate_talent_pool
 from simulation.geography.model import PlaceTree
@@ -48,7 +52,11 @@ def generate_competition_world(
     master_seed: int,
     edition_key: str,
     world_date: date,
-    currency: str = "MXN",
+    #: Moneda forzada. Solo para pruebas: lo normal es que la resuelva el
+    #: territorio a partir de su ancla monetaria. Un valor por omisión aquí
+    #: sería exactamente lo que el FIX V2 §4.4 prohíbe —presumir la moneda— y
+    #: por eso es `None`.
+    currency: str | None = None,
     build_calendar: bool = True,
 ) -> GeneratedWorld:
     seed = ruleset.effective_seed(master_seed)
@@ -56,6 +64,32 @@ def generate_competition_world(
     registry = NameRegistry()
 
     country_code = ruleset.scope.country_code or _dominant_country(tree, ruleset)
+
+    # 1) Las instituciones primero: cada una negocia con su entorno y sus
+    #    cuentas salen de lo que puede recaudar y pagar.
+    generated = generate_clubs(
+        master_seed=seed,
+        edition_key=edition_key,
+        ruleset=ruleset,
+        context=context,
+        registry=registry,
+        world_date=world_date,
+    )
+
+    # 2) El nivel de la competición **emerge** de esas cuentas. Hasta aquí no
+    #    existe, y nada que dependa de él se ha ejecutado todavía.
+    resolve_effective_level(
+        context,
+        [
+            club.finances.profile.months_of_reference_cost
+            for club in generated.clubs
+            if club.finances.profile is not None
+            and club.finances.profile.months_of_reference_cost is not None
+        ],
+    )
+
+    # 3) Con el nivel ya resuelto se genera la población deportiva: la
+    #    competición atrae del mercado compartido según lo que puede ofrecer.
     pool, pool_record = generate_talent_pool(
         master_seed=seed,
         context=context,
@@ -65,15 +99,10 @@ def generate_competition_world(
         registry=registry,
         roster_size=ruleset.season.roster_size,
         club_count=ruleset.generation.club_count,
+        eligibility=ruleset.eligibility,
     )
-    generated = generate_clubs(
-        master_seed=seed,
-        edition_key=edition_key,
-        ruleset=ruleset,
-        context=context,
-        pool=pool,
-        registry=registry,
-        world_date=world_date,
+    generated.unsigned = assign_rosters(
+        seed, edition_key, generated.clubs, pool, ruleset.season.roster_size
     )
     people = {member.person.key: member.person for member in pool}
 
@@ -104,8 +133,10 @@ def generate_competition_world(
                 "clubs": len(generated.clubs),
                 "people": len(people),
                 "free_agents": len(generated.unsigned),
-                "professionalization": round(context.professionalization_score, 4),
-                "tier": str(context.professionalization_tier),
+                "modality": str(ruleset.participation_modality),
+                "effective_level": context.effective_level,
+                "resource_tier": str(context.effective_tier) if context.effective_tier else None,
+                "currency": context.currency,
                 "markets": [m.place_key for m in context.eligible_markets],
             },
             headline=(

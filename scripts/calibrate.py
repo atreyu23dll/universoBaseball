@@ -53,6 +53,7 @@ SCENARIOS = {
         "name": "Liga Municipal de Ciudad Juárez",
         "kind": "municipal_league",
         "scope": {"level": "municipal", "country_code": "MX", "place_keys": ["MX-CJS"]},
+        "participation_modality": "amateur_organized",
         "season": {"games_per_club_target": 44},
         "playoffs": {"slots": 4, "format": "best_of_series", "round_lengths": [3, 5]},
         "generation": {"club_count": 12},
@@ -63,7 +64,8 @@ SCENARIOS = {
         "scope": {"level": "national", "country_code": "MX", "place_keys": ["MX"]},
         "season": {"games_per_club_target": 90, "roster_size": 28},
         "playoffs": {"slots": 8, "format": "best_of_series", "round_lengths": [3, 5, 7]},
-        "generation": {"club_count": 16, "professionalization": "professional"},
+        "participation_modality": "professional",
+        "generation": {"club_count": 16},
     },
 }
 
@@ -96,7 +98,7 @@ def run_season(payload: dict, seed: int) -> dict:
             home_roster=rosters[game.home_key],
             away_roster=rosters[game.away_key],
             season=ruleset.season,
-            professionalization=world.context.professionalization_score,
+            professionalization=world.context.level,
             home_game_index=index[game.home_key],
             away_game_index=index[game.away_key],
             record_events=False,
@@ -159,8 +161,8 @@ def run_season(payload: dict, seed: int) -> dict:
 
     return {
         "scenario_name": ruleset.name,
-        "professionalization": world.context.professionalization_score,
-        "tier": str(world.context.professionalization_tier),
+        "effective_level": world.context.level,
+        "tier": str(world.context.effective_tier),
         "games": games,
         "games_per_second": games / elapsed,
         "pa_per_game": pa / games,
@@ -208,7 +210,7 @@ def main() -> int:
         head = results[0]
         print(f"\n=== {head['scenario_name']} ===")
         print(
-            f"nivel {mean_of(results, 'professionalization'):.3f} ({head['tier']}) · "
+            f"nivel {mean_of(results, 'effective_level'):.3f} ({head['tier']}) · "
             f"{head['games']} partidos/temporada × {args.seasons} semilla(s) · "
             f"{mean_of(results, 'games_per_second'):.0f} partidos/s"
         )

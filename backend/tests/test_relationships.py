@@ -1,9 +1,8 @@
 """Independencia, jerarquía y clasificación: tres mecanismos distintos.
 
-Lo que se prueba aquí son las **validaciones** y el hecho de que crear un
-vínculo no mueva clubes todavía. El intercambio de ascenso y descenso es Etapa
-2 y no está implementado; los casos C04, C05 y C06 de la especificación quedan
-pendientes y no se finge que pasen.
+Lo que se prueba aquí son las **validaciones** al crear vínculos. El
+intercambio de clubes funcionando —C04, C05, C06 y C07 con temporadas
+simuladas— está en `test_mobility.py`.
 """
 
 from __future__ import annotations
@@ -37,7 +36,7 @@ def _crear(client: TestClient, universe_id: str, payload: dict) -> str:
     return response.json()["id"]
 
 
-def test_la_relacion_jerarquica_se_registra_y_avisa_de_que_no_mueve_clubes(
+def test_la_relacion_jerarquica_se_registra_con_su_configuracion(
     client: TestClient, universe: dict
 ):
     superior = _crear(client, universe["id"], MUNICIPAL_LEAGUE)
@@ -57,8 +56,11 @@ def test_la_relacion_jerarquica_se_registra_y_avisa_de_que_no_mueve_clubes(
     body = response.json()
     assert body["config"]["exchange_slots"] == 2
     assert body["config"]["moves_clubs"] is True
-    assert "Etapa 2" in body["warning"]
-    assert "NO está implementado" in body["warning"]
+    assert body["config"]["lower_selection"]["method"] == "top_standings"
+    assert body["config"]["upper_selection"]["method"] == "bottom_standings"
+    assert body["config"]["apply_at"] == "season_transition"
+    assert body["effective_rules"]["exchange_slots"] == 2
+    assert "autoridad única" in body["warning"]
 
 
 def test_c05_la_relacion_es_la_autoridad_unica_de_las_plazas(client: TestClient, universe: dict):
@@ -82,7 +84,7 @@ def test_c05_la_relacion_es_la_autoridad_unica_de_las_plazas(client: TestClient,
     edge = graph["hierarchy_edges"][0]
     assert edge["exchange_slots"] == 3
     assert edge["upper"] == superior and edge["lower"] == inferior
-    assert edge["implemented"] is False
+    assert edge["implemented"] is True
 
     # La inferior pasa a dependiente; la superior sigue siendo independiente.
     nodos = {node["id"]: node for node in graph["nodes"]}
@@ -253,40 +255,30 @@ def test_una_regla_de_cupo_desconocida_se_rechaza(client: TestClient, universe: 
     assert response.status_code == 422
 
 
-def test_c04_pendiente_el_intercambio_no_ocurre_todavia(client: TestClient, universe: dict):
-    """Documenta honestamente el límite: la relación existe, el motor no.
-
-    Cuando se implemente la Etapa 2, esta prueba debe cambiarse por la que
-    comprueba que suben y bajan exactamente N clubes conservando su identidad.
-    """
-    superior = create_league(client, universe["id"])
-    inferior = create_league(client, universe["id"], SEGUNDA)
-    client.post(
-        f"/api/v1/competitions/{superior['competition_id']}/relationships",
+def test_una_relacion_de_ascenso_sin_plazas_se_rechaza_con_una_explicacion(
+    client: TestClient, universe: dict
+):
+    superior = _crear(client, universe["id"], MUNICIPAL_LEAGUE)
+    inferior = _crear(client, universe["id"], SEGUNDA)
+    respuesta = client.post(
+        f"/api/v1/competitions/{superior}/relationships",
         json={
-            "target_competition_id": inferior["competition_id"],
+            "target_competition_id": inferior,
             "relation_kind": "promotion_relegation",
-            "exchange_slots": 2,
         },
     )
-    clubes_antes = client.get(f"/api/v1/universes/{universe['id']}/clubs").json()
-    pertenencia_antes = {
-        club["id"]: client.get(f"/api/v1/clubs/{club['id']}").json()["competitions"][0]["id"]
-        for club in clubes_antes["items"]
-    }
+    assert respuesta.status_code == 422
+    assert "al menos una plaza" in respuesta.json()["message"]
+    assert any("TOTAL" in sugerencia for sugerencia in respuesta.json()["suggestions"])
 
-    client.post(
-        f"/api/v1/universes/{universe['id']}/sim/advance",
-        json={"days": 1, "until_season_end": True},
-        headers={"Idempotency-Key": "ascenso-pendiente"},
+
+def test_una_competicion_no_nace_dependiente(client: TestClient, universe: dict):
+    """La dependencia la crea la relación, no una etiqueta en el reglamento."""
+    respuesta = client.post(
+        f"/api/v1/universes/{universe['id']}/competitions",
+        json={**MUNICIPAL_LEAGUE, "relationship_mode": "dependent"},
     )
-    for edition_id in (superior["edition_id"], inferior["edition_id"]):
-        assert client.get(f"/api/v1/editions/{edition_id}").json()["status"] == "completed"
-
-    # Ningún club ha cambiado de competición: el motor de intercambio no existe.
-    for club_id, competicion in pertenencia_antes.items():
-        detalle = client.get(f"/api/v1/clubs/{club_id}").json()
-        assert detalle["competitions"][0]["id"] == competicion
-        # Y los clubes conservan su identidad y su estadio, que es lo que la
-        # Etapa 2 tendrá que seguir respetando.
-        assert detalle["venue"] is not None
+    assert respuesta.status_code == 422
+    assert "no puede crearse ya dependiente" in respuesta.json()["message"]
+    assert any("relationships" in s for s in respuesta.json()["suggestions"])
+    assert client.get(f"/api/v1/universes/{universe['id']}/competitions").json()["total"] == 0

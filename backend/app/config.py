@@ -25,7 +25,9 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(default=["http://127.0.0.1:5173", "http://localhost:5173"])
     log_level: str = "INFO"
     fixture_path: Path = REPO_ROOT / "data" / "fixtures" / "places.json"
-    default_currency: str = "MXN"
+    #: Moneda de presentación opcional. Vacío a propósito: la moneda de cada
+    #: institución sale de su territorio, no de un ajuste global.
+    default_currency: str | None = None
     #: Tope de días que un solo comando `advance` puede recorrer.
     max_advance_days: int = 400
     #: Guardar el detalle turno a turno multiplica el tamaño de la base; por

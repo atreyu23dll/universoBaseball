@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import StrEnum
+from typing import Any
 
 
 class InstitutionalType(StrEnum):
@@ -91,11 +92,21 @@ class Venue:
 
 @dataclass
 class ClubFinances:
-    currency: str
+    """Totales de las cuentas de un club.
+
+    Es la vista agregada de `ClubFinancialProfile`
+    (`simulation.economy.model`): `annual_budget` es el gasto previsto de la
+    temporada, que sale de sumar partidas justificadas, no de una fórmula por
+    nivel de liga. `profile` conserva el desglose completo con su procedencia.
+    """
+
+    currency: str | None
     annual_budget: Decimal
     cash: Decimal
     debt: Decimal
     payroll_committed: Decimal = Decimal("0")
+    #: Desglose con origen, base y confianza de cada importe.
+    profile: Any | None = None
 
     @property
     def payroll_room(self) -> Decimal:
@@ -141,5 +152,7 @@ class Club:
     reputation: Reputation
     fan_base: int
     resource_multiplier: float
+    #: Organización que el propio club se dio: gobierno, sede y responsabilidades.
+    organization: Any | None = None
     roster: list[str] = field(default_factory=list)
     history_note: str = ""

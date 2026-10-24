@@ -28,6 +28,19 @@ class ValidationFailure(ApplicationError):
     code = "validation_failed"
 
 
+class TypedValidationFailure(ValidationFailure):
+    """Fallo de validación con un código propio.
+
+    El FIX V2 de Fase 1 (§10.4) pide categorías de error tipadas para que el
+    cliente pueda distinguir «te falta resolver la geografía» de «ese campo ya
+    no existe», en vez de recibir siempre `validation_failed`.
+    """
+
+    def __init__(self, code: str, message: str, suggestions: list[str] | None = None) -> None:
+        super().__init__(message, suggestions)
+        self.code = code
+
+
 class LockedError(ApplicationError):
     status_code = 409
     code = "universe_busy"

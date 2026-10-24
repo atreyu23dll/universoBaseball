@@ -1,0 +1,2593 @@
+MX.03.008	Los Cabos	Los Cabos	6941773
+MX.03.009	Loreto	Loreto	6942825
+MX.03.003	La Paz	La Paz	6942826
+MX.03.002	Mulegé	Mulege	6942828
+MX.03.001	Comondú	Comondu	6942829
+MX.02.001	Ensenada	Ensenada	6942830
+MX.02.002	Mexicali	Mexicali	6942831
+MX.02.003	Tecate	Tecate	6942832
+MX.02.004	Tijuana	Tijuana	6942833
+MX.02.005	Playas de Rosarito	Playas de Rosarito	6942834
+MX.01.001	Aguascalientes	Aguascalientes	6942835
+MX.01.002	Asientos	Asientos	6942836
+MX.01.003	Calvillo	Calvillo	6942837
+MX.01.004	Cosío	Cosio	6942838
+MX.01.005	Jesús María	Jesus Maria	6942839
+MX.01.006	Pabellón de Arteaga	Pabellon de Arteaga	6942840
+MX.01.007	Rincón de Romos	Rincon de Romos	6942841
+MX.01.008	San José de Gracia	San Jose de Gracia	6942843
+MX.01.009	Tepezalá	Tepezala	6942844
+MX.01.010	El Llano	El Llano	6942845
+MX.01.011	San Francisco de los Romo	San Francisco de los Romo	6942846
+MX.04.001	Calkiní	Calkini	6942857
+MX.04.002	Campeche	Campeche	6942858
+MX.04.003	Carmen	Carmen	6942859
+MX.04.004	Champotón	Champoton	6942860
+MX.04.005	Hecelchakán	Hecelchakan	6942861
+MX.04.007	Palizada	Palizada	6942863
+MX.04.008	Tenabo	Tenabo	6942864
+MX.04.009	Escárcega	Escarcega	6942865
+MX.04.010	Calakmul	Calakmul	6942866
+MX.04.011	Candelaria	Candelaria	6942867
+MX.17.017	Puente de Ixtla	Puente de Ixtla	6951543
+MX.05.001	Acacoyagua	Acacoyagua	6955066
+MX.05.002	Acala	Acala	6955067
+MX.05.003	Acapetahua	Acapetahua	6955068
+MX.05.113	Aldama	Aldama	6955069
+MX.05.004	Altamirano	Altamirano	6955070
+MX.05.005	Amatán	Amatan	6955071
+MX.05.006	Amatenango de la Frontera	Amatenango de la Frontera	6955072
+MX.05.007	Amatenango del Valle	Amatenango del Valle	6955073
+MX.05.008	Ángel Albino Corzo	Angel Albino Corzo	6955074
+MX.05.009	Arriaga	Arriaga	6955075
+MX.05.010	Bejucal de Ocampo	Bejucal de Ocampo	6955076
+MX.05.011	Bella Vista	Bella Vista	6955077
+MX.05.114	Benemérito de las Américas	Benemerito de las Americas	6955078
+MX.05.012	Berriozábal	Berriozabal	6955079
+MX.05.013	Bochil	Bochil	6955080
+MX.05.014	El Bosque	El Bosque	6955081
+MX.05.015	Cacahoatán	Cacahoatan	6955082
+MX.05.016	Catazajá	Catazaja	6955083
+MX.05.022	Chalchihuitán	Chalchihuitan	6955084
+MX.05.023	Chamula	Chamula	6955085
+MX.05.024	Chanal	Chanal	6955086
+MX.05.025	Chapultenango	Chapultenango	6955087
+MX.05.026	Chenalhó	Chenalho	6955088
+MX.05.027	Chiapa de Corzo	Chiapa de Corzo	6955089
+MX.05.028	Chiapilla	Chiapilla	6955090
+MX.05.029	Chicoasén	Chicoasen	6955091
+MX.05.030	Chicomuselo	Chicomuselo	6955092
+MX.05.031	Chilón	Chilon	6955093
+MX.05.017	Cintalapa	Cintalapa	6955094
+MX.05.018	Coapilla	Coapilla	6955095
+MX.05.019	Comitán Municipality	Comitan Municipality	6955096
+MX.05.020	La Concordia	La Concordia	6955097
+MX.05.021	Copainalá	Copainala	6955098
+MX.05.032	Escuintla	Escuintla	6955099
+MX.05.033	Francisco León	Francisco Leon	6955100
+MX.28.032	Reynosa	Reynosa	7733376
+MX.06.063	Temósachic	Temosachic	7778819
+MX.14.019	Bolaños	Bolanos	7778820
+MX.30.071	Huatusco	Huatusco	7778821
+MX.05.078	San Cristobal De Casas	San Cristobal De Casas	7778823
+MX.10.026	San Dimas	San Dimas	7778824
+MX.15.115	Xonacatlan	Xonacatlan	7778825
+MX.15.057	Naucalpan de Juárez	Naucalpan de Juarez	7828734
+MX.15.033	Ecatepec de Morelos	Ecatepec de Morelos	8133398
+MX.15.002	Acolman de Nezahualcóyotl	Acolman de Nezahualcoyotl	8379113
+MX.09.010	Álvaro Obregón	Alvaro Obregon	8379114
+MX.15.009	Amecameca	Amecameca	8379115
+MX.15.010	Apaxco	Apaxco	8379116
+MX.15.011	Atenco	Atenco	8379127
+MX.15.013	Atizapán de Zaragoza	Atizapan de Zaragoza	8379128
+MX.15.015	Atlautla	Atlautla	8379129
+MX.15.016	Axapusco	Axapusco	8379130
+MX.15.017	Ayapango	Ayapango	8379131
+MX.09.002	Azcapotzalco	Azcapotzalco	8379132
+MX.09.014	Benito Juárez	Benito Juarez	8379133
+MX.15.025	Chalco	Chalco	8379134
+MX.15.028	Chiautla	Chiautla	8379363
+MX.15.029	Chicoloapan	Chicoloapan	8379364
+MX.15.030	Chiconcuac	Chiconcuac	8379365
+MX.15.031	Chimalhuacán	Chimalhuacan	8379366
+MX.15.020	Coacalco	Coacalco	8379367
+MX.15.022	Cocotitlán	Cocotitlan	8379368
+MX.09.003	Coyoacán	Coyoacan	8379369
+MX.15.023	Coyotepec	Coyotepec	8379370
+MX.09.004	Cuajimalpa de Morelos	Cuajimalpa de Morelos	8379371
+MX.09.015	Cuauhtémoc	Cuauhtemoc	8379372
+MX.15.024	Cuautitlán	Cuautitlan	8379373
+MX.15.034	Ecatzingo	Ecatzingo	8379375
+MX.09.005	Gustavo A. Madero	Gustavo A. Madero	8379376
+MX.15.035	Huehuetoca	Huehuetoca	8379377
+MX.15.036	Hueypoxtla	Hueypoxtla	8379378
+MX.15.037	Huixquilucan	Huixquilucan	8379379
+MX.15.121	Cuautitlán Izcalli	Cuautitlan Izcalli	8379380
+MX.15.039	Ixtapaluca	Ixtapaluca	8379381
+MX.09.006	Iztacalco	Iztacalco	8379454
+MX.09.007	Iztapalapa	Iztapalapa	8379455
+MX.15.044	Jaltenco	Jaltenco	8379456
+MX.15.050	Juchitepec	Juchitepec	8379457
+MX.09.008	Magdalena Contreras	Magdalena Contreras	8379458
+MX.15.053	Melchor Ocampo	Melchor Ocampo	8379459
+MX.09.016	Miguel Hidalgo	Miguel Hidalgo	8379460
+MX.09.009	Milpa Alta	Milpa Alta	8379461
+MX.15.059	Nextlalpan	Nextlalpan	8379462
+MX.15.058	Ciudad Nezahualcóyotl	Ciudad Nezahualcoyotl	8379463
+MX.15.060	Nicolás Romero	Nicolas Romero	8379464
+MX.15.061	Nopaltepec	Nopaltepec	8379465
+MX.15.065	Otumba	Otumba	8379466
+MX.15.068	Ozumba	Ozumba	8379467
+MX.15.069	Papalotla	Papalotla	8379468
+MX.15.075	San Martín de las Pirámides	San Martin de las Piramides	8379469
+MX.15.081	Tecámac	Tecamac	8379470
+MX.15.083	Temamatla	Temamatla	8379471
+MX.15.084	Temascalapa	Temascalapa	8379472
+MX.15.089	Tenango del Aire	Tenango del Aire	8379473
+MX.15.091	Teoloyucan	Teoloyucan	8379474
+MX.15.092	Teotihuacán	Teotihuacan	8379475
+MX.15.093	Tepetlaoxtoc	Tepetlaoxtoc	8379476
+MX.13.069	Tizayuca	Tizayuca	8379477
+MX.09.011	Tláhuac	Tlahuac	8379478
+MX.09.012	Tlalpan	Tlalpan	8379479
+MX.09.017	Venustiano Carranza	Venustiano Carranza	8379480
+MX.09.013	Xochimilco	Xochimilco	8379481
+MX.15.095	Tepotzotlán	Tepotzotlan	8379482
+MX.15.099	Texcoco	Texcoco	8379483
+MX.15.100	Tezoyuca	Tezoyuca	8379484
+MX.15.104	Tlalnepantla de Baz	Tlalnepantla de Baz	8379485
+MX.15.108	Tultepec	Tultepec	8379486
+MX.15.109	Tultitlán	Tultitlan	8379488
+MX.15.122	Valle de Chalco Solidaridad	Valle de Chalco Solidaridad	8379489
+MX.15.120	Zumpango	Zumpango	8379490
+MX.15.094	Tepetlixpa	Tepetlixpa	8379491
+MX.15.096	Tequixquiac	Tequixquiac	8379492
+MX.15.112	Villa del Carbón	Villa del Carbon	8379493
+MX.32.004	Benito Juárez	Benito Juarez	8581696
+MX.26.071	Benito Juárez	Benito Juarez	8581698
+MX.05.102	Tuxtla Chico	Tuxtla Chico	8581703
+MX.14.109	Unión de San Antonio	Union de San Antonio	8581704
+MX.08.006	Ixtlahuacán	Ixtlahuacan	8581705
+MX.08.007	Manzanillo	Manzanillo	8581706
+MX.23.005	Benito Juárez	Benito Juarez	8581707
+MX.12.014	Benito Juárez	Benito Juarez	8581708
+MX.32.008	Cuauhtémoc	Cuauhtemoc	8581709
+MX.28.002	Aldama	Aldama	8581710
+MX.32.024	Loreto	Loreto	8581711
+MX.32.027	Melchor Ocampo	Melchor Ocampo	8581712
+MX.19.035	Melchor Ocampo	Melchor Ocampo	8581713
+MX.21.194	Venustiano Carranza	Venustiano Carranza	8581714
+MX.16.103	Venustiano Carranza	Venustiano Carranza	8581715
+MX.05.106	Venustiano Carranza	Venustiano Carranza	8581716
+MX.21.047	Chiautla	Chiautla	8581717
+MX.14.048	Jesús María	Jesus Maria	8581718
+MX.21.037	Coyotepec	Coyotepec	8581719
+MX.05.035	Frontera Hidalgo	Frontera Hidalgo	8581720
+MX.05.036	La Grandeza	La Grandeza	8581721
+MX.05.037	Huehuetán	Huehuetan	8581722
+MX.05.038	Huixtán	Huixtan	8581723
+MX.05.039	Huitiupán	Huitiupan	8581724
+MX.08.005	Cuauhtémoc	Cuauhtemoc	8581725
+MX.05.040	Huixtla	Huixtla	8581726
+MX.05.041	La Independencia	La Independencia	8581727
+MX.05.042	Ixhuatán	Ixhuatan	8581728
+MX.05.043	Ixtacomitán	Ixtacomitan	8581729
+MX.05.044	Ixtapa	Ixtapa	8581730
+MX.05.045	Ixtapangajoya	Ixtapangajoya	8581731
+MX.05.046	Jiquipilas	Jiquipilas	8581732
+MX.05.047	Jitotol	Jitotol	8581733
+MX.05.048	Juárez	Juarez	8581734
+MX.05.049	Larráinzar	Larrainzar	8581735
+MX.05.050	La Libertad	La Libertad	8581736
+MX.05.051	Mapastepec	Mapastepec	8581737
+MX.05.052	Las Margaritas	Las Margaritas	8581738
+MX.05.053	Mazapa de Madero	Mazapa de Madero	8581739
+MX.05.054	Mazatán	Mazatan	8581740
+MX.05.055	Metapa	Metapa	8581741
+MX.05.056	Mitontic	Mitontic	8581742
+MX.05.057	Motozintla	Motozintla	8581743
+MX.05.058	Nicolás Ruíz	Nicolas Ruiz	8581744
+MX.05.059	Ocosingo	Ocosingo	8581745
+MX.05.060	Ocotepec	Ocotepec	8581746
+MX.05.061	Ocozocoautla de Espinosa	Ocozocoautla de Espinosa	8581747
+MX.05.062	Ostuacán	Ostuacan	8581748
+MX.05.063	Osumacinta	Osumacinta	8581749
+MX.05.064	Oxchuc	Oxchuc	8581750
+MX.05.065	Palenque	Palenque	8581751
+MX.05.066	Pantelhó	Pantelho	8581752
+MX.05.067	Pantepec	Pantepec	8581753
+MX.05.068	Pichucalco	Pichucalco	8581754
+MX.05.069	Pijijiapan	Pijijiapan	8581755
+MX.05.070	El Porvenir	El Porvenir	8581756
+MX.05.071	Villa Comaltitlán	Villa Comaltitlan	8581757
+MX.05.072	Pueblo Nuevo Solistahuacán	Pueblo Nuevo Solistahuacan	8581758
+MX.05.073	Rayón	Rayon	8581759
+MX.05.074	Reforma	Reforma	8581760
+MX.05.075	Las Rosas	Las Rosas	8581761
+MX.05.076	Sabanilla	Sabanilla	8581762
+MX.05.077	Salto de Agua	Salto de Agua	8581763
+MX.05.079	San Fernando	San Fernando	8581764
+MX.05.080	Siltepec	Siltepec	8581765
+MX.05.081	Simojovel	Simojovel	8581766
+MX.05.082	Sitalá	Sitala	8581767
+MX.05.083	Socoltenango	Socoltenango	8581768
+MX.05.084	Solosuchiapa	Solosuchiapa	8581769
+MX.05.085	Soyaló	Soyalo	8581770
+MX.05.086	Suchiapa	Suchiapa	8581771
+MX.05.087	Suchiate	Suchiate	8581772
+MX.05.088	Sunuapa	Sunuapa	8581773
+MX.05.089	Tapachula	Tapachula	8581774
+MX.05.090	Tapalapa	Tapalapa	8581775
+MX.05.091	Tapilula	Tapilula	8581776
+MX.05.092	Tecpatán	Tecpatan	8581777
+MX.05.093	Tenejapa	Tenejapa	8581778
+MX.05.094	Teopisca	Teopisca	8581779
+MX.05.096	Tila	Tila	8581780
+MX.05.097	Tonalá	Tonala	8581781
+MX.05.098	Totolapa	Totolapa	8581782
+MX.05.099	La Trinitaria	La Trinitaria	8581783
+MX.05.100	Tumbalá	Tumbala	8581784
+MX.05.101	Tuxtla Gutiérrez	Tuxtla Gutierrez	8581785
+MX.05.103	Tuzantán	Tuzantan	8581786
+MX.05.104	Tzimol	Tzimol	8581787
+MX.05.105	Unión Juárez	Union Juarez	8581788
+MX.05.107	Villa Corzo	Villa Corzo	8581789
+MX.05.108	Villaflores	Villaflores	8581790
+MX.05.109	Yajalón	Yajalon	8581791
+MX.05.110	San Lucas	San Lucas	8581792
+MX.05.111	Zinacantán	Zinacantan	8581793
+MX.05.112	San Juan Cancuc	San Juan Cancuc	8581794
+MX.05.115	Maravilla Tenejapa	Maravilla Tenejapa	8581795
+MX.05.116	Marqués de Comillas	Marques de Comillas	8581796
+MX.05.117	Montecristo de Guerrero	Montecristo de Guerrero	8581797
+MX.05.118	San Andrés Duraznal	San Andres Duraznal	8581798
+MX.05.119	Santiago el Pinar	Santiago el Pinar	8581799
+MX.06.001	Ahumada	Ahumada	8581800
+MX.06.003	Allende	Allende	8581801
+MX.06.004	Aquiles Serdán	Aquiles Serdan	8581802
+MX.06.005	Ascensión	Ascension	8581803
+MX.06.006	Bachíniva	Bachiniva	8581804
+MX.06.007	Balleza	Balleza	8581805
+MX.06.008	Batopilas	Batopilas	8581806
+MX.06.009	Bocoyna	Bocoyna	8581807
+MX.06.010	Buenaventura	Buenaventura	8581808
+MX.06.011	Camargo	Camargo	8581809
+MX.06.012	Carichí	Carichi	8581810
+MX.06.013	Casas Grandes	Casas Grandes	8581811
+MX.06.014	Coronado	Coronado	8581812
+MX.06.015	Coyame del Sotol	Coyame del Sotol	8581813
+MX.06.016	La Cruz	La Cruz	8581814
+MX.06.018	Cusihuiriachi	Cusihuiriachi	8581815
+MX.06.019	Chihuahua	Chihuahua	8581816
+MX.06.020	Chínipas	Chinipas	8581817
+MX.06.021	Delicias	Delicias	8581818
+MX.06.022	Dr. Belisario Domínguez	Dr. Belisario Dominguez	8581819
+MX.06.023	Galeana	Galeana	8581820
+MX.06.024	Santa Isabel	Santa Isabel	8581821
+MX.06.025	Gómez Farías	Gomez Farias	8581822
+MX.06.026	Gran Morelos	Gran Morelos	8581823
+MX.06.027	Guachochi	Guachochi	8581824
+MX.06.028	Guadalupe	Guadalupe	8581825
+MX.06.029	Guadalupe y Calvo	Guadalupe y Calvo	8581826
+MX.06.030	Guazapares	Guazapares	8581827
+MX.06.031	Guerrero	Guerrero	8581828
+MX.06.017	Cuauhtémoc	Cuauhtemoc	8581829
+MX.06.002	Aldama	Aldama	8581830
+MX.06.043	Matachí	Matachi	8581831
+MX.06.044	Matamoros	Matamoros	8581832
+MX.06.045	Meoqui	Meoqui	8581833
+MX.06.046	Morelos	Morelos	8581834
+MX.06.047	Moris	Moris	8581835
+MX.06.048	Namiquipa	Namiquipa	8581836
+MX.06.049	Nonoava	Nonoava	8581837
+MX.06.050	Nuevo Casas Grandes	Nuevo Casas Grandes	8581838
+MX.06.051	Ocampo	Ocampo	8581839
+MX.06.052	Ojinaga	Ojinaga	8581840
+MX.06.053	Praxedis G. Guerrero	Praxedis G. Guerrero	8581841
+MX.06.054	Riva Palacio	Riva Palacio	8581843
+MX.06.055	Rosales	Rosales	8581844
+MX.06.056	Rosario	Rosario	8581845
+MX.06.057	San Francisco de Borja	San Francisco de Borja	8581846
+MX.06.058	San Francisco de Conchos	San Francisco de Conchos	8581847
+MX.06.059	San Francisco del Oro	San Francisco del Oro	8581848
+MX.06.060	Santa Bárbara	Santa Barbara	8581849
+MX.06.061	Satevó	Satevo	8581850
+MX.06.062	Saucillo	Saucillo	8581851
+MX.06.064	El Tule	El Tule	8581852
+MX.06.065	Urique	Urique	8581853
+MX.06.066	Uruachi	Uruachi	8581854
+MX.06.067	Valle de Zaragoza	Valle de Zaragoza	8581855
+MX.10.001	Canatlán	Canatlan	8581856
+MX.10.002	Canelas	Canelas	8581857
+MX.10.003	Coneto de Comonfort	Coneto de Comonfort	8581858
+MX.10.004	Cuencamé	Cuencame	8581859
+MX.10.005	Durango	Durango	8581860
+MX.10.006	General Simón Bolívar	General Simon Bolivar	8581861
+MX.10.007	Gómez Palacio	Gomez Palacio	8581862
+MX.10.008	Guadalupe Victoria	Guadalupe Victoria	8581863
+MX.10.009	Guanaceví	Guanacevi	8581864
+MX.10.010	Hidalgo	Hidalgo	8581865
+MX.10.011	Indé	Inde	8581866
+MX.10.012	Lerdo	Lerdo	8581867
+MX.10.013	Mapimí	Mapimi	8581868
+MX.10.014	Mezquital	Mezquital	8581869
+MX.10.015	Nazas	Nazas	8581870
+MX.10.016	Nombre de Dios	Nombre de Dios	8581871
+MX.10.017	Ocampo	Ocampo	8581872
+MX.10.018	El Oro	El Oro	8581873
+MX.10.019	Otáez	Otaez	8581874
+MX.10.020	Pánuco de Coronado	Panuco de Coronado	8581875
+MX.10.021	Peñón Blanco	Penon Blanco	8581876
+MX.10.022	Poanas	Poanas	8581877
+MX.10.023	Pueblo Nuevo	Pueblo Nuevo	8581878
+MX.10.024	Rodeo	Rodeo	8581879
+MX.10.025	San Bernardo	San Bernardo	8581880
+MX.10.027	San Juan de Guadalupe	San Juan de Guadalupe	8581881
+MX.10.028	San Juan del Río	San Juan del Rio	8581882
+MX.10.029	San Luis del Cordero	San Luis del Cordero	8581883
+MX.10.030	San Pedro del Gallo	San Pedro del Gallo	8581884
+MX.10.031	Santa Clara	Santa Clara	8581885
+MX.10.032	Santiago Papasquiaro	Santiago Papasquiaro	8581886
+MX.10.033	Súchil	Suchil	8581887
+MX.10.034	Tamazula	Tamazula	8581888
+MX.10.035	Tepehuanes	Tepehuanes	8581889
+MX.10.036	Tlahualilo	Tlahualilo	8581890
+MX.10.037	Topia	Topia	8581891
+MX.10.038	Vicente Guerrero	Vicente Guerrero	8581892
+MX.10.039	Nuevo Ideal	Nuevo Ideal	8581893
+MX.11.001	Abasolo	Abasolo	8581894
+MX.11.002	Acámbaro	Acambaro	8581895
+MX.11.003	San Miguel de Allende	San Miguel de Allende	8581896
+MX.11.004	Apaseo el Alto	Apaseo el Alto	8581897
+MX.11.005	Apaseo el Grande	Apaseo el Grande	8581898
+MX.11.006	Atarjea	Atarjea	8581899
+MX.11.007	Celaya	Celaya	8581900
+MX.11.008	Manuel Doblado	Manuel Doblado	8581901
+MX.11.009	Comonfort	Comonfort	8581902
+MX.11.010	Coroneo	Coroneo	8581903
+MX.11.011	Cortazar	Cortazar	8581904
+MX.11.012	Cuerámaro	Cueramaro	8581906
+MX.11.013	Doctor Mora	Doctor Mora	8581907
+MX.11.014	Dolores Hidalgo Cuna de la Independencia Nacional	Dolores Hidalgo Cuna de la Independencia Nacional	8581908
+MX.11.015	Guanajuato	Guanajuato	8581909
+MX.11.016	Huanímaro	Huanimaro	8581910
+MX.11.017	Irapuato	Irapuato	8581911
+MX.11.018	Jaral del Progreso	Jaral del Progreso	8581912
+MX.11.019	Jerécuaro	Jerecuaro	8581913
+MX.11.020	León	Leon	8581914
+MX.11.021	Moroleón	Moroleon	8581915
+MX.11.022	Ocampo	Ocampo	8581916
+MX.11.023	Pénjamo	Penjamo	8581917
+MX.11.024	Pueblo Nuevo	Pueblo Nuevo	8581918
+MX.11.025	Purísima del Rincón	Purisima del Rincon	8581919
+MX.11.026	Romita	Romita	8581920
+MX.11.027	Salamanca	Salamanca	8581921
+MX.11.028	Salvatierra	Salvatierra	8581922
+MX.11.029	San Diego de la Unión	San Diego de la Union	8581923
+MX.11.030	San Felipe	San Felipe	8581924
+MX.11.031	San Francisco del Rincón	San Francisco del Rincon	8581925
+MX.11.032	San José Iturbide	San Jose Iturbide	8581926
+MX.11.033	San Luis de la Paz	San Luis de la Paz	8581927
+MX.11.034	Santa Catarina	Santa Catarina	8581928
+MX.11.035	Santa Cruz de Juventino Rosas	Santa Cruz de Juventino Rosas	8581929
+MX.11.036	Santiago Maravatío	Santiago Maravatio	8581930
+MX.11.037	Silao de la Victoria	Silao de la Victoria	8581931
+MX.11.038	Tarandacuao	Tarandacuao	8581932
+MX.11.039	Tarimoro	Tarimoro	8581933
+MX.11.040	Tierra Blanca	Tierra Blanca	8581934
+MX.11.041	Uriangato	Uriangato	8581935
+MX.11.042	Valle de Santiago	Valle de Santiago	8581936
+MX.11.043	Victoria	Victoria	8581937
+MX.11.044	Villagrán	Villagran	8581938
+MX.11.045	Xichú	Xichu	8581939
+MX.11.046	Yuriria	Yuriria	8581940
+MX.12.001	Acapulco de Juárez	Acapulco de Juarez	8581941
+MX.12.002	Ahuacuotzingo	Ahuacuotzingo	8581942
+MX.12.003	Ajuchitlán del Progreso	Ajuchitlan del Progreso	8581943
+MX.12.004	Alcozauca de Guerrero	Alcozauca de Guerrero	8581944
+MX.12.005	Alpoyeca	Alpoyeca	8581945
+MX.12.006	Apaxtla	Apaxtla	8581946
+MX.12.007	Arcelia	Arcelia	8581947
+MX.12.008	Atenango del Río	Atenango del Rio	8581948
+MX.12.009	Atlamajalcingo del Monte	Atlamajalcingo del Monte	8581949
+MX.12.010	Atlixtac	Atlixtac	8581950
+MX.12.011	Atoyac de Álvarez	Atoyac de Alvarez	8581951
+MX.12.012	Ayutla de los Libres	Ayutla de los Libres	8581952
+MX.12.013	Azoyú	Azoyu	8581953
+MX.12.015	Buenavista de Cuéllar	Buenavista de Cuellar	8581954
+MX.12.016	Coahuayutla de José María Izazaga	Coahuayutla de Jose Maria Izazaga	8581955
+MX.12.017	Cocula	Cocula	8581956
+MX.12.018	Copala	Copala	8581957
+MX.12.019	Copalillo	Copalillo	8581958
+MX.12.020	Copanatoyac	Copanatoyac	8581959
+MX.12.021	Coyuca de Benítez	Coyuca de Benitez	8581960
+MX.12.022	Coyuca de Catalán	Coyuca de Catalan	8581961
+MX.13.047	Pacula	Pacula	8581962
+MX.12.023	Cuajinicuilapa	Cuajinicuilapa	8581963
+MX.12.024	Cualác	Cualac	8581964
+MX.12.025	Cuautepec	Cuautepec	8581965
+MX.12.026	Cuetzala del Progreso	Cuetzala del Progreso	8581966
+MX.12.027	Cutzamala de Pinzón	Cutzamala de Pinzon	8581967
+MX.12.028	Chilapa de Álvarez	Chilapa de Alvarez	8581968
+MX.12.029	Chilpancingo de los Bravo	Chilpancingo de los Bravo	8581969
+MX.12.030	Florencio Villarreal	Florencio Villarreal	8581970
+MX.12.031	General Canuto A. Neri	General Canuto A. Neri	8581971
+MX.12.032	General Heliodoro Castillo	General Heliodoro Castillo	8581972
+MX.12.033	Huamuxtitlán	Huamuxtitlan	8581973
+MX.12.034	Huitzuco de los Figueroa	Huitzuco de los Figueroa	8581974
+MX.12.035	Iguala de la Independencia	Iguala de la Independencia	8581975
+MX.12.036	Igualapa	Igualapa	8581976
+MX.12.037	Ixcateopan de Cuauhtémoc	Ixcateopan de Cuauhtemoc	8581977
+MX.12.038	Zihuatanejo de Azueta	Zihuatanejo de Azueta	8581978
+MX.12.039	Juan R. Escudero	Juan R. Escudero	8581979
+MX.12.040	Leonardo Bravo	Leonardo Bravo	8581980
+MX.12.041	Malinaltepec	Malinaltepec	8581981
+MX.12.042	Mártir de Cuilapan	Martir de Cuilapan	8581982
+MX.12.043	Metlatónoc	Metlatonoc	8581983
+MX.12.044	Mochitlán	Mochitlan	8581984
+MX.12.045	Olinalá	Olinala	8581985
+MX.12.046	Ometepec	Ometepec	8581986
+MX.12.047	Pedro Ascencio Alquisiras	Pedro Ascencio Alquisiras	8581987
+MX.12.048	Petatlán	Petatlan	8581988
+MX.12.049	Pilcaya	Pilcaya	8581989
+MX.12.050	Pungarabato	Pungarabato	8581990
+MX.12.051	Quechultenango	Quechultenango	8581991
+MX.12.052	San Luis Acatlán	San Luis Acatlan	8581992
+MX.12.053	San Marcos	San Marcos	8581993
+MX.12.054	San Miguel Totolapan	San Miguel Totolapan	8581994
+MX.12.055	Taxco de Alarcón	Taxco de Alarcon	8581995
+MX.12.056	Tecoanapa	Tecoanapa	8581996
+MX.12.057	Técpan de Galeana	Tecpan de Galeana	8581997
+MX.12.058	Teloloapan	Teloloapan	8581998
+MX.12.059	Tepecoacuilco de Trujano	Tepecoacuilco de Trujano	8581999
+MX.12.060	Tetipac	Tetipac	8582000
+MX.12.061	Tixtla de Guerrero	Tixtla de Guerrero	8582001
+MX.12.062	Tlacoachistlahuaca	Tlacoachistlahuaca	8582002
+MX.12.063	Tlacoapa	Tlacoapa	8582003
+MX.12.064	Tlalchapa	Tlalchapa	8582004
+MX.12.065	Tlalixtaquilla de Maldonado	Tlalixtaquilla de Maldonado	8582005
+MX.12.066	Tlapa de Comonfort	Tlapa de Comonfort	8582006
+MX.12.067	Tlapehuala	Tlapehuala	8582007
+MX.12.068	La Unión de Isidoro Montes de Oca	La Union de Isidoro Montes de Oca	8582008
+MX.12.069	Xalpatláhuac	Xalpatlahuac	8582009
+MX.12.070	Xochihuehuetlán	Xochihuehuetlan	8582010
+MX.12.071	Xochistlahuaca	Xochistlahuaca	8582011
+MX.12.072	Zapotitlán Tablas	Zapotitlan Tablas	8582012
+MX.12.073	Zirándaro	Zirandaro	8582013
+MX.12.074	Zitlala	Zitlala	8582014
+MX.12.075	Eduardo Neri	Eduardo Neri	8582015
+MX.12.076	Acatepec	Acatepec	8582016
+MX.12.078	Cochoapa el Grande	Cochoapa el Grande	8582017
+MX.12.079	José Joaquín de Herrera	Jose Joaquin de Herrera	8582018
+MX.12.080	Juchitán	Juchitan	8582019
+MX.12.081	Iliatenco	Iliatenco	8582020
+MX.13.001	Acatlán	Acatlan	8582021
+MX.13.002	Acaxochitlán	Acaxochitlan	8582022
+MX.13.003	Actopan	Actopan	8582023
+MX.13.004	Agua Blanca de Iturbide	Agua Blanca de Iturbide	8582024
+MX.13.005	Ajacuba	Ajacuba	8582025
+MX.13.006	Alfajayucan	Alfajayucan	8582026
+MX.13.007	Almoloya	Almoloya	8582027
+MX.13.008	Apan	Apan	8582028
+MX.13.009	El Arenal	El Arenal	8582029
+MX.13.010	Atitalaquia	Atitalaquia	8582030
+MX.13.011	Atlapexco	Atlapexco	8582031
+MX.13.012	Atotonilco el Grande	Atotonilco el Grande	8582032
+MX.13.013	Atotonilco de Tula	Atotonilco de Tula	8582033
+MX.13.014	Calnali	Calnali	8582034
+MX.13.015	Cardonal	Cardonal	8582035
+MX.13.016	Cuautepec de Hinojosa	Cuautepec de Hinojosa	8582036
+MX.13.017	Chapantongo	Chapantongo	8582037
+MX.13.018	Chapulhuacán	Chapulhuacan	8582038
+MX.13.019	Chilcuautla	Chilcuautla	8582039
+MX.13.020	Eloxochitlán	Eloxochitlan	8582040
+MX.13.021	Emiliano Zapata	Emiliano Zapata	8582041
+MX.13.022	Epazoyucan	Epazoyucan	8582042
+MX.13.023	Francisco I. Madero	Francisco I. Madero	8582043
+MX.13.024	Huasca de Ocampo	Huasca de Ocampo	8582044
+MX.13.025	Huautla	Huautla	8582045
+MX.13.026	Huazalingo	Huazalingo	8582046
+MX.13.027	Huehuetla	Huehuetla	8582047
+MX.13.028	Huejutla de Reyes	Huejutla de Reyes	8582048
+MX.13.029	Huichapan	Huichapan	8582049
+MX.13.030	Ixmiquilpan	Ixmiquilpan	8582050
+MX.13.031	Jacala de Ledezma	Jacala de Ledezma	8582051
+MX.13.032	Jaltocán	Jaltocan	8582052
+MX.13.033	Juárez Hidalgo	Juarez Hidalgo	8582053
+MX.13.034	Lolotla	Lolotla	8582054
+MX.13.035	Metepec	Metepec	8582055
+MX.13.036	San Agustín Metzquititlán	San Agustin Metzquititlan	8582056
+MX.13.037	Metztitlán	Metztitlan	8582057
+MX.13.038	Mineral del Chico	Mineral del Chico	8582058
+MX.13.039	Mineral del Monte	Mineral del Monte	8582059
+MX.13.040	La Misión	La Mision	8582060
+MX.13.041	Mixquiahuala de Juárez	Mixquiahuala de Juarez	8582061
+MX.13.042	Molango de Escamilla	Molango de Escamilla	8582062
+MX.13.043	Nicolás Flores	Nicolas Flores	8582063
+MX.13.044	Nopala de Villagrán	Nopala de Villagran	8582064
+MX.13.045	Omitlán de Juárez	Omitlan de Juarez	8582065
+MX.13.046	San Felipe Orizatlán	San Felipe Orizatlan	8582066
+MX.13.048	Pachuca de Soto	Pachuca de Soto	8582067
+MX.13.049	Pisaflores	Pisaflores	8582068
+MX.13.050	Progreso de Obregón	Progreso de Obregon	8582069
+MX.13.051	Mineral de la Reforma	Mineral de la Reforma	8582070
+MX.13.052	San Agustín Tlaxiaca	San Agustin Tlaxiaca	8582071
+MX.13.053	San Bartolo Tutotepec	San Bartolo Tutotepec	8582072
+MX.13.054	San Salvador	San Salvador	8582073
+MX.13.055	Santiago de Anaya	Santiago de Anaya	8582074
+MX.13.056	Santiago Tulantepec de Lugo Guerrero	Santiago Tulantepec de Lugo Guerrero	8582075
+MX.13.057	Singuilucan	Singuilucan	8582076
+MX.13.058	Tasquillo	Tasquillo	8582077
+MX.13.059	Tecozautla	Tecozautla	8582078
+MX.13.060	Tenango de Doria	Tenango de Doria	8582079
+MX.13.061	Tepeapulco	Tepeapulco	8582080
+MX.13.062	Tepehuacán de Guerrero	Tepehuacan de Guerrero	8582081
+MX.13.063	Tepeji del Río de Ocampo	Tepeji del Rio de Ocampo	8582082
+MX.13.064	Tepetitlán	Tepetitlan	8582083
+MX.13.065	Tetepango	Tetepango	8582084
+MX.13.066	Villa de Tezontepec	Villa de Tezontepec	8582085
+MX.13.067	Tezontepec de Aldama	Tezontepec de Aldama	8582086
+MX.13.068	Tianguistengo	Tianguistengo	8582087
+MX.13.070	Tlahuelilpan	Tlahuelilpan	8582088
+MX.13.071	Tlahuiltepa	Tlahuiltepa	8582089
+MX.13.072	Tlanalapa	Tlanalapa	8582090
+MX.13.073	Tlanchinol	Tlanchinol	8582091
+MX.13.074	Tlaxcoapan	Tlaxcoapan	8582092
+MX.13.075	Tolcayuca	Tolcayuca	8582093
+MX.13.076	Tula de Allende	Tula de Allende	8582094
+MX.13.077	Tulancingo de Bravo	Tulancingo de Bravo	8582095
+MX.13.078	Xochiatipan	Xochiatipan	8582096
+MX.13.079	Xochicoatlán	Xochicoatlan	8582097
+MX.13.080	Yahualica	Yahualica	8582098
+MX.13.081	Zacualtipán de Ángeles	Zacualtipan de Angeles	8582099
+MX.13.082	Zapotlán de Juárez	Zapotlan de Juarez	8582100
+MX.13.083	Zempoala	Zempoala	8582101
+MX.13.084	Zimapán	Zimapan	8582102
+MX.14.001	Acatic	Acatic	8582103
+MX.14.002	Acatlán de Juárez	Acatlan de Juarez	8582104
+MX.14.003	Ahualulco de Mercado	Ahualulco de Mercado	8582105
+MX.14.004	Amacueca	Amacueca	8582106
+MX.14.005	Amatitán	Amatitan	8582107
+MX.14.006	Ameca	Ameca	8582108
+MX.14.007	San Juanito de Escobedo	San Juanito de Escobedo	8582109
+MX.14.008	Arandas	Arandas	8582110
+MX.14.009	El Arenal	El Arenal	8582111
+MX.14.010	Atemajac de Brizuela	Atemajac de Brizuela	8582112
+MX.14.011	Atengo	Atengo	8582113
+MX.14.012	Atenguillo	Atenguillo	8582114
+MX.14.013	Atotonilco el Alto	Atotonilco el Alto	8582115
+MX.14.014	Atoyac	Atoyac	8582116
+MX.14.015	Autlán de Navarro	Autlan de Navarro	8582117
+MX.14.016	Ayotlán	Ayotlan	8582118
+MX.14.018	La Barca	La Barca	8582119
+MX.14.020	Cabo Corrientes	Cabo Corrientes	8582120
+MX.14.021	Casimiro Castillo	Casimiro Castillo	8582121
+MX.14.022	Cihuatlán	Cihuatlan	8582122
+MX.14.023	Zapotlán el Grande	Zapotlan el Grande	8582123
+MX.14.024	Cocula	Cocula	8582124
+MX.14.025	Colotlán	Colotlan	8582125
+MX.14.026	Concepción de Buenos Aires	Concepcion de Buenos Aires	8582126
+MX.14.027	Cuautitlán de García Barragán	Cuautitlan de Garcia Barragan	8582127
+MX.14.028	Cuautla	Cuautla	8582128
+MX.14.029	Cuquío	Cuquio	8582129
+MX.14.030	Chapala	Chapala	8582130
+MX.14.031	Chimaltitán	Chimaltitan	8582131
+MX.14.032	Chiquilistlán	Chiquilistlan	8582132
+MX.14.033	Degollado	Degollado	8582133
+MX.14.034	Ejutla	Ejutla	8582134
+MX.14.035	Encarnación de Díaz	Encarnacion de Diaz	8582135
+MX.14.036	Etzatlán	Etzatlan	8582136
+MX.14.037	El Grullo	El Grullo	8582137
+MX.14.038	Guachinango	Guachinango	8582138
+MX.14.039	Guadalajara	Guadalajara	8582140
+MX.14.040	Hostotipaquillo	Hostotipaquillo	8582141
+MX.14.041	Huejúcar	Huejucar	8582142
+MX.14.042	Huejuquilla el Alto	Huejuquilla el Alto	8582143
+MX.14.043	La Huerta	La Huerta	8582144
+MX.14.044	Ixtlahuacán de los Membrillos	Ixtlahuacan de los Membrillos	8582145
+MX.14.045	Ixtlahuacán del Río	Ixtlahuacan del Rio	8582146
+MX.14.046	Jalostotitlán	Jalostotitlan	8582147
+MX.14.047	Jamay	Jamay	8582148
+MX.14.049	Jilotlán de los Dolores	Jilotlan de los Dolores	8582149
+MX.14.050	Jocotepec	Jocotepec	8582150
+MX.14.051	Juanacatlán	Juanacatlan	8582151
+MX.14.052	Juchitlán	Juchitlan	8582152
+MX.14.053	Lagos de Moreno	Lagos de Moreno	8582153
+MX.14.054	El Limón	El Limon	8582154
+MX.14.055	Magdalena	Magdalena	8582155
+MX.14.056	Santa María del Oro	Santa Maria del Oro	8582156
+MX.14.057	La Manzanilla de la Paz	La Manzanilla de la Paz	8582157
+MX.14.058	Mascota	Mascota	8582158
+MX.14.059	Mazamitla	Mazamitla	8582159
+MX.14.060	Mexticacán	Mexticacan	8582160
+MX.14.061	Mezquitic	Mezquitic	8582161
+MX.14.062	Mixtlán	Mixtlan	8582162
+MX.14.063	Ocotlán	Ocotlan	8582163
+MX.14.064	Ojuelos de Jalisco	Ojuelos de Jalisco	8582164
+MX.14.065	Pihuamo	Pihuamo	8582165
+MX.14.066	Poncitlán	Poncitlan	8582166
+MX.14.067	Puerto Vallarta	Puerto Vallarta	8582167
+MX.14.068	Villa Purificación	Villa Purificacion	8582168
+MX.14.069	Quitupan	Quitupan	8582169
+MX.14.070	El Salto	El Salto	8582170
+MX.14.071	San Cristóbal de la Barranca	San Cristobal de la Barranca	8582171
+MX.14.072	San Diego de Alejandría	San Diego de Alejandria	8582172
+MX.14.073	San Juan de los Lagos	San Juan de los Lagos	8582173
+MX.14.074	San Julián	San Julian	8582174
+MX.14.075	San Marcos	San Marcos	8582175
+MX.14.076	San Martín de Bolaños	San Martin de Bolanos	8582176
+MX.14.077	San Martín Hidalgo	San Martin Hidalgo	8582177
+MX.14.078	San Miguel el Alto	San Miguel el Alto	8582178
+MX.14.079	Gómez Farías	Gomez Farias	8582179
+MX.14.080	San Sebastián del Oeste	San Sebastian del Oeste	8582180
+MX.14.081	Santa María de los Ángeles	Santa Maria de los Angeles	8582181
+MX.14.082	Sayula	Sayula	8582182
+MX.14.083	Tala	Tala	8582183
+MX.14.084	Talpa de Allende	Talpa de Allende	8582184
+MX.14.085	Tamazula de Gordiano	Tamazula de Gordiano	8582185
+MX.14.086	Tapalpa	Tapalpa	8582186
+MX.14.087	Tecalitlán	Tecalitlan	8582187
+MX.14.088	Tecolotlán	Tecolotlan	8582188
+MX.14.089	Techaluta de Montenegro	Techaluta de Montenegro	8582189
+MX.14.090	Tenamaxtlán	Tenamaxtlan	8582190
+MX.14.091	Teocaltiche	Teocaltiche	8582191
+MX.14.092	Teocuitatlán de Corona	Teocuitatlan de Corona	8582192
+MX.14.093	Tepatitlán de Morelos	Tepatitlan de Morelos	8582193
+MX.14.094	Tequila	Tequila	8582194
+MX.14.095	Teuchitlán	Teuchitlan	8582195
+MX.14.096	Tizapán el Alto	Tizapan el Alto	8582196
+MX.14.097	Tlajomulco de Zúñiga	Tlajomulco de Zuniga	8582197
+MX.14.098	San Pedro Tlaquepaque	San Pedro Tlaquepaque	8582198
+MX.14.099	Tolimán	Toliman	8582199
+MX.14.100	Tomatlán	Tomatlan	8582200
+MX.14.101	Tonalá	Tonala	8582201
+MX.14.102	Tonaya	Tonaya	8582202
+MX.14.103	Tonila	Tonila	8582203
+MX.14.104	Totatiche	Totatiche	8582204
+MX.14.105	Tototlán	Tototlan	8582205
+MX.14.106	Tuxcacuesco	Tuxcacuesco	8582206
+MX.14.107	Tuxcueca	Tuxcueca	8582207
+MX.14.108	Tuxpan	Tuxpan	8582208
+MX.14.110	Unión de Tula	Union de Tula	8582209
+MX.14.111	Valle de Guadalupe	Valle de Guadalupe	8582210
+MX.14.112	Valle de Juárez	Valle de Juarez	8582211
+MX.14.113	San Gabriel	San Gabriel	8582212
+MX.14.114	Villa Corona	Villa Corona	8582213
+MX.14.115	Villa Guerrero	Villa Guerrero	8582214
+MX.14.116	Villa Hidalgo	Villa Hidalgo	8582215
+MX.14.117	Cañadas de Obregón	Canadas de Obregon	8582216
+MX.14.118	Yahualica de González Gallo	Yahualica de Gonzalez Gallo	8582217
+MX.14.119	Zacoalco de Torres	Zacoalco de Torres	8582218
+MX.14.120	Zapopan	Zapopan	8582219
+MX.14.121	Zapotiltic	Zapotiltic	8582220
+MX.14.122	Zapotitlán de Vadillo	Zapotitlan de Vadillo	8582221
+MX.15.056	Morelos	Morelos	8582222
+MX.15.062	Ocoyoacac	Ocoyoacac	8582223
+MX.15.063	Ocuilan	Ocuilan	8582224
+MX.15.064	El Oro	El Oro	8582225
+MX.15.066	Otzoloapan	Otzoloapan	8582226
+MX.15.067	Otzolotepec	Otzolotepec	8582227
+MX.15.071	Polotitlán	Polotitlan	8582228
+MX.15.072	Rayón	Rayon	8582229
+MX.15.073	San Antonio la Isla	San Antonio la Isla	8582230
+MX.15.074	San Felipe del Progreso	San Felipe del Progreso	8582231
+MX.15.076	San Mateo Atenco	San Mateo Atenco	8582232
+MX.15.077	San Simón de Guerrero	San Simon de Guerrero	8582233
+MX.15.078	Santo Tomás	Santo Tomas	8582234
+MX.15.079	Soyaniquilpan de Juárez	Soyaniquilpan de Juarez	8582235
+MX.15.080	Sultepec	Sultepec	8582236
+MX.15.082	Tejupilco	Tejupilco	8582237
+MX.15.085	Temascalcingo	Temascalcingo	8582238
+MX.15.086	Temascaltepec	Temascaltepec	8582239
+MX.15.087	Temoaya	Temoaya	8582240
+MX.15.088	Tenancingo	Tenancingo	8582241
+MX.15.090	Tenango del Valle	Tenango del Valle	8582242
+MX.15.097	Texcaltitlán	Texcaltitlan	8582243
+MX.15.098	Texcalyacac	Texcalyacac	8582244
+MX.15.101	Tianguistenco	Tianguistenco	8582245
+MX.15.102	Timilpan	Timilpan	8582246
+MX.15.103	Tlalmanalco	Tlalmanalco	8582247
+MX.15.105	Tlatlaya	Tlatlaya	8582248
+MX.15.070	La Paz	La Paz	8582249
+MX.15.114	Villa Victoria	Villa Victoria	8582250
+MX.15.116	Zacazonapan	Zacazonapan	8582251
+MX.15.117	Zacualpan	Zacualpan	8582252
+MX.15.118	Zinacantepec	Zinacantepec	8582253
+MX.15.119	Zumpahuacán	Zumpahuacan	8582254
+MX.15.123	Luvianos	Luvianos	8582255
+MX.15.124	San José del Rincón	San Jose del Rincon	8582256
+MX.15.125	Tonanitla	Tonanitla	8582257
+MX.16.001	Acuitzio	Acuitzio	8582258
+MX.16.002	Aguililla	Aguililla	8582259
+MX.16.004	Angamacutiro	Angamacutiro	8582260
+MX.16.005	Angangueo	Angangueo	8582261
+MX.16.006	Apatzingán	Apatzingan	8582262
+MX.16.007	Aporo	Aporo	8582263
+MX.16.008	Aquila	Aquila	8582264
+MX.16.009	Ario	Ario	8582265
+MX.16.010	Arteaga	Arteaga	8582266
+MX.16.011	Briseñas	Brisenas	8582267
+MX.16.012	Buenavista	Buenavista	8582268
+MX.16.013	Carácuaro	Caracuaro	8582269
+MX.16.014	Coahuayana	Coahuayana	8582270
+MX.16.015	Coalcomán de Vázquez Pallares	Coalcoman de Vazquez Pallares	8582271
+MX.16.016	Coeneo	Coeneo	8582272
+MX.16.017	Contepec	Contepec	8582273
+MX.16.018	Copándaro	Copandaro	8582274
+MX.16.019	Cotija	Cotija	8582275
+MX.16.020	Cuitzeo	Cuitzeo	8582276
+MX.16.021	Charapan	Charapan	8582277
+MX.16.022	Charo	Charo	8582278
+MX.16.023	Chavinda	Chavinda	8582279
+MX.16.024	Cherán	Cheran	8582280
+MX.16.025	Chilchota	Chilchota	8582281
+MX.16.026	Chinicuila	Chinicuila	8582282
+MX.16.027	Chucándiro	Chucandiro	8582283
+MX.16.028	Churintzio	Churintzio	8582284
+MX.16.029	Churumuco	Churumuco	8582285
+MX.16.030	Ecuandureo	Ecuandureo	8582286
+MX.16.031	Epitacio Huerta	Epitacio Huerta	8582287
+MX.16.032	Erongarícuaro	Erongaricuaro	8582288
+MX.16.033	Gabriel Zamora	Gabriel Zamora	8582289
+MX.19.028	Higueras	Higueras	8582290
+MX.16.034	Hidalgo	Hidalgo	8582291
+MX.16.035	La Huacana	La Huacana	8582292
+MX.16.036	Huandacareo	Huandacareo	8582293
+MX.16.037	Huaniqueo	Huaniqueo	8582294
+MX.16.038	Huetamo	Huetamo	8582295
+MX.16.039	Huiramba	Huiramba	8582296
+MX.16.040	Indaparapeo	Indaparapeo	8582297
+MX.16.041	Irimbo	Irimbo	8582298
+MX.16.042	Ixtlán	Ixtlan	8582299
+MX.16.043	Jacona	Jacona	8582300
+MX.16.044	Jiménez	Jimenez	8582301
+MX.16.045	Jiquilpan	Jiquilpan	8582302
+MX.16.046	Juárez	Juarez	8582303
+MX.16.047	Jungapeo	Jungapeo	8582304
+MX.16.048	Lagunillas	Lagunillas	8582305
+MX.16.049	Madero	Madero	8582306
+MX.16.050	Maravatío	Maravatio	8582307
+MX.16.051	Marcos Castellanos	Marcos Castellanos	8582308
+MX.16.052	Lázaro Cárdenas	Lazaro Cardenas	8582309
+MX.16.053	Morelia	Morelia	8582310
+MX.16.054	Morelos	Morelos	8582311
+MX.16.055	Múgica	Mugica	8582312
+MX.16.056	Nahuatzen	Nahuatzen	8582313
+MX.16.057	Nocupétaro	Nocupetaro	8582314
+MX.16.058	Nuevo Parangaricutiro	Nuevo Parangaricutiro	8582315
+MX.16.059	Nuevo Urecho	Nuevo Urecho	8582316
+MX.16.060	Numarán	Numaran	8582317
+MX.16.061	Ocampo	Ocampo	8582318
+MX.16.062	Pajacuarán	Pajacuaran	8582319
+MX.16.063	Panindícuaro	Panindicuaro	8582320
+MX.16.064	Parácuaro	Paracuaro	8582321
+MX.16.065	Paracho	Paracho	8582322
+MX.16.066	Pátzcuaro	Patzcuaro	8582323
+MX.16.067	Penjamillo	Penjamillo	8582324
+MX.16.068	Peribán	Periban	8582325
+MX.16.069	La Piedad	La Piedad	8582326
+MX.16.070	Purépero	Purepero	8582327
+MX.16.071	Puruándiro	Puruandiro	8582328
+MX.16.072	Queréndaro	Querendaro	8582329
+MX.16.073	Quiroga	Quiroga	8582330
+MX.16.074	Cojumatlán de Régules	Cojumatlan de Regules	8582331
+MX.16.075	Los Reyes	Los Reyes	8582332
+MX.16.076	Sahuayo	Sahuayo	8582333
+MX.16.077	San Lucas	San Lucas	8582334
+MX.16.078	Santa Ana Maya	Santa Ana Maya	8582335
+MX.16.079	Salvador Escalante	Salvador Escalante	8582336
+MX.16.080	Senguio	Senguio	8582337
+MX.16.081	Susupuato	Susupuato	8582338
+MX.16.082	Tacámbaro	Tacambaro	8582339
+MX.16.083	Tancítaro	Tancitaro	8582340
+MX.16.084	Tangamandapio	Tangamandapio	8582341
+MX.16.085	Tangancícuaro	Tangancicuaro	8582342
+MX.16.086	Tanhuato	Tanhuato	8582343
+MX.16.087	Taretan	Taretan	8582344
+MX.16.088	Tarímbaro	Tarimbaro	8582345
+MX.16.089	Tepalcatepec	Tepalcatepec	8582346
+MX.16.090	Tingambato	Tingambato	8582347
+MX.16.003	Álvaro Obregón	Alvaro Obregon	8582348
+MX.16.091	Tingüindín	Tingueindin	8582349
+MX.16.092	Tiquicheo de Nicolás Romero	Tiquicheo de Nicolas Romero	8582350
+MX.16.093	Tlalpujahua	Tlalpujahua	8582351
+MX.16.094	Tlazazalca	Tlazazalca	8582352
+MX.16.096	Tumbiscatío	Tumbiscatio	8582353
+MX.16.097	Turicato	Turicato	8582354
+MX.16.098	Tuxpan	Tuxpan	8582355
+MX.16.099	Tuzantla	Tuzantla	8582356
+MX.16.100	Tzintzuntzan	Tzintzuntzan	8582357
+MX.16.101	Tzitzio	Tzitzio	8582358
+MX.16.102	Uruapan	Uruapan	8582359
+MX.16.104	Villamar	Villamar	8582360
+MX.16.105	Vista Hermosa	Vista Hermosa	8582361
+MX.16.106	Yurécuaro	Yurecuaro	8582362
+MX.16.107	Zacapu	Zacapu	8582363
+MX.16.108	Zamora	Zamora	8582364
+MX.16.109	Zináparo	Zinaparo	8582365
+MX.16.110	Zinapécuaro	Zinapecuaro	8582366
+MX.16.111	Ziracuaretiro	Ziracuaretiro	8582367
+MX.16.112	Zitácuaro	Zitacuaro	8582368
+MX.16.113	José Sixto Verduzco	Jose Sixto Verduzco	8582369
+MX.17.001	Amacuzac	Amacuzac	8582370
+MX.17.002	Atlatlahucan	Atlatlahucan	8582371
+MX.17.003	Axochiapan	Axochiapan	8582372
+MX.17.004	Ayala	Ayala	8582373
+MX.17.005	Coatlán del Río	Coatlan del Rio	8582374
+MX.17.006	Cuautla	Cuautla	8582375
+MX.17.007	Cuernavaca	Cuernavaca	8582376
+MX.17.008	Emiliano Zapata	Emiliano Zapata	8582377
+MX.17.009	Huitzilac	Huitzilac	8582378
+MX.17.010	Jantetelco	Jantetelco	8582379
+MX.17.011	Jiutepec	Jiutepec	8582380
+MX.17.012	Jojutla	Jojutla	8582381
+MX.17.013	Jonacatepec	Jonacatepec	8582382
+MX.17.014	Mazatepec	Mazatepec	8582383
+MX.17.015	Miacatlán	Miacatlan	8582384
+MX.17.016	Ocuituco	Ocuituco	8582385
+MX.17.018	Temixco	Temixco	8582386
+MX.17.019	Tepalcingo	Tepalcingo	8582387
+MX.17.020	Tepoztlán	Tepoztlan	8582388
+MX.17.021	Tetecala	Tetecala	8582389
+MX.17.022	Tetela del Volcán	Tetela del Volcan	8582390
+MX.17.023	Tlalnepantla	Tlalnepantla	8582391
+MX.17.024	Tlaltizapán de Zapata	Tlaltizapan de Zapata	8582392
+MX.17.025	Tlaquiltenango	Tlaquiltenango	8582393
+MX.17.026	Tlayacapan	Tlayacapan	8582394
+MX.17.027	Totolapan	Totolapan	8582395
+MX.17.028	Xochitepec	Xochitepec	8582396
+MX.17.029	Yautepec	Yautepec	8582397
+MX.17.030	Yecapixtla	Yecapixtla	8582398
+MX.17.031	Zacatepec	Zacatepec	8582399
+MX.17.032	Zacualpan	Zacualpan	8582400
+MX.17.033	Temoac	Temoac	8582401
+MX.18.001	Acaponeta	Acaponeta	8582402
+MX.18.002	Ahuacatlán	Ahuacatlan	8582403
+MX.18.003	Amatlán de Cañas	Amatlan de Canas	8582404
+MX.18.004	Compostela	Compostela	8582405
+MX.18.005	Huajicori	Huajicori	8582406
+MX.18.006	Ixtlán del Río	Ixtlan del Rio	8582407
+MX.18.007	Jala	Jala	8582408
+MX.18.008	Xalisco	Xalisco	8582409
+MX.18.009	Del Nayar	Del Nayar	8582410
+MX.18.010	Rosamorada	Rosamorada	8582411
+MX.18.011	Ruíz	Ruiz	8582412
+MX.18.012	San Blas	San Blas	8582413
+MX.18.013	San Pedro Lagunillas	San Pedro Lagunillas	8582414
+MX.18.014	Santa María del Oro	Santa Maria del Oro	8582415
+MX.18.015	Santiago Ixcuintla	Santiago Ixcuintla	8582416
+MX.18.016	Tecuala	Tecuala	8582417
+MX.18.017	Tepic	Tepic	8582418
+MX.18.018	Tuxpan	Tuxpan	8582419
+MX.18.019	La Yesca	La Yesca	8582420
+MX.18.020	Bahía de Banderas	Bahia de Banderas	8582421
+MX.19.001	Abasolo	Abasolo	8582422
+MX.19.002	Agualeguas	Agualeguas	8582423
+MX.19.003	Los Aldamas	Los Aldamas	8582424
+MX.19.004	Allende	Allende	8582425
+MX.19.005	Anáhuac	Anahuac	8582426
+MX.19.006	Apodaca	Apodaca	8582427
+MX.19.007	Aramberri	Aramberri	8582428
+MX.19.008	Bustamante	Bustamante	8582429
+MX.19.009	Cadereyta Jiménez	Cadereyta Jimenez	8582430
+MX.19.010	El Carmen	El Carmen	8582431
+MX.19.011	Cerralvo	Cerralvo	8582432
+MX.19.012	Ciénega de Flores	Cienega de Flores	8582433
+MX.19.013	China	China	8582434
+MX.19.014	Doctor Arroyo	Doctor Arroyo	8582435
+MX.19.015	Doctor Coss	Doctor Coss	8582436
+MX.19.016	Doctor González	Doctor Gonzalez	8582437
+MX.19.017	Galeana	Galeana	8582438
+MX.19.018	García	Garcia	8582439
+MX.19.019	San Pedro Garza García	San Pedro Garza Garcia	8582440
+MX.19.020	General Bravo	General Bravo	8582441
+MX.19.021	General Escobedo	General Escobedo	8582442
+MX.19.022	General Terán	General Teran	8582443
+MX.19.023	General Treviño	General Trevino	8582444
+MX.19.024	General Zaragoza	General Zaragoza	8582445
+MX.19.025	General Zuazua	General Zuazua	8582446
+MX.19.026	Guadalupe	Guadalupe	8582447
+MX.19.027	Los Herreras	Los Herreras	8582448
+MX.19.029	Hualahuises	Hualahuises	8582449
+MX.19.030	Iturbide	Iturbide	8582450
+MX.19.031	Juárez	Juarez	8582451
+MX.19.032	Lampazos de Naranjo	Lampazos de Naranjo	8582452
+MX.19.033	Linares	Linares	8582453
+MX.19.034	Marín	Marin	8582454
+MX.21.206	Zacapala	Zacapala	8582455
+MX.19.036	Mier y Noriega	Mier y Noriega	8582456
+MX.19.037	Mina	Mina	8582457
+MX.19.038	Montemorelos	Montemorelos	8582458
+MX.19.039	Monterrey	Monterrey	8582459
+MX.19.040	Parás	Paras	8582460
+MX.19.041	Pesquería	Pesqueria	8582461
+MX.19.042	Los Ramones	Los Ramones	8582462
+MX.19.043	Rayones	Rayones	8582463
+MX.19.044	Sabinas Hidalgo	Sabinas Hidalgo	8582464
+MX.19.045	Salinas Victoria	Salinas Victoria	8582465
+MX.19.046	San Nicolás de los Garza	San Nicolas de los Garza	8582466
+MX.19.047	Hidalgo	Hidalgo	8582467
+MX.19.048	Santa Catarina	Santa Catarina	8582468
+MX.19.049	Santiago	Santiago	8582469
+MX.19.050	Vallecillo	Vallecillo	8582470
+MX.19.051	Villaldama	Villaldama	8582471
+MX.20.001	Abejones	Abejones	8582472
+MX.20.002	Acatlán de Pérez Figueroa	Acatlan de Perez Figueroa	8582473
+MX.20.003	Asunción Cacalotepec	Asuncion Cacalotepec	8582474
+MX.20.004	Asunción Cuyotepeji	Asuncion Cuyotepeji	8582475
+MX.20.005	Asunción Ixtaltepec	Asuncion Ixtaltepec	8582476
+MX.20.006	Asunción Nochixtlán	Asuncion Nochixtlan	8582477
+MX.20.007	Asunción Ocotlán	Asuncion Ocotlan	8582478
+MX.20.008	Asunción Tlacolulita	Asuncion Tlacolulita	8582479
+MX.20.009	Ayotzintepec	Ayotzintepec	8582480
+MX.20.010	El Barrio de la Soledad	El Barrio de la Soledad	8582481
+MX.20.011	Calihualá	Calihuala	8582482
+MX.20.012	Candelaria Loxicha	Candelaria Loxicha	8582483
+MX.20.013	Ciénega de Zimatlán	Cienega de Zimatlan	8582484
+MX.20.014	Ciudad Ixtepec	Ciudad Ixtepec	8582485
+MX.20.015	Coatecas Altas	Coatecas Altas	8582486
+MX.20.016	Coicoyán de las Flores	Coicoyan de las Flores	8582487
+MX.20.017	La Compañía	La Compania	8582488
+MX.20.018	Concepción Buenavista	Concepcion Buenavista	8582489
+MX.20.019	Concepción Pápalo	Concepcion Papalo	8582490
+MX.20.020	Constancia del Rosario	Constancia del Rosario	8582491
+MX.20.021	Cosolapa	Cosolapa	8582492
+MX.20.022	Cosoltepec	Cosoltepec	8582493
+MX.20.023	Cuilápam de Guerrero	Cuilapam de Guerrero	8582494
+MX.20.024	Cuyamecalco Villa de Zaragoza	Cuyamecalco Villa de Zaragoza	8582495
+MX.20.025	Chahuites	Chahuites	8582496
+MX.20.026	Chalcatongo de Hidalgo	Chalcatongo de Hidalgo	8582497
+MX.20.027	Chiquihuitlán de Benito Juárez	Chiquihuitlan de Benito Juarez	8582498
+MX.20.028	Heroica Ciudad de Ejutla de Crespo	Heroica Ciudad de Ejutla de Crespo	8582499
+MX.20.029	Eloxochitlán de Flores Magón	Eloxochitlan de Flores Magon	8582500
+MX.20.030	El Espinal	El Espinal	8582501
+MX.20.031	Tamazulápam del Espíritu Santo	Tamazulapam del Espiritu Santo	8582502
+MX.20.032	Fresnillo de Trujano	Fresnillo de Trujano	8582503
+MX.20.033	Guadalupe Etla	Guadalupe Etla	8582504
+MX.20.034	Guadalupe de Ramírez	Guadalupe de Ramirez	8582505
+MX.20.035	Guelatao de Juárez	Guelatao de Juarez	8582506
+MX.20.036	Guevea de Humboldt	Guevea de Humboldt	8582507
+MX.20.037	Mesones Hidalgo	Mesones Hidalgo	8582508
+MX.20.038	Villa Hidalgo	Villa Hidalgo	8582509
+MX.20.039	Heroica Ciudad de Huajuapan de León	Heroica Ciudad de Huajuapan de Leon	8582510
+MX.20.040	Huautepec	Huautepec	8582511
+MX.20.041	Huautla de Jiménez	Huautla de Jimenez	8582512
+MX.20.042	Ixtlán de Juárez	Ixtlan de Juarez	8582513
+MX.20.043	Heroica Ciudad de Juchitán de Zaragoza	Heroica Ciudad de Juchitan de Zaragoza	8582514
+MX.20.044	Loma Bonita	Loma Bonita	8582515
+MX.20.045	Magdalena Apasco	Magdalena Apasco	8582516
+MX.20.046	Magdalena Jaltepec	Magdalena Jaltepec	8582517
+MX.20.047	Santa Magdalena Jicotlán	Santa Magdalena Jicotlan	8582518
+MX.20.048	Magdalena Mixtepec	Magdalena Mixtepec	8582519
+MX.20.049	Magdalena Ocotlán	Magdalena Ocotlan	8582520
+MX.20.050	Magdalena Peñasco	Magdalena Penasco	8582521
+MX.20.051	Magdalena Teitipac	Magdalena Teitipac	8582522
+MX.20.052	Magdalena Tequisistlán	Magdalena Tequisistlan	8582523
+MX.20.053	Magdalena Tlacotepec	Magdalena Tlacotepec	8582524
+MX.20.054	Magdalena Zahuatlán	Magdalena Zahuatlan	8582525
+MX.20.055	Mariscala de Juárez	Mariscala de Juarez	8582526
+MX.20.056	Mártires de Tacubaya	Martires de Tacubaya	8582527
+MX.20.057	Matías Romero Avendaño	Matias Romero Avendano	8582528
+MX.20.058	Mazatlán Villa de Flores	Mazatlan Villa de Flores	8582529
+MX.20.059	Miahuatlán de Porfirio Díaz	Miahuatlan de Porfirio Diaz	8582530
+MX.20.060	Mixistlán de la Reforma	Mixistlan de la Reforma	8582531
+MX.20.061	Monjas	Monjas	8582532
+MX.20.062	Natividad	Natividad	8582533
+MX.20.063	Nazareno Etla	Nazareno Etla	8582534
+MX.20.064	Nejapa de Madero	Nejapa de Madero	8582535
+MX.20.065	Ixpantepec Nieves	Ixpantepec Nieves	8582536
+MX.20.066	Santiago Niltepec	Santiago Niltepec	8582537
+MX.20.067	Oaxaca de Juárez	Oaxaca de Juarez	8582538
+MX.20.068	Ocotlán de Morelos	Ocotlan de Morelos	8582539
+MX.20.069	La Pe	La Pe	8582540
+MX.20.070	Pinotepa de Don Luis	Pinotepa de Don Luis	8582541
+MX.20.071	Pluma Hidalgo	Pluma Hidalgo	8582542
+MX.20.072	San José del Progreso	San Jose del Progreso	8582543
+MX.20.073	Putla Villa de Guerrero	Putla Villa de Guerrero	8582544
+MX.20.074	Santa Catarina Quioquitani	Santa Catarina Quioquitani	8582545
+MX.20.075	Reforma de Pineda	Reforma de Pineda	8582546
+MX.20.076	La Reforma	La Reforma	8582547
+MX.20.077	Reyes Etla	Reyes Etla	8582548
+MX.20.078	Rojas de Cuauhtémoc	Rojas de Cuauhtemoc	8582549
+MX.20.079	Salina Cruz	Salina Cruz	8582550
+MX.20.080	San Agustín Amatengo	San Agustin Amatengo	8582551
+MX.20.081	San Agustín Atenango	San Agustin Atenango	8582552
+MX.20.082	San Agustín Chayuco	San Agustin Chayuco	8582553
+MX.20.083	San Agustín de las Juntas	San Agustin de las Juntas	8582554
+MX.20.084	San Agustín Etla	San Agustin Etla	8582555
+MX.20.085	San Agustín Loxicha	San Agustin Loxicha	8582556
+MX.20.086	San Agustín Tlacotepec	San Agustin Tlacotepec	8582557
+MX.20.087	San Agustín Yatareni	San Agustin Yatareni	8582558
+MX.20.088	San Andrés Cabecera Nueva	San Andres Cabecera Nueva	8582559
+MX.20.089	San Andrés Dinicuiti	San Andres Dinicuiti	8582560
+MX.20.090	San Andrés Huaxpaltepec	San Andres Huaxpaltepec	8582561
+MX.20.091	San Andrés Huayápam	San Andres Huayapam	8582562
+MX.20.092	San Andrés Ixtlahuaca	San Andres Ixtlahuaca	8582563
+MX.20.093	San Andrés Lagunas	San Andres Lagunas	8582564
+MX.20.094	San Andrés Nuxiño	San Andres Nuxino	8582565
+MX.20.095	San Andrés Paxtlán	San Andres Paxtlan	8582566
+MX.20.096	San Andrés Sinaxtla	San Andres Sinaxtla	8582567
+MX.20.097	San Andrés Solaga	San Andres Solaga	8582568
+MX.20.098	San Andrés Teotilálpam	San Andres Teotilalpam	8582569
+MX.20.099	San Andrés Tepetlapa	San Andres Tepetlapa	8582570
+MX.20.100	San Andrés Yaá	San Andres Yaa	8582571
+MX.20.101	San Andrés Zabache	San Andres Zabache	8582572
+MX.20.102	San Andrés Zautla	San Andres Zautla	8582573
+MX.20.103	San Antonino Castillo Velasco	San Antonino Castillo Velasco	8582574
+MX.20.104	San Antonino el Alto	San Antonino el Alto	8582575
+MX.20.105	San Antonino Monte Verde	San Antonino Monte Verde	8582576
+MX.20.106	San Antonio Acutla	San Antonio Acutla	8582577
+MX.20.107	San Antonio de la Cal	San Antonio de la Cal	8582578
+MX.20.108	San Antonio Huitepec	San Antonio Huitepec	8582579
+MX.20.109	San Antonio Nanahuatípam	San Antonio Nanahuatipam	8582580
+MX.20.110	San Antonio Sinicahua	San Antonio Sinicahua	8582581
+MX.20.111	San Antonio Tepetlapa	San Antonio Tepetlapa	8582582
+MX.20.112	San Baltazar Chichicápam	San Baltazar Chichicapam	8582583
+MX.20.113	San Baltazar Loxicha	San Baltazar Loxicha	8582584
+MX.20.114	San Baltazar Yatzachi el Bajo	San Baltazar Yatzachi el Bajo	8582585
+MX.20.115	San Bartolo Coyotepec	San Bartolo Coyotepec	8582586
+MX.20.116	San Bartolomé Ayautla	San Bartolome Ayautla	8582587
+MX.20.117	San Bartolomé Loxicha	San Bartolome Loxicha	8582588
+MX.20.118	San Bartolomé Quialana	San Bartolome Quialana	8582589
+MX.20.119	San Bartolomé Yucuañe	San Bartolome Yucuane	8582590
+MX.20.120	San Bartolomé Zoogocho	San Bartolome Zoogocho	8582591
+MX.20.121	San Bartolo Soyaltepec	San Bartolo Soyaltepec	8582592
+MX.20.122	San Bartolo Yautepec	San Bartolo Yautepec	8582593
+MX.20.123	San Bernardo Mixtepec	San Bernardo Mixtepec	8582594
+MX.20.124	San Blas Atempa	San Blas Atempa	8582595
+MX.20.125	San Carlos Yautepec	San Carlos Yautepec	8582596
+MX.20.126	San Cristóbal Amatlán	San Cristobal Amatlan	8582597
+MX.20.127	San Cristóbal Amoltepec	San Cristobal Amoltepec	8582598
+MX.20.128	San Cristóbal Lachirioag	San Cristobal Lachirioag	8582599
+MX.20.129	San Cristóbal Suchixtlahuaca	San Cristobal Suchixtlahuaca	8582600
+MX.32.038	Pinos	Pinos	8582601
+MX.20.130	San Dionisio del Mar	San Dionisio del Mar	8582602
+MX.20.131	San Dionisio Ocotepec	San Dionisio Ocotepec	8582603
+MX.20.132	San Dionisio Ocotlán	San Dionisio Ocotlan	8582604
+MX.20.133	San Esteban Atatlahuca	San Esteban Atatlahuca	8582605
+MX.20.134	San Felipe Jalapa de Díaz	San Felipe Jalapa de Diaz	8582606
+MX.20.135	San Felipe Tejalápam	San Felipe Tejalapam	8582607
+MX.20.136	San Felipe Usila	San Felipe Usila	8582608
+MX.20.137	San Francisco Cahuacuá	San Francisco Cahuacua	8582609
+MX.20.138	San Francisco Cajonos	San Francisco Cajonos	8582610
+MX.20.139	San Francisco Chapulapa	San Francisco Chapulapa	8582611
+MX.20.140	San Francisco Chindúa	San Francisco Chindua	8582612
+MX.20.141	San Francisco del Mar	San Francisco del Mar	8582613
+MX.20.142	San Francisco Huehuetlán	San Francisco Huehuetlan	8582614
+MX.20.143	San Francisco Ixhuatán	San Francisco Ixhuatan	8582615
+MX.20.144	San Francisco Jaltepetongo	San Francisco Jaltepetongo	8582616
+MX.20.145	San Francisco Lachigoló	San Francisco Lachigolo	8582617
+MX.20.146	San Francisco Logueche	San Francisco Logueche	8582618
+MX.20.147	San Francisco Nuxaño	San Francisco Nuxano	8582619
+MX.20.148	San Francisco Ozolotepec	San Francisco Ozolotepec	8582620
+MX.20.149	San Francisco Sola	San Francisco Sola	8582621
+MX.20.150	San Francisco Telixtlahuaca	San Francisco Telixtlahuaca	8582622
+MX.20.151	San Francisco Teopan	San Francisco Teopan	8582623
+MX.20.152	San Francisco Tlapancingo	San Francisco Tlapancingo	8582624
+MX.20.153	San Gabriel Mixtepec	San Gabriel Mixtepec	8582625
+MX.20.154	San Ildefonso Amatlán	San Ildefonso Amatlan	8582626
+MX.20.155	San Ildefonso Sola	San Ildefonso Sola	8582627
+MX.20.156	San Ildefonso Villa Alta	San Ildefonso Villa Alta	8582628
+MX.20.157	San Jacinto Amilpas	San Jacinto Amilpas	8582629
+MX.20.158	San Jacinto Tlacotepec	San Jacinto Tlacotepec	8582630
+MX.20.159	San Jerónimo Coatlán	San Jeronimo Coatlan	8582631
+MX.20.160	San Jerónimo Silacayoapilla	San Jeronimo Silacayoapilla	8582632
+MX.20.161	San Jerónimo Sosola	San Jeronimo Sosola	8582633
+MX.20.162	San Jerónimo Taviche	San Jeronimo Taviche	8582634
+MX.20.163	San Jerónimo Tecóatl	San Jeronimo Tecoatl	8582635
+MX.20.164	San Jorge Nuchita	San Jorge Nuchita	8582636
+MX.20.165	San José Ayuquila	San Jose Ayuquila	8582637
+MX.20.166	San José Chiltepec	San Jose Chiltepec	8582638
+MX.20.167	San José del Peñasco	San Jose del Penasco	8582639
+MX.20.168	San José Estancia Grande	San Jose Estancia Grande	8582640
+MX.20.169	San José Independencia	San Jose Independencia	8582641
+MX.20.170	San José Lachiguiri	San Jose Lachiguiri	8582642
+MX.20.171	San José Tenango	San Jose Tenango	8582643
+MX.20.172	San Juan Achiutla	San Juan Achiutla	8582644
+MX.20.173	San Juan Atepec	San Juan Atepec	8582645
+MX.20.174	Ánimas Trujano	Animas Trujano	8582646
+MX.20.175	San Juan Bautista Atatlahuca	San Juan Bautista Atatlahuca	8582647
+MX.20.176	San Juan Bautista Coixtlahuaca	San Juan Bautista Coixtlahuaca	8582648
+MX.20.177	San Juan Bautista Cuicatlán	San Juan Bautista Cuicatlan	8582649
+MX.20.178	San Juan Bautista Guelache	San Juan Bautista Guelache	8582650
+MX.25.011	Guasave	Guasave	8582651
+MX.20.179	San Juan Bautista Jayacatlán	San Juan Bautista Jayacatlan	8582652
+MX.20.180	San Juan Bautista Lo de Soto	San Juan Bautista Lo de Soto	8582653
+MX.20.181	San Juan Bautista Suchitepec	San Juan Bautista Suchitepec	8582654
+MX.20.182	San Juan Bautista Tlacoatzintepec	San Juan Bautista Tlacoatzintepec	8582655
+MX.20.183	San Juan Bautista Tlachichilco	San Juan Bautista Tlachichilco	8582656
+MX.20.184	San Juan Bautista Tuxtepec	San Juan Bautista Tuxtepec	8582657
+MX.20.185	San Juan Cacahuatepec	San Juan Cacahuatepec	8582658
+MX.20.186	San Juan Cieneguilla	San Juan Cieneguilla	8582659
+MX.20.187	San Juan Coatzóspam	San Juan Coatzospam	8582660
+MX.20.188	San Juan Colorado	San Juan Colorado	8582661
+MX.20.189	San Juan Comaltepec	San Juan Comaltepec	8582662
+MX.20.190	San Juan Cotzocón	San Juan Cotzocon	8582663
+MX.20.191	San Juan Chicomezúchil	San Juan Chicomezuchil	8582664
+MX.20.192	San Juan Chilateca	San Juan Chilateca	8582665
+MX.20.193	San Juan del Estado	San Juan del Estado	8582666
+MX.20.194	San Juan del Río	San Juan del Rio	8582667
+MX.20.195	San Juan Diuxi	San Juan Diuxi	8582668
+MX.20.196	San Juan Evangelista Analco	San Juan Evangelista Analco	8582669
+MX.20.197	San Juan Guelavía	San Juan Guelavia	8582670
+MX.20.198	San Juan Guichicovi	San Juan Guichicovi	8582671
+MX.20.199	San Juan Ihualtepec	San Juan Ihualtepec	8582672
+MX.20.200	San Juan Juquila Mixes	San Juan Juquila Mixes	8582673
+MX.20.201	San Juan Juquila Vijanos	San Juan Juquila Vijanos	8582674
+MX.20.202	San Juan Lachao	San Juan Lachao	8582675
+MX.20.203	San Juan Lachigalla	San Juan Lachigalla	8582676
+MX.20.204	San Juan Lajarcia	San Juan Lajarcia	8582677
+MX.20.205	San Juan Lalana	San Juan Lalana	8582678
+MX.20.206	San Juan de los Cués	San Juan de los Cues	8582679
+MX.20.207	San Juan Mazatlán	San Juan Mazatlan	8582680
+MX.20.208	San Juan Mixtepec -Dto. 08 -	San Juan Mixtepec -Dto. 08 -	8582681
+MX.20.209	San Juan Mixtepec -Dto. 26 -	San Juan Mixtepec -Dto. 26 -	8582682
+MX.20.210	San Juan Ñumí	San Juan Numi	8582683
+MX.20.211	San Juan Ozolotepec	San Juan Ozolotepec	8582684
+MX.20.212	San Juan Petlapa	San Juan Petlapa	8582685
+MX.20.213	San Juan Quiahije	San Juan Quiahije	8582686
+MX.20.214	San Juan Quiotepec	San Juan Quiotepec	8582687
+MX.20.215	San Juan Sayultepec	San Juan Sayultepec	8582688
+MX.20.216	San Juan Tabaá	San Juan Tabaa	8582689
+MX.20.217	San Juan Tamazola	San Juan Tamazola	8582690
+MX.20.218	San Juan Teita	San Juan Teita	8582691
+MX.20.219	San Juan Teitipac	San Juan Teitipac	8582692
+MX.20.220	San Juan Tepeuxila	San Juan Tepeuxila	8582693
+MX.20.221	San Juan Teposcolula	San Juan Teposcolula	8582694
+MX.20.222	San Juan Yaeé	San Juan Yaee	8582695
+MX.20.223	San Juan Yatzona	San Juan Yatzona	8582696
+MX.20.224	San Juan Yucuita	San Juan Yucuita	8582697
+MX.20.225	San Lorenzo	San Lorenzo	8582698
+MX.20.226	San Lorenzo Albarradas	San Lorenzo Albarradas	8582699
+MX.20.227	San Lorenzo Cacaotepec	San Lorenzo Cacaotepec	8582700
+MX.20.228	San Lorenzo Cuaunecuiltitla	San Lorenzo Cuaunecuiltitla	8582701
+MX.20.229	San Lorenzo Texmelúcan	San Lorenzo Texmelucan	8582702
+MX.20.230	San Lorenzo Victoria	San Lorenzo Victoria	8582703
+MX.20.231	San Lucas Camotlán	San Lucas Camotlan	8582704
+MX.20.232	San Lucas Ojitlán	San Lucas Ojitlan	8582705
+MX.20.233	San Lucas Quiaviní	San Lucas Quiavini	8582706
+MX.20.234	San Lucas Zoquiápam	San Lucas Zoquiapam	8582707
+MX.20.235	San Luis Amatlán	San Luis Amatlan	8582708
+MX.20.236	San Marcial Ozolotepec	San Marcial Ozolotepec	8582709
+MX.20.237	San Marcos Arteaga	San Marcos Arteaga	8582710
+MX.20.238	San Martín de los Cansecos	San Martin de los Cansecos	8582711
+MX.20.239	San Martín Huamelúlpam	San Martin Huamelulpam	8582712
+MX.20.240	San Martín Itunyoso	San Martin Itunyoso	8582713
+MX.20.241	San Martín Lachilá	San Martin Lachila	8582714
+MX.20.242	San Martín Peras	San Martin Peras	8582715
+MX.20.243	San Martín Tilcajete	San Martin Tilcajete	8582716
+MX.20.244	San Martín Toxpalan	San Martin Toxpalan	8582717
+MX.20.245	San Martín Zacatepec	San Martin Zacatepec	8582718
+MX.27.003	Centla	Centla	8582719
+MX.20.246	San Mateo Cajonos	San Mateo Cajonos	8582720
+MX.20.247	Capulálpam de Méndez	Capulalpam de Mendez	8582721
+MX.20.248	San Mateo del Mar	San Mateo del Mar	8582722
+MX.20.249	San Mateo Yoloxochitlán	San Mateo Yoloxochitlan	8582723
+MX.20.250	San Mateo Etlatongo	San Mateo Etlatongo	8582724
+MX.20.251	San Mateo Nejápam	San Mateo Nejapam	8582725
+MX.20.252	San Mateo Peñasco	San Mateo Penasco	8582726
+MX.20.253	San Mateo Piñas	San Mateo Pinas	8582727
+MX.20.254	San Mateo Río Hondo	San Mateo Rio Hondo	8582728
+MX.20.255	San Mateo Sindihui	San Mateo Sindihui	8582729
+MX.20.256	San Mateo Tlapiltepec	San Mateo Tlapiltepec	8582730
+MX.20.257	San Melchor Betaza	San Melchor Betaza	8582731
+MX.20.258	San Miguel Achiutla	San Miguel Achiutla	8582732
+MX.20.259	San Miguel Ahuehuetitlán	San Miguel Ahuehuetitlan	8582733
+MX.20.260	San Miguel Aloápam	San Miguel Aloapam	8582734
+MX.20.261	San Miguel Amatitlán	San Miguel Amatitlan	8582735
+MX.20.262	San Miguel Amatlán	San Miguel Amatlan	8582736
+MX.20.263	San Miguel Coatlán	San Miguel Coatlan	8582737
+MX.20.264	San Miguel Chicahua	San Miguel Chicahua	8582738
+MX.20.265	San Miguel Chimalapa	San Miguel Chimalapa	8582739
+MX.20.266	San Miguel del Puerto	San Miguel del Puerto	8582740
+MX.20.267	San Miguel del Río	San Miguel del Rio	8582741
+MX.20.268	San Miguel Ejutla	San Miguel Ejutla	8582742
+MX.20.269	San Miguel el Grande	San Miguel el Grande	8582743
+MX.20.270	San Miguel Huautla	San Miguel Huautla	8582744
+MX.20.271	San Miguel Mixtepec	San Miguel Mixtepec	8582745
+MX.20.272	San Miguel Panixtlahuaca	San Miguel Panixtlahuaca	8582746
+MX.20.273	San Miguel Peras	San Miguel Peras	8582747
+MX.20.274	San Miguel Piedras	San Miguel Piedras	8582748
+MX.20.275	San Miguel Quetzaltepec	San Miguel Quetzaltepec	8582749
+MX.20.276	San Miguel Santa Flor	San Miguel Santa Flor	8582750
+MX.20.277	Villa Sola de Vega	Villa Sola de Vega	8582751
+MX.20.278	San Miguel Soyaltepec	San Miguel Soyaltepec	8582752
+MX.20.279	San Miguel Suchixtepec	San Miguel Suchixtepec	8582753
+MX.20.280	Villa Talea de Castro	Villa Talea de Castro	8582754
+MX.20.281	San Miguel Tecomatlán	San Miguel Tecomatlan	8582755
+MX.20.282	San Miguel Tenango	San Miguel Tenango	8582756
+MX.20.283	San Miguel Tequixtepec	San Miguel Tequixtepec	8582757
+MX.20.284	San Miguel Tilquiápam	San Miguel Tilquiapam	8582758
+MX.20.285	San Miguel Tlacamama	San Miguel Tlacamama	8582759
+MX.20.286	San Miguel Tlacotepec	San Miguel Tlacotepec	8582760
+MX.20.287	San Miguel Tulancingo	San Miguel Tulancingo	8582761
+MX.20.288	San Miguel Yotao	San Miguel Yotao	8582762
+MX.20.289	San Nicolás	San Nicolas	8582763
+MX.20.290	San Nicolás Hidalgo	San Nicolas Hidalgo	8582764
+MX.20.291	San Pablo Coatlán	San Pablo Coatlan	8582765
+MX.20.292	San Pablo Cuatro Venados	San Pablo Cuatro Venados	8582766
+MX.20.293	San Pablo Etla	San Pablo Etla	8582767
+MX.20.294	San Pablo Huitzo	San Pablo Huitzo	8582768
+MX.20.295	San Pablo Huixtepec	San Pablo Huixtepec	8582769
+MX.20.296	San Pablo Macuiltianguis	San Pablo Macuiltianguis	8582770
+MX.20.297	San Pablo Tijaltepec	San Pablo Tijaltepec	8582771
+MX.20.298	San Pablo Villa de Mitla	San Pablo Villa de Mitla	8582772
+MX.20.299	San Pablo Yaganiza	San Pablo Yaganiza	8582773
+MX.20.300	San Pedro Amuzgos	San Pedro Amuzgos	8582774
+MX.20.301	San Pedro Apóstol	San Pedro Apostol	8582775
+MX.20.302	San Pedro Atoyac	San Pedro Atoyac	8582776
+MX.20.303	San Pedro Cajonos	San Pedro Cajonos	8582777
+MX.20.304	San Pedro Coxcaltepec Cántaros	San Pedro Coxcaltepec Cantaros	8582778
+MX.20.305	San Pedro Comitancillo	San Pedro Comitancillo	8582779
+MX.20.306	San Pedro el Alto	San Pedro el Alto	8582780
+MX.20.307	San Pedro Huamelula	San Pedro Huamelula	8582781
+MX.20.308	San Pedro Huilotepec	San Pedro Huilotepec	8582782
+MX.20.309	San Pedro Ixcatlán	San Pedro Ixcatlan	8582783
+MX.20.310	San Pedro Ixtlahuaca	San Pedro Ixtlahuaca	8582784
+MX.20.311	San Pedro Jaltepetongo	San Pedro Jaltepetongo	8582785
+MX.20.312	San Pedro Jicayán	San Pedro Jicayan	8582786
+MX.20.313	San Pedro Jocotipac	San Pedro Jocotipac	8582787
+MX.20.314	San Pedro Juchatengo	San Pedro Juchatengo	8582788
+MX.20.315	San Pedro Mártir	San Pedro Martir	8582789
+MX.20.316	San Pedro Mártir Quiechapa	San Pedro Martir Quiechapa	8582790
+MX.20.317	San Pedro Mártir Yucuxaco	San Pedro Martir Yucuxaco	8582791
+MX.20.318	San Pedro Mixtepec -Dto. 22 -	San Pedro Mixtepec -Dto. 22 -	8582792
+MX.20.319	San Pedro Mixtepec -Dto. 26 -	San Pedro Mixtepec -Dto. 26 -	8582793
+MX.20.320	San Pedro Molinos	San Pedro Molinos	8582794
+MX.20.321	San Pedro Nopala	San Pedro Nopala	8582795
+MX.20.322	San Pedro Ocopetatillo	San Pedro Ocopetatillo	8582796
+MX.20.323	San Pedro Ocotepec	San Pedro Ocotepec	8582797
+MX.20.324	San Pedro Pochutla	San Pedro Pochutla	8582798
+MX.20.325	San Pedro Quiatoni	San Pedro Quiatoni	8582799
+MX.20.326	San Pedro Sochiápam	San Pedro Sochiapam	8582800
+MX.20.327	San Pedro Tapanatepec	San Pedro Tapanatepec	8582801
+MX.20.328	San Pedro Taviche	San Pedro Taviche	8582802
+MX.20.329	San Pedro Teozacoalco	San Pedro Teozacoalco	8582803
+MX.20.330	San Pedro Teutila	San Pedro Teutila	8582804
+MX.20.331	San Pedro Tidaá	San Pedro Tidaa	8582805
+MX.20.332	San Pedro Topiltepec	San Pedro Topiltepec	8582806
+MX.20.333	San Pedro Totolápam	San Pedro Totolapam	8582807
+MX.20.334	Villa de Tututepec de Melchor Ocampo	Villa de Tututepec de Melchor Ocampo	8582808
+MX.20.335	San Pedro Yaneri	San Pedro Yaneri	8582809
+MX.20.336	San Pedro Yólox	San Pedro Yolox	8582810
+MX.20.337	San Pedro y San Pablo Ayutla	San Pedro y San Pablo Ayutla	8582811
+MX.20.338	Villa de Etla	Villa de Etla	8582812
+MX.20.339	San Pedro y San Pablo Teposcolula	San Pedro y San Pablo Teposcolula	8582813
+MX.20.340	San Pedro y San Pablo Tequixtepec	San Pedro y San Pablo Tequixtepec	8582814
+MX.20.341	San Pedro Yucunama	San Pedro Yucunama	8582815
+MX.20.342	San Raymundo Jalpan	San Raymundo Jalpan	8582816
+MX.20.343	San Sebastián Abasolo	San Sebastian Abasolo	8582817
+MX.20.344	San Sebastián Coatlán	San Sebastian Coatlan	8582818
+MX.20.345	San Sebastián Ixcapa	San Sebastian Ixcapa	8582819
+MX.20.346	San Sebastián Nicananduta	San Sebastian Nicananduta	8582820
+MX.20.347	San Sebastián Río Hondo	San Sebastian Rio Hondo	8582821
+MX.20.348	San Sebastián Tecomaxtlahuaca	San Sebastian Tecomaxtlahuaca	8582822
+MX.20.349	San Sebastián Teitipac	San Sebastian Teitipac	8582823
+MX.20.350	San Sebastián Tutla	San Sebastian Tutla	8582824
+MX.20.351	San Simón Almolongas	San Simon Almolongas	8582825
+MX.20.352	San Simón Zahuatlán	San Simon Zahuatlan	8582826
+MX.20.353	Santa Ana	Santa Ana	8582827
+MX.20.354	Santa Ana Ateixtlahuaca	Santa Ana Ateixtlahuaca	8582828
+MX.20.355	Santa Ana Cuauhtémoc	Santa Ana Cuauhtemoc	8582829
+MX.20.356	Santa Ana del Valle	Santa Ana del Valle	8582830
+MX.20.357	Santa Ana Tavela	Santa Ana Tavela	8582831
+MX.20.358	Santa Ana Tlapacoyan	Santa Ana Tlapacoyan	8582832
+MX.20.359	Santa Ana Yareni	Santa Ana Yareni	8582833
+MX.20.360	Santa Ana Zegache	Santa Ana Zegache	8582834
+MX.20.361	Santa Catalina Quierí	Santa Catalina Quieri	8582835
+MX.20.362	Santa Catarina Cuixtla	Santa Catarina Cuixtla	8582836
+MX.20.363	Santa Catarina Ixtepeji	Santa Catarina Ixtepeji	8582837
+MX.20.364	Santa Catarina Juquila	Santa Catarina Juquila	8582838
+MX.20.365	Santa Catarina Lachatao	Santa Catarina Lachatao	8582839
+MX.20.366	Santa Catarina Loxicha	Santa Catarina Loxicha	8582840
+MX.20.367	Santa Catarina Mechoacán	Santa Catarina Mechoacan	8582841
+MX.20.368	Santa Catarina Minas	Santa Catarina Minas	8582842
+MX.20.369	Santa Catarina Quiané	Santa Catarina Quiane	8582843
+MX.20.370	Santa Catarina Tayata	Santa Catarina Tayata	8582844
+MX.20.371	Santa Catarina Ticuá	Santa Catarina Ticua	8582845
+MX.28.017	Jaumave	Jaumave	8582846
+MX.20.372	Santa Catarina Yosonotú	Santa Catarina Yosonotu	8582847
+MX.20.373	Santa Catarina Zapoquila	Santa Catarina Zapoquila	8582848
+MX.20.374	Santa Cruz Acatepec	Santa Cruz Acatepec	8582849
+MX.20.375	Santa Cruz Amilpas	Santa Cruz Amilpas	8582850
+MX.20.376	Santa Cruz de Bravo	Santa Cruz de Bravo	8582851
+MX.20.377	Santa Cruz Itundujia	Santa Cruz Itundujia	8582852
+MX.20.378	Santa Cruz Mixtepec	Santa Cruz Mixtepec	8582853
+MX.20.379	Santa Cruz Nundaco	Santa Cruz Nundaco	8582854
+MX.20.380	Santa Cruz Papalutla	Santa Cruz Papalutla	8582855
+MX.20.381	Santa Cruz Tacache de Mina	Santa Cruz Tacache de Mina	8582856
+MX.20.382	Santa Cruz Tacahua	Santa Cruz Tacahua	8582857
+MX.20.383	Santa Cruz Tayata	Santa Cruz Tayata	8582858
+MX.20.384	Santa Cruz Xitla	Santa Cruz Xitla	8582859
+MX.20.385	Santa Cruz Xoxocotlán	Santa Cruz Xoxocotlan	8582860
+MX.20.386	Santa Cruz Zenzontepec	Santa Cruz Zenzontepec	8582861
+MX.20.387	Santa Gertrudis	Santa Gertrudis	8582862
+MX.20.388	Santa Inés del Monte	Santa Ines del Monte	8582863
+MX.20.389	Santa Inés Yatzeche	Santa Ines Yatzeche	8582864
+MX.20.390	Santa Lucía del Camino	Santa Lucia del Camino	8582865
+MX.20.391	Santa Lucía Miahuatlán	Santa Lucia Miahuatlan	8582866
+MX.20.392	Santa Lucía Monteverde	Santa Lucia Monteverde	8582867
+MX.20.393	Santa Lucía Ocotlán	Santa Lucia Ocotlan	8582868
+MX.20.394	Santa María Alotepec	Santa Maria Alotepec	8582869
+MX.20.395	Santa María Apazco	Santa Maria Apazco	8582870
+MX.20.396	Santa María la Asunción	Santa Maria la Asuncion	8582871
+MX.20.397	Heroica Ciudad de Tlaxiaco	Heroica Ciudad de Tlaxiaco	8582872
+MX.20.398	Ayoquezco de Aldama	Ayoquezco de Aldama	8582873
+MX.20.399	Santa María Atzompa	Santa Maria Atzompa	8582874
+MX.20.400	Santa María Camotlán	Santa Maria Camotlan	8582875
+MX.20.401	Santa María Colotepec	Santa Maria Colotepec	8582876
+MX.20.402	Santa María Cortijo	Santa Maria Cortijo	8582877
+MX.20.403	Santa María Coyotepec	Santa Maria Coyotepec	8582878
+MX.20.404	Santa María Chachoápam	Santa Maria Chachoapam	8582879
+MX.20.405	Villa de Chilapa de Díaz	Villa de Chilapa de Diaz	8582880
+MX.20.406	Santa María Chilchotla	Santa Maria Chilchotla	8582881
+MX.20.407	Santa María Chimalapa	Santa Maria Chimalapa	8582882
+MX.20.408	Santa María del Rosario	Santa Maria del Rosario	8582883
+MX.20.409	Santa María del Tule	Santa Maria del Tule	8582884
+MX.20.410	Santa María Ecatepec	Santa Maria Ecatepec	8582885
+MX.20.411	Santa María Guelacé	Santa Maria Guelace	8582886
+MX.20.412	Santa María Guienagati	Santa Maria Guienagati	8582887
+MX.20.413	Santa María Huatulco	Santa Maria Huatulco	8582888
+MX.20.414	Santa María Huazolotitlán	Santa Maria Huazolotitlan	8582889
+MX.20.415	Santa María Ipalapa	Santa Maria Ipalapa	8582890
+MX.20.416	Santa María Ixcatlán	Santa Maria Ixcatlan	8582891
+MX.20.417	Santa María Jacatepec	Santa Maria Jacatepec	8582892
+MX.20.418	Santa María Jalapa del Marqués	Santa Maria Jalapa del Marques	8582893
+MX.20.419	Santa María Jaltianguis	Santa Maria Jaltianguis	8582894
+MX.20.420	Santa María Lachixío	Santa Maria Lachixio	8582895
+MX.20.421	Santa María Mixtequilla	Santa Maria Mixtequilla	8582896
+MX.20.422	Santa María Nativitas	Santa Maria Nativitas	8582897
+MX.20.423	Santa María Nduayaco	Santa Maria Nduayaco	8582898
+MX.20.424	Santa María Ozolotepec	Santa Maria Ozolotepec	8582899
+MX.20.425	Santa María Pápalo	Santa Maria Papalo	8582900
+MX.20.426	Santa María Peñoles	Santa Maria Penoles	8582901
+MX.20.427	Santa María Petapa	Santa Maria Petapa	8582902
+MX.20.428	Santa María Quiegolani	Santa Maria Quiegolani	8582903
+MX.20.429	Santa María Sola	Santa Maria Sola	8582904
+MX.20.430	Santa María Tataltepec	Santa Maria Tataltepec	8582905
+MX.20.431	Santa María Tecomavaca	Santa Maria Tecomavaca	8582906
+MX.20.432	Santa María Temaxcalapa	Santa Maria Temaxcalapa	8582907
+MX.20.433	Santa María Temaxcaltepec	Santa Maria Temaxcaltepec	8582908
+MX.20.434	Santa María Teopoxco	Santa Maria Teopoxco	8582909
+MX.20.435	Santa María Tepantlali	Santa Maria Tepantlali	8582910
+MX.20.436	Santa María Texcatitlán	Santa Maria Texcatitlan	8582911
+MX.20.437	Santa María Tlahuitoltepec	Santa Maria Tlahuitoltepec	8582912
+MX.20.438	Santa María Tlalixtac	Santa Maria Tlalixtac	8582913
+MX.20.439	Santa María Tonameca	Santa Maria Tonameca	8582914
+MX.20.440	Santa María Totolapilla	Santa Maria Totolapilla	8582915
+MX.20.441	Santa María Xadani	Santa Maria Xadani	8582916
+MX.20.442	Santa María Yalina	Santa Maria Yalina	8582917
+MX.20.443	Santa María Yavesía	Santa Maria Yavesia	8582918
+MX.20.444	Santa María Yolotepec	Santa Maria Yolotepec	8582919
+MX.20.445	Santa María Yosoyúa	Santa Maria Yosoyua	8582920
+MX.20.446	Santa María Yucuhiti	Santa Maria Yucuhiti	8582921
+MX.20.447	Santa María Zacatepec	Santa Maria Zacatepec	8582922
+MX.20.448	Santa María Zaniza	Santa Maria Zaniza	8582923
+MX.20.449	Santa María Zoquitlán	Santa Maria Zoquitlan	8582924
+MX.20.450	Santiago Amoltepec	Santiago Amoltepec	8582925
+MX.20.451	Santiago Apoala	Santiago Apoala	8582926
+MX.20.452	Santiago Apóstol	Santiago Apostol	8582927
+MX.20.453	Santiago Astata	Santiago Astata	8582928
+MX.20.454	Santiago Atitlán	Santiago Atitlan	8582929
+MX.20.455	Santiago Ayuquililla	Santiago Ayuquililla	8582930
+MX.20.456	Santiago Cacaloxtepec	Santiago Cacaloxtepec	8582931
+MX.20.457	Santiago Camotlán	Santiago Camotlan	8582932
+MX.20.458	Santiago Comaltepec	Santiago Comaltepec	8582933
+MX.20.459	Santiago Chazumba	Santiago Chazumba	8582934
+MX.20.460	Santiago Choápam	Santiago Choapam	8582935
+MX.20.461	Santiago del Río	Santiago del Rio	8582936
+MX.20.462	Santiago Huajolotitlán	Santiago Huajolotitlan	8582937
+MX.20.463	Santiago Huauclilla	Santiago Huauclilla	8582938
+MX.20.464	Santiago Ihuitlán Plumas	Santiago Ihuitlan Plumas	8582939
+MX.20.465	Santiago Ixcuintepec	Santiago Ixcuintepec	8582940
+MX.20.466	Santiago Ixtayutla	Santiago Ixtayutla	8582941
+MX.20.467	Santiago Jamiltepec	Santiago Jamiltepec	8582942
+MX.20.468	Santiago Jocotepec	Santiago Jocotepec	8582943
+MX.20.469	Santiago Juxtlahuaca	Santiago Juxtlahuaca	8582944
+MX.20.470	Santiago Lachiguiri	Santiago Lachiguiri	8582945
+MX.20.471	Santiago Lalopa	Santiago Lalopa	8582946
+MX.20.472	Santiago Laollaga	Santiago Laollaga	8582947
+MX.20.473	Santiago Laxopa	Santiago Laxopa	8582948
+MX.20.474	Santiago Llano Grande	Santiago Llano Grande	8582949
+MX.20.475	Santiago Matatlán	Santiago Matatlan	8582950
+MX.20.476	Santiago Miltepec	Santiago Miltepec	8582951
+MX.20.477	Santiago Minas	Santiago Minas	8582952
+MX.20.478	Santiago Nacaltepec	Santiago Nacaltepec	8582953
+MX.20.479	Santiago Nejapilla	Santiago Nejapilla	8582954
+MX.20.480	Santiago Nundiche	Santiago Nundiche	8582955
+MX.20.481	Santiago Nuyoó	Santiago Nuyoo	8582956
+MX.20.482	Santiago Pinotepa Nacional	Santiago Pinotepa Nacional	8582957
+MX.20.483	Santiago Suchilquitongo	Santiago Suchilquitongo	8582958
+MX.20.484	Santiago Tamazola	Santiago Tamazola	8582959
+MX.20.485	Santiago Tapextla	Santiago Tapextla	8582960
+MX.20.486	Villa Tejúpam de la Unión	Villa Tejupam de la Union	8582961
+MX.20.487	Santiago Tenango	Santiago Tenango	8582962
+MX.20.488	Santiago Tepetlapa	Santiago Tepetlapa	8582963
+MX.20.489	Santiago Tetepec	Santiago Tetepec	8582964
+MX.20.490	Santiago Texcalcingo	Santiago Texcalcingo	8582965
+MX.20.491	Santiago Textitlán	Santiago Textitlan	8582966
+MX.20.492	Santiago Tilantongo	Santiago Tilantongo	8582967
+MX.20.493	Santiago Tillo	Santiago Tillo	8582968
+MX.20.494	Santiago Tlazoyaltepec	Santiago Tlazoyaltepec	8582969
+MX.20.495	Santiago Xanica	Santiago Xanica	8582970
+MX.20.496	Santiago Xiacuí	Santiago Xiacui	8582971
+MX.20.497	Santiago Yaitepec	Santiago Yaitepec	8582972
+MX.20.498	Santiago Yaveo	Santiago Yaveo	8582973
+MX.20.499	Santiago Yolomécatl	Santiago Yolomecatl	8582974
+MX.20.500	Santiago Yosondúa	Santiago Yosondua	8582975
+MX.20.501	Santiago Yucuyachi	Santiago Yucuyachi	8582976
+MX.20.502	Santiago Zacatepec	Santiago Zacatepec	8582977
+MX.20.503	Santiago Zoochila	Santiago Zoochila	8582978
+MX.20.504	Nuevo Zoquiápam	Nuevo Zoquiapam	8582979
+MX.20.505	Santo Domingo Ingenio	Santo Domingo Ingenio	8582980
+MX.20.506	Santo Domingo Albarradas	Santo Domingo Albarradas	8582981
+MX.20.507	Santo Domingo Armenta	Santo Domingo Armenta	8582982
+MX.20.508	Santo Domingo Chihuitán	Santo Domingo Chihuitan	8582983
+MX.20.509	Santo Domingo de Morelos	Santo Domingo de Morelos	8582984
+MX.20.510	Santo Domingo Ixcatlán	Santo Domingo Ixcatlan	8582985
+MX.20.511	Santo Domingo Nuxaá	Santo Domingo Nuxaa	8582986
+MX.20.512	Santo Domingo Ozolotepec	Santo Domingo Ozolotepec	8582987
+MX.20.513	Santo Domingo Petapa	Santo Domingo Petapa	8582988
+MX.20.514	Santo Domingo Roayaga	Santo Domingo Roayaga	8582989
+MX.20.515	Santo Domingo Tehuantepec	Santo Domingo Tehuantepec	8582990
+MX.20.516	Santo Domingo Teojomulco	Santo Domingo Teojomulco	8582991
+MX.20.517	Santo Domingo Tepuxtepec	Santo Domingo Tepuxtepec	8582992
+MX.20.518	Santo Domingo Tlatayápam	Santo Domingo Tlatayapam	8582993
+MX.20.519	Santo Domingo Tomaltepec	Santo Domingo Tomaltepec	8582994
+MX.20.520	Santo Domingo Tonalá	Santo Domingo Tonala	8582995
+MX.20.521	Santo Domingo Tonaltepec	Santo Domingo Tonaltepec	8582996
+MX.20.522	Santo Domingo Xagacía	Santo Domingo Xagacia	8582997
+MX.20.523	Santo Domingo Yanhuitlán	Santo Domingo Yanhuitlan	8582998
+MX.20.524	Santo Domingo Yodohino	Santo Domingo Yodohino	8582999
+MX.20.525	Santo Domingo Zanatepec	Santo Domingo Zanatepec	8583000
+MX.20.526	Santos Reyes Nopala	Santos Reyes Nopala	8583001
+MX.20.527	Santos Reyes Pápalo	Santos Reyes Papalo	8583002
+MX.20.528	Santos Reyes Tepejillo	Santos Reyes Tepejillo	8583003
+MX.20.529	Santos Reyes Yucuná	Santos Reyes Yucuna	8583004
+MX.20.530	Santo Tomás Jalieza	Santo Tomas Jalieza	8583005
+MX.20.531	Santo Tomás Mazaltepec	Santo Tomas Mazaltepec	8583006
+MX.20.532	Santo Tomás Ocotepec	Santo Tomas Ocotepec	8583007
+MX.20.533	Santo Tomás Tamazulapan	Santo Tomas Tamazulapan	8583008
+MX.20.534	San Vicente Coatlán	San Vicente Coatlan	8583009
+MX.27.004	Centro	Centro	8583010
+MX.20.535	San Vicente Lachixío	San Vicente Lachixio	8583011
+MX.20.536	San Vicente Nuñú	San Vicente Nunu	8583012
+MX.20.537	Silacayoápam	Silacayoapam	8583013
+MX.20.538	Sitio de Xitlapehua	Sitio de Xitlapehua	8583014
+MX.20.539	Soledad Etla	Soledad Etla	8583015
+MX.20.540	Villa de Tamazulápam del Progreso	Villa de Tamazulapam del Progreso	8583016
+MX.20.541	Tanetze de Zaragoza	Tanetze de Zaragoza	8583017
+MX.20.542	Taniche	Taniche	8583018
+MX.20.543	Tataltepec de Valdés	Tataltepec de Valdes	8583019
+MX.20.544	Teococuilco de Marcos Pérez	Teococuilco de Marcos Perez	8583020
+MX.20.545	Teotitlán de Flores Magón	Teotitlan de Flores Magon	8583021
+MX.20.546	Teotitlán del Valle	Teotitlan del Valle	8583022
+MX.20.547	Teotongo	Teotongo	8583023
+MX.20.548	Tepelmeme Villa de Morelos	Tepelmeme Villa de Morelos	8583024
+MX.20.549	Heroica Villa Tezoatlán de Segura y Luna, Cuna de la Independencia de Oaxaca	Heroica Villa Tezoatlan de Segura y Luna, Cuna de la Independencia de Oaxaca	8583025
+MX.20.550	San Jerónimo Tlacochahuaya	San Jeronimo Tlacochahuaya	8583026
+MX.20.551	Tlacolula de Matamoros	Tlacolula de Matamoros	8583027
+MX.20.552	Tlacotepec Plumas	Tlacotepec Plumas	8583028
+MX.20.553	Tlalixtac de Cabrera	Tlalixtac de Cabrera	8583029
+MX.20.554	Totontepec Villa de Morelos	Totontepec Villa de Morelos	8583030
+MX.20.555	Trinidad Zaachila	Trinidad Zaachila	8583031
+MX.20.556	La Trinidad Vista Hermosa	La Trinidad Vista Hermosa	8583032
+MX.20.557	Unión Hidalgo	Union Hidalgo	8583033
+MX.20.558	Valerio Trujano	Valerio Trujano	8583034
+MX.20.559	San Juan Bautista Valle Nacional	San Juan Bautista Valle Nacional	8583035
+MX.20.560	Villa Díaz Ordaz	Villa Diaz Ordaz	8583036
+MX.20.561	Yaxe	Yaxe	8583037
+MX.20.562	Magdalena Yodocono de Porfirio Díaz	Magdalena Yodocono de Porfirio Diaz	8583038
+MX.20.563	Yogana	Yogana	8583039
+MX.20.564	Yutanduchi de Guerrero	Yutanduchi de Guerrero	8583040
+MX.20.565	Villa de Zaachila	Villa de Zaachila	8583041
+MX.20.566	San Mateo Yucutindoo	San Mateo Yucutindoo	8583042
+MX.20.567	Zapotitlán Lagunas	Zapotitlan Lagunas	8583043
+MX.20.568	Zapotitlán Palmas	Zapotitlan Palmas	8583044
+MX.20.569	Santa Inés de Zaragoza	Santa Ines de Zaragoza	8583045
+MX.20.570	Zimatlán de Álvarez	Zimatlan de Alvarez	8583046
+MX.21.001	Acajete	Acajete	8583047
+MX.21.002	Acateno	Acateno	8583048
+MX.21.003	Acatlán	Acatlan	8583049
+MX.21.004	Acatzingo	Acatzingo	8583050
+MX.21.005	Acteopan	Acteopan	8583051
+MX.21.006	Ahuacatlán	Ahuacatlan	8583052
+MX.21.007	Ahuatlán	Ahuatlan	8583053
+MX.21.008	Ahuazotepec	Ahuazotepec	8583054
+MX.21.009	Ahuehuetitla	Ahuehuetitla	8583055
+MX.21.010	Ajalpan	Ajalpan	8583056
+MX.21.011	Albino Zertuche	Albino Zertuche	8583057
+MX.21.012	Aljojuca	Aljojuca	8583058
+MX.21.013	Altepexi	Altepexi	8583059
+MX.21.014	Amixtlán	Amixtlan	8583060
+MX.21.015	Amozoc	Amozoc	8583061
+MX.21.016	Aquixtla	Aquixtla	8583062
+MX.21.017	Atempan	Atempan	8583063
+MX.21.018	Atexcal	Atexcal	8583064
+MX.21.019	Atlixco	Atlixco	8583065
+MX.21.020	Atoyatempan	Atoyatempan	8583066
+MX.21.021	Atzala	Atzala	8583067
+MX.21.022	Atzitzihuacán	Atzitzihuacan	8583068
+MX.21.023	Atzitzintla	Atzitzintla	8583069
+MX.21.024	Axutla	Axutla	8583070
+MX.21.025	Ayotoxco de Guerrero	Ayotoxco de Guerrero	8583071
+MX.21.026	Calpan	Calpan	8583072
+MX.21.027	Caltepec	Caltepec	8583073
+MX.21.028	Camocuautla	Camocuautla	8583074
+MX.21.029	Caxhuacan	Caxhuacan	8583075
+MX.21.030	Coatepec	Coatepec	8583076
+MX.21.031	Coatzingo	Coatzingo	8583077
+MX.21.032	Cohetzala	Cohetzala	8583078
+MX.21.033	Cohuecan	Cohuecan	8583079
+MX.21.034	Coronango	Coronango	8583080
+MX.21.035	Coxcatlán	Coxcatlan	8583081
+MX.21.036	Coyomeapan	Coyomeapan	8583082
+MX.21.038	Cuapiaxtla de Madero	Cuapiaxtla de Madero	8583083
+MX.21.039	Cuautempan	Cuautempan	8583084
+MX.21.040	Cuautinchán	Cuautinchan	8583085
+MX.21.041	Cuautlancingo	Cuautlancingo	8583086
+MX.21.042	Cuayuca de Andrade	Cuayuca de Andrade	8583087
+MX.21.043	Cuetzalan del Progreso	Cuetzalan del Progreso	8583088
+MX.21.044	Cuyoaco	Cuyoaco	8583089
+MX.21.045	Chalchicomula de Sesma	Chalchicomula de Sesma	8583090
+MX.21.046	Chapulco	Chapulco	8583091
+MX.21.048	Chiautzingo	Chiautzingo	8583092
+MX.21.049	Chiconcuautla	Chiconcuautla	8583093
+MX.21.050	Chichiquila	Chichiquila	8583094
+MX.21.051	Chietla	Chietla	8583095
+MX.21.052	Chigmecatitlán	Chigmecatitlan	8583096
+MX.21.053	Chignahuapan	Chignahuapan	8583097
+MX.21.054	Chignautla	Chignautla	8583098
+MX.21.055	Chila	Chila	8583099
+MX.21.056	Chila de la Sal	Chila de la Sal	8583100
+MX.21.057	Honey	Honey	8583101
+MX.21.058	Chilchotla	Chilchotla	8583102
+MX.21.059	Chinantla	Chinantla	8583103
+MX.21.060	Domingo Arenas	Domingo Arenas	8583104
+MX.21.061	Eloxochitlán	Eloxochitlan	8583105
+MX.21.062	Epatlán	Epatlan	8583106
+MX.21.063	Esperanza	Esperanza	8583107
+MX.21.064	Francisco Z. Mena	Francisco Z. Mena	8583108
+MX.21.065	General Felipe Ángeles	General Felipe Angeles	8583109
+MX.21.066	Guadalupe	Guadalupe	8583110
+MX.21.067	Guadalupe Victoria	Guadalupe Victoria	8583111
+MX.21.068	Hermenegildo Galeana	Hermenegildo Galeana	8583112
+MX.21.069	Huaquechula	Huaquechula	8583113
+MX.21.070	Huatlatlauca	Huatlatlauca	8583114
+MX.21.071	Huauchinango	Huauchinango	8583115
+MX.21.072	Huehuetla	Huehuetla	8583116
+MX.21.073	Huehuetlán el Chico	Huehuetlan el Chico	8583117
+MX.21.074	Huejotzingo	Huejotzingo	8583118
+MX.21.075	Hueyapan	Hueyapan	8583119
+MX.21.076	Hueytamalco	Hueytamalco	8583120
+MX.21.077	Hueytlalpan	Hueytlalpan	8583121
+MX.21.078	Huitzilan de Serdán	Huitzilan de Serdan	8583122
+MX.21.079	Huitziltepec	Huitziltepec	8583123
+MX.21.080	Atlequizayan	Atlequizayan	8583124
+MX.21.081	Ixcamilpa de Guerrero	Ixcamilpa de Guerrero	8583125
+MX.21.082	Ixcaquixtla	Ixcaquixtla	8583126
+MX.21.083	Ixtacamaxtitlán	Ixtacamaxtitlan	8583127
+MX.21.084	Ixtepec	Ixtepec	8583128
+MX.21.085	Izúcar de Matamoros	Izucar de Matamoros	8583129
+MX.21.086	Jalpan	Jalpan	8583130
+MX.21.087	Jolalpan	Jolalpan	8583131
+MX.21.088	Jonotla	Jonotla	8583132
+MX.21.089	Jopala	Jopala	8583133
+MX.21.090	Juan C. Bonilla	Juan C. Bonilla	8583134
+MX.21.091	Juan Galindo	Juan Galindo	8583135
+MX.21.092	Juan N. Méndez	Juan N. Mendez	8583136
+MX.21.093	Lafragua	Lafragua	8583137
+MX.21.094	Libres	Libres	8583138
+MX.21.095	La Magdalena Tlatlauquitepec	La Magdalena Tlatlauquitepec	8583139
+MX.21.096	Mazapiltepec de Juárez	Mazapiltepec de Juarez	8583140
+MX.21.097	Mixtla	Mixtla	8583141
+MX.21.098	Molcaxac	Molcaxac	8583142
+MX.21.099	Cañada Morelos	Canada Morelos	8583143
+MX.21.100	Naupan	Naupan	8583144
+MX.21.101	Nauzontla	Nauzontla	8583145
+MX.21.102	Nealtican	Nealtican	8583146
+MX.28.018	Jiménez	Jimenez	8583147
+MX.21.103	Nicolás Bravo	Nicolas Bravo	8583148
+MX.21.104	Nopalucan	Nopalucan	8583149
+MX.21.105	Ocotepec	Ocotepec	8583150
+MX.21.106	Ocoyucan	Ocoyucan	8583151
+MX.21.107	Olintla	Olintla	8583152
+MX.21.108	Oriental	Oriental	8583153
+MX.21.109	Pahuatlán	Pahuatlan	8583154
+MX.21.110	Palmar de Bravo	Palmar de Bravo	8583155
+MX.21.111	Pantepec	Pantepec	8583156
+MX.21.112	Petlalcingo	Petlalcingo	8583157
+MX.21.113	Piaxtla	Piaxtla	8583158
+MX.21.114	Puebla	Puebla	8583159
+MX.21.115	Quecholac	Quecholac	8583160
+MX.21.116	Quimixtlán	Quimixtlan	8583161
+MX.21.117	Rafael Lara Grajales	Rafael Lara Grajales	8583162
+MX.21.118	Los Reyes de Juárez	Los Reyes de Juarez	8583163
+MX.21.119	San Andrés Cholula	San Andres Cholula	8583164
+MX.21.120	San Antonio Cañada	San Antonio Canada	8583165
+MX.21.121	San Diego la Mesa Tochimiltzingo	San Diego la Mesa Tochimiltzingo	8583166
+MX.21.122	San Felipe Teotlalcingo	San Felipe Teotlalcingo	8583167
+MX.21.123	San Felipe Tepatlán	San Felipe Tepatlan	8583168
+MX.21.124	San Gabriel Chilac	San Gabriel Chilac	8583169
+MX.21.125	San Gregorio Atzompa	San Gregorio Atzompa	8583170
+MX.21.126	San Jerónimo Tecuanipan	San Jeronimo Tecuanipan	8583171
+MX.21.127	San Jerónimo Xayacatlán	San Jeronimo Xayacatlan	8583172
+MX.21.128	San José Chiapa	San Jose Chiapa	8583173
+MX.21.129	San José Miahuatlán	San Jose Miahuatlan	8583174
+MX.21.130	San Juan Atenco	San Juan Atenco	8583175
+MX.21.131	San Juan Atzompa	San Juan Atzompa	8583176
+MX.21.132	San Martín Texmelucan	San Martin Texmelucan	8583177
+MX.21.133	San Martín Totoltepec	San Martin Totoltepec	8583178
+MX.21.134	San Matías Tlalancaleca	San Matias Tlalancaleca	8583179
+MX.21.135	San Miguel Ixitlán	San Miguel Ixitlan	8583180
+MX.21.136	San Miguel Xoxtla	San Miguel Xoxtla	8583181
+MX.21.137	San Nicolás Buenos Aires	San Nicolas Buenos Aires	8583182
+MX.21.138	San Nicolás de los Ranchos	San Nicolas de los Ranchos	8583183
+MX.21.139	San Pablo Anicano	San Pablo Anicano	8583184
+MX.21.140	San Pedro Cholula	San Pedro Cholula	8583185
+MX.31.072	Suma	Suma	8583186
+MX.21.141	San Pedro Yeloixtlahuaca	San Pedro Yeloixtlahuaca	8583187
+MX.21.142	San Salvador el Seco	San Salvador el Seco	8583188
+MX.21.143	San Salvador el Verde	San Salvador el Verde	8583189
+MX.21.144	San Salvador Huixcolotla	San Salvador Huixcolotla	8583190
+MX.21.145	San Sebastián Tlacotepec	San Sebastian Tlacotepec	8583191
+MX.21.146	Santa Catarina Tlaltempan	Santa Catarina Tlaltempan	8583192
+MX.21.147	Santa Inés Ahuatempan	Santa Ines Ahuatempan	8583193
+MX.21.148	Santa Isabel Cholula	Santa Isabel Cholula	8583194
+MX.21.149	Santiago Miahuatlán	Santiago Miahuatlan	8583195
+MX.21.150	Huehuetlán el Grande	Huehuetlan el Grande	8583196
+MX.21.151	Santo Tomás Hueyotlipan	Santo Tomas Hueyotlipan	8583197
+MX.21.152	Soltepec	Soltepec	8583198
+MX.21.153	Tecali de Herrera	Tecali de Herrera	8583199
+MX.21.154	Tecamachalco	Tecamachalco	8583200
+MX.21.155	Tecomatlán	Tecomatlan	8583201
+MX.21.156	Tehuacán	Tehuacan	8583202
+MX.21.157	Tehuitzingo	Tehuitzingo	8583203
+MX.21.158	Tenampulco	Tenampulco	8583204
+MX.21.159	Teopantlán	Teopantlan	8583205
+MX.21.160	Teotlalco	Teotlalco	8583206
+MX.21.161	Tepanco de López	Tepanco de Lopez	8583207
+MX.21.162	Tepango de Rodríguez	Tepango de Rodriguez	8583208
+MX.21.163	Tepatlaxco de Hidalgo	Tepatlaxco de Hidalgo	8583209
+MX.21.164	Tepeaca	Tepeaca	8583210
+MX.21.165	Tepemaxalco	Tepemaxalco	8583211
+MX.21.166	Tepeojuma	Tepeojuma	8583212
+MX.21.167	Tepetzintla	Tepetzintla	8583213
+MX.21.168	Tepexco	Tepexco	8583214
+MX.21.169	Tepexi de Rodríguez	Tepexi de Rodriguez	8583215
+MX.21.170	Tepeyahualco	Tepeyahualco	8583216
+MX.21.171	Tepeyahualco de Cuauhtémoc	Tepeyahualco de Cuauhtemoc	8583217
+MX.21.172	Tetela de Ocampo	Tetela de Ocampo	8583218
+MX.21.173	Teteles de Avila Castillo	Teteles de Avila Castillo	8583219
+MX.21.174	Teziutlán	Teziutlan	8583220
+MX.21.175	Tianguismanalco	Tianguismanalco	8583221
+MX.21.176	Tilapa	Tilapa	8583222
+MX.21.177	Tlacotepec de Benito Juárez	Tlacotepec de Benito Juarez	8583223
+MX.21.178	Tlacuilotepec	Tlacuilotepec	8583224
+MX.21.179	Tlachichuca	Tlachichuca	8583225
+MX.21.180	Tlahuapan	Tlahuapan	8583226
+MX.21.181	Tlaltenango	Tlaltenango	8583227
+MX.21.182	Tlanepantla	Tlanepantla	8583228
+MX.21.183	Tlaola	Tlaola	8583229
+MX.21.184	Tlapacoya	Tlapacoya	8583230
+MX.21.185	Tlapanalá	Tlapanala	8583231
+MX.21.186	Tlatlauquitepec	Tlatlauquitepec	8583232
+MX.21.187	Tlaxco	Tlaxco	8583233
+MX.21.188	Tochimilco	Tochimilco	8583234
+MX.21.189	Tochtepec	Tochtepec	8583235
+MX.21.190	Totoltepec de Guerrero	Totoltepec de Guerrero	8583236
+MX.21.191	Tulcingo	Tulcingo	8583237
+MX.21.192	Tuzamapan de Galeana	Tuzamapan de Galeana	8583238
+MX.21.193	Tzicatlacoyan	Tzicatlacoyan	8583239
+MX.21.195	Vicente Guerrero	Vicente Guerrero	8583240
+MX.21.196	Xayacatlán de Bravo	Xayacatlan de Bravo	8583241
+MX.21.197	Xicotepec	Xicotepec	8583242
+MX.21.198	Xicotlán	Xicotlan	8583243
+MX.21.199	Xiutetelco	Xiutetelco	8583244
+MX.21.200	Xochiapulco	Xochiapulco	8583245
+MX.21.201	Xochiltepec	Xochiltepec	8583246
+MX.21.202	Xochitlán de Vicente Suárez	Xochitlan de Vicente Suarez	8583247
+MX.21.203	Xochitlán Todos Santos	Xochitlan Todos Santos	8583248
+MX.21.204	Yaonáhuac	Yaonahuac	8583249
+MX.21.205	Yehualtepec	Yehualtepec	8583250
+MX.21.207	Zacapoaxtla	Zacapoaxtla	8583251
+MX.21.208	Zacatlán	Zacatlan	8583252
+MX.21.209	Zapotitlán	Zapotitlan	8583253
+MX.21.210	Zapotitlán de Méndez	Zapotitlan de Mendez	8583254
+MX.21.211	Zaragoza	Zaragoza	8583255
+MX.21.212	Zautla	Zautla	8583256
+MX.21.213	Zihuateutla	Zihuateutla	8583257
+MX.21.214	Zinacatepec	Zinacatepec	8583258
+MX.21.215	Zongozotla	Zongozotla	8583259
+MX.21.216	Zoquiapan	Zoquiapan	8583260
+MX.21.217	Zoquitlán	Zoquitlan	8583261
+MX.22.001	Amealco de Bonfil	Amealco de Bonfil	8583262
+MX.22.002	Pinal de Amoles	Pinal de Amoles	8583263
+MX.22.003	Arroyo Seco	Arroyo Seco	8583264
+MX.22.004	Cadereyta de Montes	Cadereyta de Montes	8583265
+MX.22.005	Colón	Colon	8583266
+MX.22.006	Corregidora	Corregidora	8583267
+MX.22.007	Ezequiel Montes	Ezequiel Montes	8583268
+MX.22.008	Huimilpan	Huimilpan	8583269
+MX.22.009	Jalpan de Serra	Jalpan de Serra	8583270
+MX.22.010	Landa de Matamoros	Landa de Matamoros	8583271
+MX.22.011	El Marqués	El Marques	8583272
+MX.22.012	Pedro Escobedo	Pedro Escobedo	8583273
+MX.22.013	Peñamiller	Penamiller	8583274
+MX.22.014	Querétaro	Queretaro	8583275
+MX.22.015	San Joaquín	San Joaquin	8583276
+MX.22.016	San Juan del Río	San Juan del Rio	8583277
+MX.22.017	Tequisquiapan	Tequisquiapan	8583278
+MX.22.018	Tolimán	Toliman	8583279
+MX.23.001	Cozumel	Cozumel	8583280
+MX.23.002	Felipe Carrillo Puerto	Felipe Carrillo Puerto	8583281
+MX.23.003	Isla Mujeres	Isla Mujeres	8583282
+MX.23.004	Othón P. Blanco	Othon P. Blanco	8583283
+MX.23.006	José María Morelos	Jose Maria Morelos	8583284
+MX.23.007	Lázaro Cárdenas	Lazaro Cardenas	8583285
+MX.23.008	Solidaridad	Solidaridad	8583286
+MX.23.009	Tulum	Tulum	8583287
+MX.23.010	Bacalar	Bacalar	8583288
+MX.24.001	Ahualulco	Ahualulco	8583289
+MX.24.002	Alaquines	Alaquines	8583290
+MX.31.073	Tahdziú	Tahdziu	8583291
+MX.24.003	Aquismón	Aquismon	8583292
+MX.24.004	Armadillo de los Infante	Armadillo de los Infante	8583293
+MX.24.005	Cárdenas	Cardenas	8583294
+MX.24.006	Catorce	Catorce	8583295
+MX.24.007	Cedral	Cedral	8583296
+MX.24.008	Cerritos	Cerritos	8583297
+MX.24.009	Cerro de San Pedro	Cerro de San Pedro	8583298
+MX.24.010	Ciudad del Maíz	Ciudad del Maiz	8583299
+MX.24.011	Ciudad Fernández	Ciudad Fernandez	8583300
+MX.24.012	Tancanhuitz	Tancanhuitz	8583301
+MX.24.013	Ciudad Valles	Ciudad Valles	8583302
+MX.24.014	Coxcatlán	Coxcatlan	8583303
+MX.24.015	Charcas	Charcas	8583304
+MX.24.016	Ebano	Ebano	8583305
+MX.24.017	Guadalcázar	Guadalcazar	8583306
+MX.24.018	Huehuetlán	Huehuetlan	8583307
+MX.24.019	Lagunillas	Lagunillas	8583308
+MX.24.020	Matehuala	Matehuala	8583309
+MX.24.021	Mexquitic de Carmona	Mexquitic de Carmona	8583310
+MX.24.022	Moctezuma	Moctezuma	8583311
+MX.24.023	Rayón	Rayon	8583312
+MX.24.024	Rioverde	Rioverde	8583313
+MX.24.025	Salinas	Salinas	8583314
+MX.24.026	San Antonio	San Antonio	8583315
+MX.24.027	San Ciro de Acosta	San Ciro de Acosta	8583316
+MX.24.028	San Luis Potosí	San Luis Potosi	8583317
+MX.24.029	San Martín Chalchicuautla	San Martin Chalchicuautla	8583318
+MX.24.030	San Nicolás Tolentino	San Nicolas Tolentino	8583319
+MX.24.031	Santa Catarina	Santa Catarina	8583320
+MX.24.032	Santa María del Río	Santa Maria del Rio	8583321
+MX.24.033	Santo Domingo	Santo Domingo	8583322
+MX.24.034	San Vicente Tancuayalab	San Vicente Tancuayalab	8583323
+MX.24.035	Soledad de Graciano Sánchez	Soledad de Graciano Sanchez	8583324
+MX.24.036	Tamasopo	Tamasopo	8583325
+MX.24.037	Tamazunchale	Tamazunchale	8583326
+MX.24.038	Tampacán	Tampacan	8583327
+MX.24.039	Tampamolón Corona	Tampamolon Corona	8583328
+MX.24.040	Tamuín	Tamuin	8583329
+MX.24.041	Tanlajás	Tanlajas	8583330
+MX.24.042	Tanquián de Escobedo	Tanquian de Escobedo	8583331
+MX.24.043	Tierra Nueva	Tierra Nueva	8583332
+MX.24.044	Vanegas	Vanegas	8583333
+MX.24.045	Venado	Venado	8583334
+MX.24.046	Villa de Arriaga	Villa de Arriaga	8583335
+MX.24.047	Villa de Guadalupe	Villa de Guadalupe	8583336
+MX.24.048	Villa de la Paz	Villa de la Paz	8583337
+MX.24.049	Villa de Ramos	Villa de Ramos	8583338
+MX.24.050	Villa de Reyes	Villa de Reyes	8583339
+MX.24.051	Villa Hidalgo	Villa Hidalgo	8583340
+MX.24.052	Villa Juárez	Villa Juarez	8583341
+MX.24.053	Axtla de Terrazas	Axtla de Terrazas	8583342
+MX.24.054	Xilitla	Xilitla	8583343
+MX.24.055	Zaragoza	Zaragoza	8583344
+MX.24.056	Villa de Arista	Villa de Arista	8583345
+MX.24.057	Matlapa	Matlapa	8583346
+MX.24.058	El Naranjo	El Naranjo	8583347
+MX.25.001	Ahome	Ahome	8583348
+MX.25.002	Angostura	Angostura	8583349
+MX.25.003	Badiraguato	Badiraguato	8583350
+MX.25.004	Concordia	Concordia	8583351
+MX.25.005	Cosalá	Cosala	8583352
+MX.25.006	Culiacán	Culiacan	8583353
+MX.25.007	Choix	Choix	8583354
+MX.25.008	Elota	Elota	8583355
+MX.25.009	Escuinapa	Escuinapa	8583356
+MX.25.010	El Fuerte	El Fuerte	8583357
+MX.25.012	Mazatlán	Mazatlan	8583358
+MX.25.013	Mocorito	Mocorito	8583359
+MX.25.014	Rosario	Rosario	8583360
+MX.25.015	Salvador Alvarado	Salvador Alvarado	8583361
+MX.25.016	San Ignacio	San Ignacio	8583362
+MX.25.017	Sinaloa	Sinaloa	8583363
+MX.25.018	Navolato	Navolato	8583364
+MX.26.001	Aconchi	Aconchi	8583365
+MX.26.002	Agua Prieta Municipality	Agua Prieta Municipality	8583366
+MX.26.003	Alamos	Alamos	8583367
+MX.26.004	Altar	Altar	8583368
+MX.26.005	Arivechi	Arivechi	8583369
+MX.26.006	Arizpe	Arizpe	8583370
+MX.26.007	Atil	Atil	8583371
+MX.26.008	Bacadéhuachi	Bacadehuachi	8583372
+MX.26.009	Bacanora	Bacanora	8583373
+MX.26.010	Bacerac	Bacerac	8583374
+MX.26.011	Bacoachi	Bacoachi	8583375
+MX.26.012	Bácum	Bacum	8583376
+MX.26.013	Banámichi	Banamichi	8583377
+MX.26.014	Baviácora	Baviacora	8583378
+MX.26.015	Bavispe	Bavispe	8583379
+MX.26.016	Benjamín Hill	Benjamin Hill	8583380
+MX.26.017	Caborca	Caborca	8583381
+MX.26.018	Cajeme	Cajeme	8583382
+MX.26.019	Cananea	Cananea	8583383
+MX.26.020	Carbó	Carbo	8583384
+MX.26.021	La Colorada	La Colorada	8583385
+MX.26.022	Cucurpe	Cucurpe	8583386
+MX.26.023	Cumpas	Cumpas	8583387
+MX.26.024	Divisaderos	Divisaderos	8583388
+MX.26.025	Empalme	Empalme	8583389
+MX.26.026	Etchojoa	Etchojoa	8583390
+MX.26.027	Fronteras	Fronteras	8583391
+MX.26.028	Granados	Granados	8583392
+MX.26.029	Guaymas	Guaymas	8583393
+MX.26.030	Hermosillo	Hermosillo	8583394
+MX.26.031	Huachinera	Huachinera	8583395
+MX.26.032	Huásabas	Huasabas	8583396
+MX.26.033	Huatabampo	Huatabampo	8583397
+MX.26.034	Huépac	Huepac	8583398
+MX.26.035	Imuris	Imuris	8583399
+MX.26.036	Magdalena	Magdalena	8583400
+MX.26.037	Mazatán	Mazatan	8583401
+MX.26.038	Moctezuma municipality	Moctezuma municipality	8583402
+MX.26.039	Naco	Naco	8583403
+MX.26.040	Nácori Chico	Nacori Chico	8583404
+MX.26.041	Nacozari de García	Nacozari de Garcia	8583405
+MX.26.042	Navojoa	Navojoa	8583406
+MX.26.043	Nogales	Nogales	8583407
+MX.26.044	Onavas	Onavas	8583408
+MX.26.045	Opodepe	Opodepe	8583409
+MX.26.046	Oquitoa	Oquitoa	8583410
+MX.26.047	Pitiquito	Pitiquito	8583411
+MX.26.048	Puerto Peñasco	Puerto Penasco	8583412
+MX.26.049	Quiriego	Quiriego	8583413
+MX.26.050	Rayón	Rayon	8583414
+MX.26.051	Rosario	Rosario	8583415
+MX.26.052	Sahuaripa	Sahuaripa	8583416
+MX.26.053	San Felipe de Jesús	San Felipe de Jesus	8583417
+MX.26.054	San Javier	San Javier	8583418
+MX.26.055	San Luis Río Colorado	San Luis Rio Colorado	8583419
+MX.26.056	San Miguel de Horcasitas	San Miguel de Horcasitas	8583420
+MX.26.057	San Pedro de la Cueva	San Pedro de la Cueva	8583421
+MX.26.058	Santa Ana	Santa Ana	8583422
+MX.26.059	Santa Cruz Municipality	Santa Cruz Municipality	8583423
+MX.26.060	Sáric	Saric	8583424
+MX.26.061	Soyopa	Soyopa	8583425
+MX.26.062	Suaqui Grande	Suaqui Grande	8583426
+MX.26.063	Tepache	Tepache	8583427
+MX.26.064	Trincheras	Trincheras	8583428
+MX.26.065	Tubutama	Tubutama	8583429
+MX.26.066	Ures municipality	Ures municipality	8583430
+MX.26.067	Villa Hidalgo	Villa Hidalgo	8583431
+MX.26.068	Villa Pesqueira	Villa Pesqueira	8583432
+MX.26.069	Yécora	Yecora	8583433
+MX.26.070	General Plutarco Elías Calles	General Plutarco Elias Calles	8583434
+MX.26.072	San Ignacio Río Muerto	San Ignacio Rio Muerto	8583435
+MX.27.001	Balancán	Balancan	8583436
+MX.27.002	Cárdenas	Cardenas	8583437
+MX.27.005	Comalcalco	Comalcalco	8583438
+MX.27.006	Cunduacán	Cunduacan	8583439
+MX.27.007	Emiliano Zapata	Emiliano Zapata	8583440
+MX.27.008	Huimanguillo	Huimanguillo	8583441
+MX.27.009	Jalapa	Jalapa	8583442
+MX.27.010	Jalpa de Méndez	Jalpa de Mendez	8583443
+MX.27.011	Jonuta	Jonuta	8583444
+MX.27.012	Macuspana	Macuspana	8583445
+MX.27.013	Nacajuca	Nacajuca	8583446
+MX.27.014	Paraíso	Paraiso	8583447
+MX.27.015	Tacotalpa	Tacotalpa	8583448
+MX.27.016	Teapa	Teapa	8583449
+MX.27.017	Tenosique	Tenosique	8583450
+MX.28.001	Abasolo	Abasolo	8583451
+MX.28.003	Altamira	Altamira	8583452
+MX.28.004	Antiguo Morelos	Antiguo Morelos	8583453
+MX.28.005	Burgos	Burgos	8583454
+MX.28.006	Bustamante	Bustamante	8583455
+MX.28.007	Camargo	Camargo	8583456
+MX.28.008	Casas	Casas	8583457
+MX.28.009	Ciudad Madero	Ciudad Madero	8583458
+MX.28.010	Cruillas	Cruillas	8583459
+MX.28.011	Gómez Farías	Gomez Farias	8583460
+MX.28.012	González	Gonzalez	8583461
+MX.28.013	Güémez	Gueemez	8583462
+MX.28.014	Guerrero	Guerrero	8583463
+MX.28.015	Gustavo Díaz Ordaz	Gustavo Diaz Ordaz	8583464
+MX.28.016	Hidalgo	Hidalgo	8583465
+MX.28.019	Llera	Llera	8583466
+MX.28.020	Mainero	Mainero	8583467
+MX.28.021	El Mante	El Mante	8583468
+MX.28.022	Matamoros	Matamoros	8583469
+MX.28.023	Méndez	Mendez	8583470
+MX.28.024	Mier	Mier	8583471
+MX.28.025	Miguel Alemán	Miguel Aleman	8583472
+MX.28.026	Miquihuana	Miquihuana	8583473
+MX.28.027	Nuevo Laredo	Nuevo Laredo	8583474
+MX.28.028	Nuevo Morelos	Nuevo Morelos	8583475
+MX.28.029	Ocampo	Ocampo	8583476
+MX.28.030	Padilla	Padilla	8583477
+MX.28.031	Palmillas	Palmillas	8583478
+MX.28.033	Río Bravo	Rio Bravo	8583479
+MX.28.034	San Carlos	San Carlos	8583480
+MX.28.035	San Fernando	San Fernando	8583481
+MX.28.036	San Nicolás	San Nicolas	8583482
+MX.28.037	Soto la Marina	Soto la Marina	8583483
+MX.28.038	Tampico	Tampico	8583484
+MX.28.039	Tula	Tula	8583485
+MX.28.040	Valle Hermoso	Valle Hermoso	8583486
+MX.28.041	Victoria	Victoria	8583487
+MX.28.042	Villagrán	Villagran	8583488
+MX.28.043	Xicoténcatl	Xicotencatl	8583489
+MX.29.001	Amaxac de Guerrero	Amaxac de Guerrero	8583490
+MX.29.002	Apetatitlán de Antonio Carvajal	Apetatitlan de Antonio Carvajal	8583491
+MX.29.003	Atlangatepec	Atlangatepec	8583492
+MX.29.004	Atltzayanca	Atltzayanca	8583493
+MX.29.005	Apizaco	Apizaco	8583494
+MX.29.006	Calpulalpan	Calpulalpan	8583495
+MX.29.007	El Carmen Tequexquitla	El Carmen Tequexquitla	8583496
+MX.29.008	Cuapiaxtla	Cuapiaxtla	8583497
+MX.29.009	Cuaxomulco	Cuaxomulco	8583498
+MX.29.010	Chiautempan	Chiautempan	8583499
+MX.29.011	Muñoz de Domingo Arenas	Munoz de Domingo Arenas	8583500
+MX.29.012	Españita	Espanita	8583501
+MX.29.013	Huamantla	Huamantla	8583502
+MX.29.014	Hueyotlipan	Hueyotlipan	8583503
+MX.29.015	Ixtacuixtla de Mariano Matamoros	Ixtacuixtla de Mariano Matamoros	8583504
+MX.29.016	Ixtenco	Ixtenco	8583505
+MX.29.017	Mazatecochco de José María Morelos	Mazatecochco de Jose Maria Morelos	8583506
+MX.29.018	Contla de Juan Cuamatzi	Contla de Juan Cuamatzi	8583507
+MX.29.019	Tepetitla de Lardizábal	Tepetitla de Lardizabal	8583508
+MX.29.020	Sanctórum de Lázaro Cárdenas	Sanctorum de Lazaro Cardenas	8583509
+MX.29.021	Nanacamilpa de Mariano Arista	Nanacamilpa de Mariano Arista	8583510
+MX.29.022	Acuamanala de Miguel Hidalgo	Acuamanala de Miguel Hidalgo	8583511
+MX.29.023	Natívitas	Nativitas	8583512
+MX.29.024	Panotla	Panotla	8583513
+MX.29.025	San Pablo del Monte	San Pablo del Monte	8583514
+MX.29.026	Santa Cruz Tlaxcala	Santa Cruz Tlaxcala	8583515
+MX.29.027	Tenancingo	Tenancingo	8583516
+MX.29.028	Teolocholco	Teolocholco	8583517
+MX.29.029	Tepeyanco	Tepeyanco	8583518
+MX.29.030	Terrenate	Terrenate	8583519
+MX.29.031	Tetla de la Solidaridad	Tetla de la Solidaridad	8583520
+MX.29.032	Tetlatlahuca	Tetlatlahuca	8583521
+MX.29.033	Tlaxcala	Tlaxcala	8583522
+MX.29.034	Tlaxco	Tlaxco	8583523
+MX.29.035	Tocatlán	Tocatlan	8583524
+MX.29.036	Totolac	Totolac	8583525
+MX.29.037	Ziltlaltépec de Trinidad Sánchez Santos	Ziltlaltepec de Trinidad Sanchez Santos	8583526
+MX.29.038	Tzompantepec	Tzompantepec	8583527
+MX.29.039	Xaloztoc	Xaloztoc	8583528
+MX.29.040	Xaltocan	Xaltocan	8583529
+MX.29.041	Papalotla de Xicohténcatl	Papalotla de Xicohtencatl	8583530
+MX.29.042	Xicohtzinco	Xicohtzinco	8583531
+MX.29.043	Yauhquemehcan	Yauhquemehcan	8583532
+MX.29.044	Zacatelco	Zacatelco	8583533
+MX.29.046	Emiliano Zapata	Emiliano Zapata	8583534
+MX.29.047	Lázaro Cárdenas	Lazaro Cardenas	8583535
+MX.29.048	La Magdalena Tlaltelulco	La Magdalena Tlaltelulco	8583536
+MX.29.049	San Damián Texóloc	San Damian Texoloc	8583537
+MX.29.050	San Francisco Tetlanohcan	San Francisco Tetlanohcan	8583538
+MX.29.051	San Jerónimo Zacualpan	San Jeronimo Zacualpan	8583539
+MX.29.052	San José Teacalco	San Jose Teacalco	8583540
+MX.29.053	San Juan Huactzinco	San Juan Huactzinco	8583541
+MX.29.054	San Lorenzo Axocomanitla	San Lorenzo Axocomanitla	8583542
+MX.29.055	San Lucas Tecopilco	San Lucas Tecopilco	8583543
+MX.29.056	Santa Ana Nopalucan	Santa Ana Nopalucan	8583544
+MX.29.057	Santa Apolonia Teacalco	Santa Apolonia Teacalco	8583545
+MX.29.058	Santa Catarina Ayometla	Santa Catarina Ayometla	8583546
+MX.29.059	Santa Cruz Quilehtla	Santa Cruz Quilehtla	8583547
+MX.29.060	Santa Isabel Xiloxoxtla	Santa Isabel Xiloxoxtla	8583548
+MX.30.001	Acajete	Acajete	8583549
+MX.30.002	Acatlán	Acatlan	8583550
+MX.30.003	Acayucan	Acayucan	8583551
+MX.30.004	Actopan	Actopan	8583552
+MX.30.005	Acula	Acula	8583553
+MX.30.006	Acultzingo	Acultzingo	8583554
+MX.30.007	Camarón de Tejeda	Camaron de Tejeda	8583555
+MX.30.008	Alpatláhuac	Alpatlahuac	8583556
+MX.30.009	Alto Lucero de Gutiérrez Barrios	Alto Lucero de Gutierrez Barrios	8583557
+MX.30.010	Altotonga	Altotonga	8583558
+MX.30.011	Alvarado	Alvarado	8583559
+MX.30.012	Amatitlán	Amatitlan	8583560
+MX.30.013	Naranjos Amatlán	Naranjos Amatlan	8583561
+MX.30.014	Amatlán de los Reyes	Amatlan de los Reyes	8583562
+MX.30.015	Angel R. Cabada	Angel R. Cabada	8583563
+MX.30.016	La Antigua	La Antigua	8583564
+MX.30.017	Apazapan	Apazapan	8583565
+MX.30.018	Aquila	Aquila	8583566
+MX.30.019	Astacinga	Astacinga	8583567
+MX.30.020	Atlahuilco	Atlahuilco	8583568
+MX.29.045	Benito Juárez	Benito Juarez	8583569
+MX.30.021	Atoyac	Atoyac	8583570
+MX.30.022	Atzacan	Atzacan	8583571
+MX.30.023	Atzalan	Atzalan	8583572
+MX.30.024	Tlaltetela	Tlaltetela	8583573
+MX.30.025	Ayahualulco	Ayahualulco	8583574
+MX.30.026	Banderilla	Banderilla	8583575
+MX.30.028	Boca del Río	Boca del Rio	8583576
+MX.30.029	Calcahualco	Calcahualco	8583577
+MX.30.030	Camerino Z. Mendoza	Camerino Z. Mendoza	8583578
+MX.30.031	Carrillo Puerto	Carrillo Puerto	8583579
+MX.30.032	Catemaco	Catemaco	8583580
+MX.30.033	Cazones de Herrera	Cazones de Herrera	8583581
+MX.30.034	Cerro Azul	Cerro Azul	8583582
+MX.30.035	Citlaltépetl	Citlaltepetl	8583583
+MX.30.036	Coacoatzintla	Coacoatzintla	8583584
+MX.30.037	Coahuitlán	Coahuitlan	8583585
+MX.30.038	Coatepec	Coatepec	8583586
+MX.30.039	Coatzacoalcos	Coatzacoalcos	8583587
+MX.30.040	Coatzintla	Coatzintla	8583588
+MX.30.041	Coetzala	Coetzala	8583589
+MX.30.042	Colipa	Colipa	8583590
+MX.30.043	Comapa	Comapa	8583591
+MX.30.044	Córdoba	Cordoba	8583592
+MX.30.045	Cosamaloapan de Carpio	Cosamaloapan de Carpio	8583593
+MX.30.046	Cosautlán de Carvajal	Cosautlan de Carvajal	8583594
+MX.04.006	Hopelchén	Hopelchen	8583595
+MX.07.001	Abasolo	Abasolo	8583596
+MX.07.002	Acuña	Acuna	8583597
+MX.07.003	Allende	Allende	8583598
+MX.07.004	Arteaga	Arteaga	8583599
+MX.07.005	Candela	Candela	8583600
+MX.07.006	Castaños	Castanos	8583601
+MX.07.007	Cuatro Ciénegas	Cuatro Cienegas	8583602
+MX.07.008	Escobedo	Escobedo	8583603
+MX.07.009	Francisco I. Madero	Francisco I. Madero	8583604
+MX.07.010	Frontera	Frontera	8583605
+MX.07.011	General Cepeda	General Cepeda	8583606
+MX.07.012	Guerrero	Guerrero	8583607
+MX.07.013	Hidalgo	Hidalgo	8583608
+MX.07.014	Jiménez	Jimenez	8583609
+MX.07.015	Juárez	Juarez	8583610
+MX.07.016	Lamadrid	Lamadrid	8583611
+MX.07.017	Matamoros	Matamoros	8583612
+MX.07.018	Monclova	Monclova	8583613
+MX.07.019	Morelos	Morelos	8583614
+MX.07.020	Múzquiz	Muzquiz	8583615
+MX.07.021	Nadadores	Nadadores	8583616
+MX.07.022	Nava	Nava	8583617
+MX.07.023	Ocampo	Ocampo	8583618
+MX.07.024	Parras	Parras	8583619
+MX.07.025	Piedras Negras	Piedras Negras	8583620
+MX.07.026	Progreso	Progreso	8583621
+MX.07.027	Ramos Arizpe	Ramos Arizpe	8583622
+MX.07.028	Sabinas	Sabinas	8583623
+MX.07.029	Sacramento	Sacramento	8583624
+MX.07.030	Saltillo	Saltillo	8583625
+MX.07.031	San Buenaventura	San Buenaventura	8583626
+MX.07.032	San Juan de Sabinas	San Juan de Sabinas	8583627
+MX.07.033	San Pedro	San Pedro	8583628
+MX.07.034	Sierra Mojada	Sierra Mojada	8583629
+MX.07.035	Torreón	Torreon	8583630
+MX.07.036	Viesca	Viesca	8583631
+MX.07.037	Villa Unión	Villa Union	8583632
+MX.07.038	Zaragoza	Zaragoza	8583633
+MX.08.001	Armería	Armeria	8583634
+MX.08.002	Colima	Colima	8583635
+MX.08.003	Comala	Comala	8583636
+MX.08.004	Coquimatlán	Coquimatlan	8583637
+MX.08.008	Minatitlán	Minatitlan	8583638
+MX.08.009	Tecomán	Tecoman	8583639
+MX.08.010	Villa de Álvarez	Villa de Alvarez	8583640
+MX.05.034	Frontera Comalapa	Frontera Comalapa	8583641
+MX.06.032	Hidalgo del Parral	Hidalgo del Parral	8583642
+MX.06.033	Huejotitán	Huejotitan	8583643
+MX.06.034	Ignacio Zaragoza	Ignacio Zaragoza	8583644
+MX.06.035	Janos	Janos	8583645
+MX.06.036	Jiménez	Jimenez	8583646
+MX.06.037	Juárez	Juarez	8583647
+MX.06.038	Julimes	Julimes	8583648
+MX.06.039	López	Lopez	8583649
+MX.06.040	Madera	Madera	8583650
+MX.06.041	Maguarichi	Maguarichi	8583651
+MX.06.042	Manuel Benavides	Manuel Benavides	8583652
+MX.12.077	Marquelia	Marquelia	8583653
+MX.14.017	Ayutla	Ayutla	8583654
+MX.14.123	Zapotlán del Rey	Zapotlan del Rey	8583655
+MX.14.124	Zapotlanejo	Zapotlanejo	8583656
+MX.14.125	San Ignacio Cerro Gordo	San Ignacio Cerro Gordo	8583657
+MX.15.001	Acambay de Ruíz Castañeda	Acambay de Ruiz Castaneda	8583658
+MX.15.003	Aculco	Aculco	8583659
+MX.15.004	Almoloya de Alquisiras	Almoloya de Alquisiras	8583660
+MX.15.005	Almoloya de Juárez	Almoloya de Juarez	8583661
+MX.15.006	Almoloya del Río	Almoloya del Rio	8583662
+MX.15.007	Amanalco	Amanalco	8583663
+MX.15.008	Amatepec	Amatepec	8583664
+MX.15.012	Atizapán	Atizapan	8583665
+MX.15.014	Atlacomulco	Atlacomulco	8583666
+MX.15.018	Calimaya	Calimaya	8583667
+MX.15.019	Capulhuac	Capulhuac	8583668
+MX.15.021	Coatepec Harinas	Coatepec Harinas	8583669
+MX.15.026	Chapa de Mota	Chapa de Mota	8583670
+MX.15.027	Chapultepec	Chapultepec	8583671
+MX.15.032	Donato Guerra	Donato Guerra	8583672
+MX.15.038	Isidro Fabela	Isidro Fabela	8583673
+MX.15.040	Ixtapan de la Sal	Ixtapan de la Sal	8583674
+MX.15.041	Ixtapan del Oro	Ixtapan del Oro	8583675
+MX.15.042	Ixtlahuaca	Ixtlahuaca	8583676
+MX.15.043	Xalatlaco	Xalatlaco	8583677
+MX.15.045	Jilotepec	Jilotepec	8583678
+MX.15.046	Jilotzingo	Jilotzingo	8583679
+MX.15.047	Jiquipilco	Jiquipilco	8583680
+MX.15.048	Jocotitlán	Jocotitlan	8583681
+MX.15.049	Joquicingo	Joquicingo	8583682
+MX.15.051	Lerma	Lerma	8583683
+MX.15.052	Malinalco	Malinalco	8583684
+MX.15.054	Metepec	Metepec	8583685
+MX.15.055	Mexicaltzingo	Mexicaltzingo	8583686
+MX.15.106	Toluca	Toluca	8583687
+MX.15.107	Tonatico	Tonatico	8583688
+MX.15.110	Valle de Bravo	Valle de Bravo	8583689
+MX.15.111	Villa de Allende	Villa de Allende	8583690
+MX.15.113	Villa Guerrero	Villa Guerrero	8583691
+MX.16.095	Tocumbo	Tocumbo	8583692
+MX.30.047	Coscomatepec	Coscomatepec	8583693
+MX.30.048	Cosoleacaque	Cosoleacaque	8583694
+MX.30.049	Cotaxtla	Cotaxtla	8583695
+MX.30.050	Coxquihui	Coxquihui	8583696
+MX.30.051	Coyutla	Coyutla	8583697
+MX.30.052	Cuichapa	Cuichapa	8583698
+MX.30.053	Cuitláhuac	Cuitlahuac	8583699
+MX.30.054	Chacaltianguis	Chacaltianguis	8583700
+MX.30.055	Chalma	Chalma	8583701
+MX.30.056	Chiconamel	Chiconamel	8583702
+MX.30.057	Chiconquiaco	Chiconquiaco	8583703
+MX.30.058	Chicontepec	Chicontepec	8583704
+MX.30.059	Chinameca	Chinameca	8583705
+MX.30.060	Chinampa de Gorostiza	Chinampa de Gorostiza	8583706
+MX.30.061	Las Choapas	Las Choapas	8583707
+MX.30.062	Chocamán	Chocaman	8583708
+MX.30.063	Chontla	Chontla	8583709
+MX.30.064	Chumatlán	Chumatlan	8583710
+MX.30.065	Emiliano Zapata	Emiliano Zapata	8583711
+MX.30.066	Espinal	Espinal	8583712
+MX.30.067	Filomeno Mata	Filomeno Mata	8583713
+MX.30.068	Fortín	Fortin	8583714
+MX.30.069	Gutiérrez Zamora	Gutierrez Zamora	8583715
+MX.30.070	Hidalgotitlán	Hidalgotitlan	8583716
+MX.30.072	Huayacocotla	Huayacocotla	8583717
+MX.30.073	Hueyapan de Ocampo	Hueyapan de Ocampo	8583718
+MX.30.074	Huiloapan de Cuauhtémoc	Huiloapan de Cuauhtemoc	8583719
+MX.30.075	Ignacio de la Llave	Ignacio de la Llave	8583720
+MX.30.076	Ilamatlán	Ilamatlan	8583721
+MX.30.077	Isla	Isla	8583722
+MX.30.078	Ixcatepec	Ixcatepec	8583723
+MX.30.079	Ixhuacán de los Reyes	Ixhuacan de los Reyes	8583724
+MX.30.080	Ixhuatlán del Café	Ixhuatlan del Cafe	8583725
+MX.30.081	Ixhuatlancillo	Ixhuatlancillo	8583726
+MX.30.082	Ixhuatlán del Sureste	Ixhuatlan del Sureste	8583727
+MX.30.083	Ixhuatlán de Madero	Ixhuatlan de Madero	8583728
+MX.30.084	Ixmatlahuacan	Ixmatlahuacan	8583729
+MX.30.085	Ixtaczoquitlán	Ixtaczoquitlan	8583730
+MX.30.086	Jalacingo	Jalacingo	8583731
+MX.30.087	Xalapa	Xalapa	8583732
+MX.30.088	Jalcomulco	Jalcomulco	8583733
+MX.30.089	Jáltipan	Jaltipan	8583734
+MX.30.090	Jamapa	Jamapa	8583735
+MX.30.091	Jesús Carranza	Jesus Carranza	8583736
+MX.30.092	Xico	Xico	8583737
+MX.30.093	Jilotepec	Jilotepec	8583738
+MX.30.094	Juan Rodríguez Clara	Juan Rodriguez Clara	8583739
+MX.30.095	Juchique de Ferrer	Juchique de Ferrer	8583740
+MX.30.096	Landero y Coss	Landero y Coss	8583741
+MX.30.097	Lerdo de Tejada	Lerdo de Tejada	8583742
+MX.30.098	Magdalena	Magdalena	8583743
+MX.30.099	Maltrata	Maltrata	8583744
+MX.30.100	Manlio Fabio Altamirano	Manlio Fabio Altamirano	8583745
+MX.30.101	Mariano Escobedo	Mariano Escobedo	8583746
+MX.30.102	Martínez de la Torre	Martinez de la Torre	8583747
+MX.30.103	Mecatlán	Mecatlan	8583748
+MX.30.104	Mecayapan	Mecayapan	8583749
+MX.30.105	Medellín	Medellin	8583750
+MX.30.106	Miahuatlán	Miahuatlan	8583751
+MX.30.107	Las Minas	Las Minas	8583752
+MX.30.108	Minatitlán	Minatitlan	8583753
+MX.30.109	Misantla	Misantla	8583754
+MX.30.110	Mixtla de Altamirano	Mixtla de Altamirano	8583755
+MX.30.111	Moloacán	Moloacan	8583756
+MX.30.112	Naolinco	Naolinco	8583757
+MX.30.113	Naranjal	Naranjal	8583758
+MX.30.114	Nautla	Nautla	8583759
+MX.30.115	Nogales	Nogales	8583760
+MX.30.116	Oluta	Oluta	8583761
+MX.30.117	Omealca	Omealca	8583762
+MX.30.118	Orizaba	Orizaba	8583763
+MX.30.119	Otatitlán	Otatitlan	8583764
+MX.30.120	Oteapan	Oteapan	8583765
+MX.30.121	Ozuluama de Mascareñas	Ozuluama de Mascarenas	8583766
+MX.30.122	Pajapan	Pajapan	8583767
+MX.30.123	Pánuco	Panuco	8583768
+MX.30.124	Papantla	Papantla	8583769
+MX.30.125	Paso del Macho	Paso del Macho	8583770
+MX.30.126	Paso de Ovejas	Paso de Ovejas	8583771
+MX.30.127	La Perla	La Perla	8583772
+MX.30.128	Perote	Perote	8583773
+MX.30.129	Platón Sánchez	Platon Sanchez	8583774
+MX.30.027	Benito Juárez	Benito Juarez	8583775
+MX.30.130	Playa Vicente	Playa Vicente	8583776
+MX.30.131	Poza Rica de Hidalgo	Poza Rica de Hidalgo	8583777
+MX.30.132	Las Vigas de Ramírez	Las Vigas de Ramirez	8583778
+MX.30.133	Pueblo Viejo	Pueblo Viejo	8583779
+MX.30.134	Puente Nacional	Puente Nacional	8583780
+MX.30.135	Rafael Delgado	Rafael Delgado	8583781
+MX.30.136	Rafael Lucio	Rafael Lucio	8583782
+MX.30.137	Los Reyes	Los Reyes	8583783
+MX.30.138	Río Blanco	Rio Blanco	8583784
+MX.30.139	Saltabarranca	Saltabarranca	8583785
+MX.30.140	San Andrés Tenejapan	San Andres Tenejapan	8583786
+MX.30.141	San Andrés Tuxtla	San Andres Tuxtla	8583787
+MX.30.142	San Juan Evangelista	San Juan Evangelista	8583788
+MX.30.143	Santiago Tuxtla	Santiago Tuxtla	8583789
+MX.30.144	Sayula de Alemán	Sayula de Aleman	8583790
+MX.30.145	Soconusco	Soconusco	8583791
+MX.30.146	Sochiapa	Sochiapa	8583792
+MX.30.147	Soledad Atzompa	Soledad Atzompa	8583793
+MX.30.148	Soledad de Doblado	Soledad de Doblado	8583794
+MX.30.149	Soteapan	Soteapan	8583795
+MX.30.150	Tamalín	Tamalin	8583796
+MX.30.151	Tamiahua	Tamiahua	8583797
+MX.30.152	Tampico Alto	Tampico Alto	8583798
+MX.30.153	Tancoco	Tancoco	8583799
+MX.30.154	Tantima	Tantima	8583800
+MX.30.155	Tantoyuca	Tantoyuca	8583801
+MX.30.156	Tatatila	Tatatila	8583802
+MX.30.157	Castillo de Teayo	Castillo de Teayo	8583803
+MX.30.158	Tecolutla	Tecolutla	8583804
+MX.30.159	Tehuipango	Tehuipango	8583805
+MX.30.160	Álamo Temapache	Alamo Temapache	8583806
+MX.30.161	Tempoal	Tempoal	8583807
+MX.30.162	Tenampa	Tenampa	8583808
+MX.30.163	Tenochtitlán	Tenochtitlan	8583809
+MX.30.164	Teocelo	Teocelo	8583810
+MX.30.165	Tepatlaxco	Tepatlaxco	8583811
+MX.30.166	Tepetlán	Tepetlan	8583812
+MX.30.167	Tepetzintla	Tepetzintla	8583813
+MX.30.168	Tequila	Tequila	8583814
+MX.30.169	José Azueta	Jose Azueta	8583815
+MX.30.170	Texcatepec	Texcatepec	8583816
+MX.30.171	Texhuacán	Texhuacan	8583817
+MX.30.172	Texistepec	Texistepec	8583818
+MX.30.173	Tezonapa	Tezonapa	8583819
+MX.30.174	Tierra Blanca	Tierra Blanca	8583820
+MX.30.175	Tihuatlán	Tihuatlan	8583821
+MX.30.176	Tlacojalpan	Tlacojalpan	8583822
+MX.30.177	Tlacolulan	Tlacolulan	8583823
+MX.30.178	Tlacotalpan	Tlacotalpan	8583824
+MX.30.179	Tlacotepec de Mejía	Tlacotepec de Mejia	8583825
+MX.30.180	Tlachichilco	Tlachichilco	8583826
+MX.30.181	Tlalixcoyan	Tlalixcoyan	8583827
+MX.30.182	Tlalnelhuayocan	Tlalnelhuayocan	8583828
+MX.30.183	Tlapacoyan	Tlapacoyan	8583829
+MX.30.184	Tlaquilpa	Tlaquilpa	8583830
+MX.30.185	Tlilapan	Tlilapan	8583831
+MX.30.186	Tomatlán	Tomatlan	8583832
+MX.30.187	Tonayán	Tonayan	8583833
+MX.30.188	Totutla	Totutla	8583834
+MX.30.189	Tuxpan	Tuxpan	8583835
+MX.30.190	Tuxtilla	Tuxtilla	8583836
+MX.30.191	Ursulo Galván	Ursulo Galvan	8583837
+MX.30.192	Vega de Alatorre	Vega de Alatorre	8583838
+MX.30.193	Veracruz	Veracruz	8583839
+MX.30.194	Villa Aldama	Villa Aldama	8583840
+MX.30.195	Xoxocotla	Xoxocotla	8583841
+MX.30.196	Yanga	Yanga	8583842
+MX.30.197	Yecuatla	Yecuatla	8583843
+MX.30.198	Zacualpan	Zacualpan	8583844
+MX.30.199	Zaragoza	Zaragoza	8583845
+MX.30.200	Zentla	Zentla	8583846
+MX.30.201	Zongolica	Zongolica	8583847
+MX.30.202	Zontecomatlán de López y Fuentes	Zontecomatlan de Lopez y Fuentes	8583848
+MX.30.203	Zozocolco de Hidalgo	Zozocolco de Hidalgo	8583849
+MX.30.204	Agua Dulce	Agua Dulce	8583850
+MX.30.205	El Higo	El Higo	8583851
+MX.30.206	Nanchital de Lázaro Cárdenas del Río	Nanchital de Lazaro Cardenas del Rio	8583852
+MX.30.207	Tres Valles	Tres Valles	8583853
+MX.30.208	Carlos A. Carrillo	Carlos A. Carrillo	8583854
+MX.30.209	Tatahuicapan de Juárez	Tatahuicapan de Juarez	8583855
+MX.30.210	Uxpanapa	Uxpanapa	8583856
+MX.30.211	San Rafael	San Rafael	8583857
+MX.30.212	Santiago Sochiapan	Santiago Sochiapan	8583858
+MX.31.001	Abalá	Abala	8583859
+MX.31.002	Acanceh	Acanceh	8583860
+MX.31.003	Akil	Akil	8583861
+MX.31.004	Baca	Baca	8583862
+MX.31.005	Bokobá	Bokoba	8583863
+MX.31.006	Buctzotz	Buctzotz	8583864
+MX.31.007	Cacalchén	Cacalchen	8583865
+MX.31.008	Calotmul	Calotmul	8583866
+MX.31.009	Cansahcab	Cansahcab	8583867
+MX.31.010	Cantamayec	Cantamayec	8583868
+MX.31.011	Celestún	Celestun	8583869
+MX.31.012	Cenotillo	Cenotillo	8583870
+MX.31.013	Conkal	Conkal	8583871
+MX.31.014	Cuncunul	Cuncunul	8583872
+MX.31.015	Cuzamá	Cuzama	8583873
+MX.31.016	Chacsinkín	Chacsinkin	8583874
+MX.31.017	Chankom	Chankom	8583875
+MX.31.018	Chapab	Chapab	8583876
+MX.31.019	Chemax	Chemax	8583877
+MX.31.020	Chicxulub Pueblo	Chicxulub Pueblo	8583878
+MX.31.021	Chichimilá	Chichimila	8583879
+MX.31.022	Chikindzonot	Chikindzonot	8583880
+MX.31.023	Chocholá	Chochola	8583881
+MX.31.024	Chumayel	Chumayel	8583882
+MX.31.025	Dzán	Dzan	8583883
+MX.31.026	Dzemul	Dzemul	8583884
+MX.31.027	Dzidzantún	Dzidzantun	8583885
+MX.31.028	Dzilam de Bravo	Dzilam de Bravo	8583886
+MX.31.029	Dzilam González	Dzilam Gonzalez	8583887
+MX.31.030	Dzitás	Dzitas	8583888
+MX.31.031	Dzoncauich	Dzoncauich	8583889
+MX.31.032	Espita	Espita	8583890
+MX.31.033	Halachó	Halacho	8583891
+MX.31.034	Hocabá	Hocaba	8583892
+MX.31.035	Hoctún	Hoctun	8583893
+MX.31.036	Homún	Homun	8583894
+MX.31.037	Huhí	Huhi	8583895
+MX.31.038	Hunucmá	Hunucma	8583896
+MX.31.039	Ixil	Ixil	8583897
+MX.31.040	Izamal	Izamal	8583898
+MX.31.041	Kanasín	Kanasin	8583899
+MX.31.042	Kantunil	Kantunil	8583900
+MX.31.043	Kaua	Kaua	8583901
+MX.31.044	Kinchil	Kinchil	8583902
+MX.31.045	Kopomá	Kopoma	8583903
+MX.31.046	Mama	Mama	8583904
+MX.31.047	Maní	Mani	8583905
+MX.31.048	Maxcanú	Maxcanu	8583906
+MX.31.049	Mayapán	Mayapan	8583907
+MX.31.050	Mérida	Merida	8583908
+MX.31.051	Mocochá	Mococha	8583909
+MX.31.052	Motul	Motul	8583910
+MX.31.053	Muna	Muna	8583911
+MX.31.054	Muxupip	Muxupip	8583912
+MX.31.055	Opichén	Opichen	8583913
+MX.31.056	Oxkutzcab	Oxkutzcab	8583914
+MX.31.057	Panabá	Panaba	8583915
+MX.31.058	Peto	Peto	8583916
+MX.31.059	Progreso	Progreso	8583917
+MX.31.060	Quintana Roo	Quintana Roo	8583918
+MX.31.061	Río Lagartos	Rio Lagartos	8583919
+MX.31.062	Sacalum	Sacalum	8583920
+MX.31.063	Samahil	Samahil	8583921
+MX.31.064	Sanahcat	Sanahcat	8583922
+MX.31.065	San Felipe	San Felipe	8583923
+MX.31.066	Santa Elena	Santa Elena	8583924
+MX.31.067	Seyé	Seye	8583925
+MX.31.068	Sinanché	Sinanche	8583926
+MX.31.069	Sotuta	Sotuta	8583927
+MX.31.070	Sucilá	Sucila	8583928
+MX.31.071	Sudzal	Sudzal	8583929
+MX.31.074	Tahmek	Tahmek	8583930
+MX.31.075	Teabo	Teabo	8583931
+MX.31.076	Tecoh	Tecoh	8583932
+MX.31.077	Tekal de Venegas	Tekal de Venegas	8583933
+MX.31.078	Tekantó	Tekanto	8583934
+MX.31.079	Tekax	Tekax	8583935
+MX.31.080	Tekit	Tekit	8583936
+MX.31.081	Tekom	Tekom	8583937
+MX.31.082	Telchac Pueblo	Telchac Pueblo	8583938
+MX.31.083	Telchac Puerto	Telchac Puerto	8583939
+MX.31.084	Temax	Temax	8583940
+MX.31.085	Temozón	Temozon	8583941
+MX.31.086	Tepakán	Tepakan	8583942
+MX.31.087	Tetiz	Tetiz	8583943
+MX.31.088	Teya	Teya	8583944
+MX.31.089	Ticul	Ticul	8583945
+MX.31.090	Timucuy	Timucuy	8583946
+MX.31.091	Tinum	Tinum	8583947
+MX.31.092	Tixcacalcupul	Tixcacalcupul	8583948
+MX.31.093	Tixkokob	Tixkokob	8583949
+MX.31.094	Tixmehuac	Tixmehuac	8583950
+MX.31.095	Tixpéhual	Tixpehual	8583951
+MX.31.096	Tizimín	Tizimin	8583952
+MX.31.097	Tunkás	Tunkas	8583953
+MX.31.098	Tzucacab	Tzucacab	8583954
+MX.31.099	Uayma	Uayma	8583955
+MX.31.100	Ucú	Ucu	8583956
+MX.31.101	Umán	Uman	8583957
+MX.31.102	Valladolid	Valladolid	8583958
+MX.31.103	Xocchel	Xocchel	8583959
+MX.31.104	Yaxcabá	Yaxcaba	8583960
+MX.31.105	Yaxkukul	Yaxkukul	8583961
+MX.31.106	Yobaín	Yobain	8583962
+MX.32.001	Apozol	Apozol	8583963
+MX.32.002	Apulco	Apulco	8583964
+MX.32.003	Atolinga	Atolinga	8583965
+MX.32.005	Calera	Calera	8583966
+MX.32.006	Cañitas de Felipe Pescador	Canitas de Felipe Pescador	8583967
+MX.32.007	Concepción del Oro	Concepcion del Oro	8583968
+MX.32.009	Chalchihuites	Chalchihuites	8583969
+MX.32.010	Fresnillo	Fresnillo	8583970
+MX.32.011	Trinidad García de la Cadena	Trinidad Garcia de la Cadena	8583971
+MX.32.012	Genaro Codina	Genaro Codina	8583972
+MX.32.013	General Enrique Estrada	General Enrique Estrada	8583973
+MX.32.014	General Francisco R. Murguía	General Francisco R. Murguia	8583974
+MX.32.015	El Plateado de Joaquín Amaro	El Plateado de Joaquin Amaro	8583975
+MX.32.016	General Pánfilo Natera	General Panfilo Natera	8583976
+MX.32.017	Guadalupe	Guadalupe	8583977
+MX.32.018	Huanusco	Huanusco	8583978
+MX.32.019	Jalpa	Jalpa	8583979
+MX.32.020	Jerez	Jerez	8583980
+MX.32.021	Jiménez del Teul	Jimenez del Teul	8583981
+MX.32.022	Juan Aldama	Juan Aldama	8583982
+MX.32.023	Juchipila	Juchipila	8583983
+MX.32.025	Luis Moya	Luis Moya	8583984
+MX.32.026	Mazapil	Mazapil	8583985
+MX.32.028	Mezquital del Oro	Mezquital del Oro	8583986
+MX.32.029	Miguel Auza	Miguel Auza	8583987
+MX.32.030	Momax	Momax	8583988
+MX.32.031	Monte Escobedo	Monte Escobedo	8583989
+MX.32.032	Morelos	Morelos	8583990
+MX.32.033	Moyahua de Estrada	Moyahua de Estrada	8583991
+MX.32.034	Nochistlán de Mejía	Nochistlan de Mejia	8583992
+MX.32.035	Noria de Ángeles	Noria de Angeles	8583993
+MX.32.036	Ojocaliente	Ojocaliente	8583994
+MX.32.037	Pánuco	Panuco	8583995
+MX.32.039	Río Grande	Rio Grande	8583996
+MX.32.040	Sain Alto	Sain Alto	8583997
+MX.32.041	El Salvador	El Salvador	8583998
+MX.32.042	Sombrerete	Sombrerete	8583999
+MX.32.043	Susticacán	Susticacan	8584000
+MX.32.044	Tabasco	Tabasco	8584001
+MX.32.045	Tepechitlán	Tepechitlan	8584002
+MX.32.046	Tepetongo	Tepetongo	8584003
+MX.32.047	Teúl de González Ortega	Teul de Gonzalez Ortega	8584004
+MX.32.048	Tlaltenango de Sánchez Román	Tlaltenango de Sanchez Roman	8584005
+MX.32.049	Valparaíso	Valparaiso	8584006
+MX.32.050	Vetagrande	Vetagrande	8584007
+MX.32.051	Villa de Cos	Villa de Cos	8584008
+MX.32.052	Villa García	Villa Garcia	8584009
+MX.32.053	Villa González Ortega	Villa Gonzalez Ortega	8584010
+MX.32.054	Villa Hidalgo	Villa Hidalgo	8584011
+MX.32.055	Villanueva	Villanueva	8584012
+MX.32.056	Zacatecas	Zacatecas	8584013
+MX.32.057	Trancoso	Trancoso	8584014
+MX.32.058	Santa María de la Paz	Santa Maria de la Paz	8584015
+MX.23.011	Puerto Morelos	Puerto Morelos	11789146
+MX.05.124	Mezcalapa	Mezcalapa	12514802
+MX.05.121	Rincón Chamula San Pedro	Rincon Chamula San Pedro	12514803
+MX.05.123	Municipio de Emiliano Zapata	Municipio de Emiliano Zapata	12514804
+MX.05.122	El Parral	El Parral	12514805
+MX.05.120	Municipio de Capitán Luis Ángel Vidal	Municipio de Capitan Luis Angel Vidal	12514806
+MX.05.125	Honduras de la Sierra	Honduras de la Sierra	12514807
+MX.02.007	San Felipe	San Felipe	12514808
+MX.02.006	San Quintín	San Quintin	12514809
+MX.04.012	Seybaplaya	Seybaplaya	12514810
+MX.04.013	Municipio de Dzitbalché	Municipio de Dzitbalche	12514811
+MX.17.034	Coatetelco	Coatetelco	12514812
+MX.17.036	Municipio de Hueyapan	Municipio de Hueyapan	12514813
+MX.17.035	Xoxocotla	Xoxocotla	12514814
+UG.C.89	Mpigi District	Mpigi District	233709
+UG.E.E1	Namutumba District	Namutumba District	234069
+UG.E.C3	Bukedea District	Bukedea District	234411
+UG.N.26	Apac District	Apac District	443327
+UG.N.77	Arua District	Arua District	443328
+UG.W.28	Bundibugyo District	Bundibugyo District	443329
+UG.W.29	Bushenyi District	Bushenyi District	443330
+UG.N.30	Gulu District	Gulu District	443331
+UG.W.31	Hoima District	Hoima District	443332
+UG.E.78	Iganga District	Iganga District	443334
+UG.E.33	Jinja District	Jinja District	443335
+UG.W.34	Kabale District	Kabale District	443336
+UG.W.79	Kabarole District	Kabarole District	443337
+UG.C.36	Kalangala District	Kalangala District	443338
+UG.C.37	Kampala District	Kampala District	443339
+UG.E.38	Kamuli District	Kamuli District	443340
+UG.E.39	Kapchorwa District	Kapchorwa District	443341
+UG.W.40	Kasese District	Kasese District	443342
+UG.W.41	Kibale District	Kibale District	443343
+UG.C.42	Kiboga District	Kiboga District	443344
+UG.W.43	Kisoro District	Kisoro District	443345
+UG.N.84	Kitgum District	Kitgum District	443346
+UG.N.45	Kotido District	Kotido District	443347
+UG.E.46	Kumi District	Kumi District	443348
+UG.N.47	Lira District	Lira District	443349
+UG.C.70	Luwero District	Luwero District	443350
+UG.W.50	Masindi District	Masindi District	443351
+UG.E.87	Mbale District	Mbale District	443353
+UG.W.52	Mbarara District	Mbarara District	443355
+UG.N.88	Moroto District	Moroto District	443356
+UG.N.72	Moyo District	Moyo District	443357
+UG.C.56	Mubende District	Mubende District	443358
+UG.C.90	Mukono District	Mukono District	443359
+UG.N.58	Nebbi District	Nebbi District	443360
+UG.W.59	Ntungamo District	Ntungamo District	443361
+UG.E.60	Pallisa District	Pallisa District	443362
+UG.C.61	Rakai District	Rakai District	443363
+UG.W.93	Rukungiri District	Rukungiri District	443364
+UG.E.95	Soroti District	Soroti District	443365
+UG.E.76	Tororo District	Tororo District	443366
+UG.N.65	Adjumani District	Adjumani District	443782
+UG.E.66	Bugiri District	Bugiri District	443783
+UG.E.67	Busia District	Busia District	443784
+UG.E.69	Katakwi District	Katakwi District	443785
+UG.C.73	Nakasongola District	Nakasongola District	443786
+UG.C.74	Sembabule District	Sembabule District	443787
+UG.E.80	Kaberamaido District	Kaberamaido District	448215
+UG.W.81	Kamwenge District	Kamwenge District	448216
+UG.W.82	Kanungu District	Kanungu District	448217
+UG.C.83	Kayunga District	Kayunga District	448218
+UG.W.85	Kyenjojo District	Kyenjojo District	448219
+UG.E.86	Mayuge District	Mayuge District	448220
+UG.N.91	Nakapiripirit District	Nakapiripirit District	448221
+UG.N.92	Pader District	Pader District	448222
+UG.E.94	Sironko District	Sironko District	448223
+UG.C.96	Wakiso District	Wakiso District	448224
+UG.N.97	Yumbe District	Yumbe District	448225
+UG.N.B6	Abim District	Abim District	7056273
+UG.N.B7	Amolatar District	Amolatar District	7056275
+UG.E.B8	Amuria District	Amuria District	7056276
+UG.N.B9	Amuru District	Amuru District	7056278
+UG.E.C1	Budaka District	Budaka District	7056279
+UG.E.C2	Bududa District	Bududa District	7056280
+UG.W.C5	Buliisa District	Buliisa District	7056281
+UG.E.C6	Butaleja District	Butaleja District	7056282
+UG.N.C7	Dokolo District	Dokolo District	7056283
+UG.W.C8	Ibanda District	Ibanda District	7056284
+UG.W.C9	Isingiro District	Isingiro District	7056285
+UG.N.D1	Kaabong District	Kaabong District	7056286
+UG.E.D2	Kaliro District	Kaliro District	7056287
+UG.W.D3	Kiruhura District	Kiruhura District	7056288
+UG.N.D4	Koboko District	Koboko District	7056289
+UG.C.D5	Lyantonde District	Lyantonde District	7056290
+UG.E.D6	Manafwa District	Manafwa District	7056291
+UG.N.D7	Maracha District	Maracha District	7056292
+UG.C.D8	Mityana District	Mityana District	7056293
+UG.C.D9	Nakaseke District	Nakaseke District	7056294
+UG.N.E2	Oyam District	Oyam District	7056295
+UG.E.C4	Bukwo District	Bukwo District	7056296
+UG.N.H2	Nwoya District	Nwoya District	7869939
+UG.C.F5	Kalungu District	Kalungu District	7910134
+UG.C.F1	Butambala District	Butambala District	7910136
+UG.N.E5	Amudat District	Amudat District	8030560
+UG.N.G8	Napak District	Napak District	8030561
+UG.N.G3	Lamwo District	Lamwo District	8030562
+UG.N.H7	Zombo District	Zombo District	8030563
+UG.W.F7	Kiryandongo District	Kiryandongo District	8030564
+UG.N.F8	Kole District	Kole District	8030565
+UG.N.E3	Agago District	Agago District	8030566
+UG.N.H3	Otuke District	Otuke District	8030567
+UG.N.E4	Alebtong District	Alebtong District	8030568
+UG.E.H5	Serere District	Serere District	8030569
+UG.E.G9	Ngora District	Ngora District	8030570
+UG.E.F3	Buyende District	Buyende District	8030571
+UG.E.F6	Kibuku District	Kibuku District	8030572
+UG.E.E9	Bulambuli District	Bulambuli District	8030573
+UG.E.F9	Kween District	Kween District	8030574
+UG.E.G7	Namayingo District	Namayingo District	8030575
+UG.C.F2	Buvuma District	Buvuma District	8030576
+UG.C.E7	Buikwe District	Buikwe District	8030577
+UG.C.F4	Gomba District	Gomba District	8030578
+UG.C.E8	Bukomansimbi District	Bukomansimbi District	8030579
+UG.C.G5	Lwengo District	Lwengo District	8030580
+UG.W.G2	Kyegegwa District	Kyegegwa District	8030581
+UG.C.G1	Kyankwanzi District	Kyankwanzi District	8030582
+UG.W.H1	Ntoroko District	Ntoroko District	8030583
+UG.W.H4	Rubirizi District	Rubirizi District	8030584
+UG.W.E6	Buhweju District	Buhweju District	8030585
+UG.W.G6	Mitoma District	Mitoma District	8030586
+UG.W.H6	Sheema District	Sheema District	8030587
+UG.E.G4	Luuka District	Luuka District	8030588
+UG.C.71	Masaka District	Masaka District	8643206
+UG.E.H9	Butebo District	Butebo District	11887036
+UG.C.I3	Kyotera District	Kyotera District	11887037
+UG.E.I4	Namisindwa District	Namisindwa District	11887038
+UG.N.I5	Omoro District	Omoro  District	11887039
+UG.N.I6	Pakwach District	Pakwach District	11887040
+UG.W.I2	Kakumiro District	Kakumiro District	11887041
+UG.W.I1	Kagadi District	Kagadi District	11887042
+UG.W.I7	Rubanda District	Rubanda District	11887043
+UG.W.H8	Bunyangabu District	Bunyangabu District	11887044
+UG.W.I8	Rukiga District	Rukiga District	11887045

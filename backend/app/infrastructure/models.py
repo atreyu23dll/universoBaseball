@@ -47,7 +47,10 @@ class Universe(Base):
     master_seed: Mapped[int] = mapped_column(BigInteger, nullable=False)
     sim_version: Mapped[str] = mapped_column(String(32), nullable=False)
     fixture_version: Mapped[str] = mapped_column(String(32), nullable=False, default="unknown")
-    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="MXN")
+    #: Moneda **opcional** de presentación. La moneda real de cada institución
+    #: sale de su jurisdicción (ancla monetaria del territorio), no de aquí: el
+    #: universo no presume la moneda del idioma de la interfaz.
+    currency: Mapped[str | None] = mapped_column(String(8), nullable=True)
     config: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="active")
     #: Lock por universo: impide dos avances simultáneos sobre el mismo mundo.
@@ -58,6 +61,124 @@ class Universe(Base):
     __table_args__ = (
         UniqueConstraint("name", name="uq_universes_name"),
         CheckConstraint("master_seed >= 0", name="ck_universes_seed_non_negative"),
+    )
+
+
+class GazetteerCountry(Base):
+    """Países y territorios del gazetteer mundial. Datos de referencia, no de un universo.
+
+    `currency_code` es la autoridad de «¿en qué moneda opera una institución de
+    este territorio?» y viene de `countryInfo.txt` de GeoNames, que publica el
+    código ISO 4217 de cada jurisdicción. El `reference_monthly_cost` —lo que
+    convierte índices en importes— **solo existe donde está curado**: sin él, las
+    cuentas de los clubes de ese país quedan sin cuantificar en vez de
+    inventarse.
+    """
+
+    __tablename__ = "gazetteer_countries"
+
+    iso2: Mapped[str] = mapped_column(String(2), primary_key=True)
+    iso3: Mapped[str] = mapped_column(String(3), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    capital: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    continent: Mapped[str] = mapped_column(String(2), nullable=False, default="")
+    currency_code: Mapped[str | None] = mapped_column(String(3))
+    currency_name: Mapped[str | None] = mapped_column(String(60))
+    population: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    area_km2: Mapped[float | None] = mapped_column(Float)
+    geoname_id: Mapped[int | None] = mapped_column(BigInteger)
+    languages: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    #: Coste mensual de referencia de un hogar, en moneda local. Curado.
+    reference_monthly_cost: Mapped[Decimal | None] = mapped_column(MoneyType)
+    reference_cost_year: Mapped[int | None] = mapped_column(Integer)
+    reference_cost_sources: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="geonames")
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class GazetteerEntity(Base):
+    """Una entidad geográfica del mundo real, con identificador estable.
+
+    `source` + `source_id` es la referencia externa —para GeoNames, el
+    `geonameid`—, de modo que reimportar no duplica y cualquier lugar se puede
+    rastrear hasta su fuente. `id` es nuestra clave propia y es la que guardan
+    las competiciones: si mañana se cambia de proveedor, las competiciones no se
+    rompen.
+
+    `resolution_status` recorre los estados que pide el FIX V2 §4.5:
+    `verified` cuando la entidad viene resuelta de la fuente con jerarquía, e
+    `incomplete` cuando falta algo relevante —por ejemplo su división
+    administrativa— y hay que decirlo en vez de disimularlo.
+    """
+
+    __tablename__ = "gazetteer_entities"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="geonames")
+    source_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    ascii_name: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    #: Nombre y variantes, en minúsculas y sin acentos. Es el índice de búsqueda:
+    #: permite encontrar «Mexico City» escribiendo «Ciudad de México».
+    search_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    #: Variantes legibles, para mostrarlas al desambiguar.
+    variants: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    country_iso2: Mapped[str] = mapped_column(String(2), nullable=False, index=True)
+    admin1_code: Mapped[str | None] = mapped_column(String(24))
+    admin2_code: Mapped[str | None] = mapped_column(String(48))
+    parent_id: Mapped[str | None] = mapped_column(
+        ForeignKey("gazetteer_entities.id", ondelete="SET NULL")
+    )
+    lat: Mapped[float] = mapped_column(Float, nullable=False)
+    lon: Mapped[float] = mapped_column(Float, nullable=False)
+    elevation_m: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    population: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    feature_class: Mapped[str] = mapped_column(String(4), nullable=False, default="")
+    feature_code: Mapped[str] = mapped_column(String(12), nullable=False, default="")
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
+    #: verified | incomplete
+    resolution_status: Mapped[str] = mapped_column(String(16), nullable=False, default="verified")
+    #: Qué falta, cuando el estado es `incomplete`.
+    resolution_notes: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    __table_args__ = (
+        UniqueConstraint("source", "source_id", name="uq_gazetteer_source_id"),
+        Index("ix_gazetteer_search", "search_text"),
+        Index("ix_gazetteer_country_kind", "country_iso2", "kind"),
+    )
+
+
+class GazetteerBoundary(Base):
+    """Límite administrativo de una entidad, cuando la fuente lo publica.
+
+    No hay polígonos inventados: si geoBoundaries no publica el límite de una
+    jurisdicción, no hay fila aquí, y la competición tiene que delimitarse de
+    otra forma —radio desde el centroide o lista explícita de territorios—, que
+    es lo que el FIX V2 §4.5 pide decir en voz alta en vez de dibujar fronteras
+    aproximadas como si fueran reales.
+    """
+
+    __tablename__ = "gazetteer_boundaries"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    entity_id: Mapped[str] = mapped_column(
+        ForeignKey("gazetteer_entities.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="geoboundaries")
+    source_id: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    admin_level: Mapped[str] = mapped_column(String(8), nullable=False, default="ADM1")
+    #: GeoJSON simplificado. El CRS es WGS 84 (EPSG:4326), como publica la fuente.
+    geometry: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+    crs: Mapped[str] = mapped_column(String(16), nullable=False, default="EPSG:4326")
+    licence: Mapped[str] = mapped_column(String(160), nullable=False, default="")
+    licence_source: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    represented_year: Mapped[str] = mapped_column(String(16), nullable=False, default="")
+    downloaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    __table_args__ = (
+        UniqueConstraint("entity_id", "source", "admin_level", name="uq_boundary_entity_level"),
     )
 
 
@@ -80,6 +201,15 @@ class Place(Base):
     #: observed | estimated | fictional — la interfaz lo muestra tal cual.
     confidence: Mapped[str] = mapped_column(String(20), nullable=False)
     sources: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    #: Ancla monetaria de la jurisdicción (solo en países): moneda de curso
+    #: legal y coste mensual de referencia, con su año y su confianza. Es el
+    #: único punto donde los índices relativos se convierten en importes.
+    economy: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
+    #: Entidad del gazetteer mundial de la que salió este lugar, si vino de ahí
+    #: y no del fixture curado. Es la referencia estable a la fuente.
+    gazetteer_entity_id: Mapped[str | None] = mapped_column(
+        ForeignKey("gazetteer_entities.id", ondelete="SET NULL")
+    )
 
     __table_args__ = (UniqueConstraint("universe_id", "place_key", name="uq_places_universe_key"),)
 
@@ -108,6 +238,93 @@ class RegionProfile(Base):
     )
 
 
+class CompetitionDraft(Base):
+    """Borrador de una competición, con su estado y su historial de ediciones.
+
+    Existe para que el asistente pueda guardar lo que el usuario va escribiendo
+    sin crear nada en el mundo, y para que la confirmación pueda comprobar que
+    lo que se confirma es lo que se previsualizó.
+
+    El estado recorre el ciclo del FIX V2 §12.1:
+
+    ```text
+    draft → geography_pending → geography_resolved → context_ready
+          → preview_ready | preview_warning | preview_blocked → committed
+    ```
+
+    `intent_fingerprint` es el SHA-256 de la intención canónica. Si el usuario
+    cambia una regla o el territorio, la huella cambia y la previsualización
+    anterior queda obsoleta: confirmarla devuelve conflicto en vez de crear un
+    mundo que nadie vio.
+    """
+
+    __tablename__ = "competition_drafts"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    universe_id: Mapped[str] = mapped_column(
+        ForeignKey("universes.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    state: Mapped[str] = mapped_column(String(24), nullable=False, default="draft")
+    #: La intención del usuario tal cual, sin resolver.
+    intent: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+    intent_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    #: Última previsualización calculada para esta huella.
+    preview_id: Mapped[str | None] = mapped_column(String(32))
+    #: Competición creada al confirmar, si ya se confirmó.
+    competition_id: Mapped[str | None] = mapped_column(
+        ForeignKey("competition_definitions.id", ondelete="SET NULL")
+    )
+    issues: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class GenerationPreview(Base):
+    """Una propuesta del generador, **inmutable** y con su huella.
+
+    Previsualizar no escribe en el mundo: lo que se guarda aquí es la propuesta
+    —los clubes candidatos con sus cuentas, el contexto y los problemas
+    detectados—, no entidades del universo. Al confirmar se vuelve a generar con
+    la misma semilla y la misma intención, así que el resultado es el mismo.
+
+    Por qué los candidatos y los problemas van en columnas JSON en vez de en
+    tablas aparte, como sugería el documento: la propuesta es inmutable y
+    siempre se lee entera. Normalizarla no permitiría consultar nada que importe
+    y multiplicaría las filas por el número de clubes.
+    """
+
+    __tablename__ = "generation_previews"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    universe_id: Mapped[str] = mapped_column(
+        ForeignKey("universes.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    draft_id: Mapped[str | None] = mapped_column(
+        ForeignKey("competition_drafts.id", ondelete="CASCADE"), index=True
+    )
+    #: SHA-256 de la intención canónica que produjo esta propuesta.
+    intent_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    ruleset_checksum: Mapped[str] = mapped_column(String(64), nullable=False)
+    engine_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    #: Semilla efectiva: con la misma, la propuesta se reproduce.
+    seed: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    #: preview_ready | preview_warning | preview_blocked
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="preview_ready")
+    context: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+    candidates: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    issues: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    #: Competición creada a partir de esta propuesta, si se confirmó.
+    committed_competition_id: Mapped[str | None] = mapped_column(
+        ForeignKey("competition_definitions.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    __table_args__ = (Index("ix_preview_fingerprint", "universe_id", "intent_fingerprint"),)
+
+
 class CompetitionDefinition(Base):
     __tablename__ = "competition_definitions"
 
@@ -125,6 +342,10 @@ class CompetitionDefinition(Base):
         String(16), nullable=False, default="independent"
     )
     territory: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    #: Entidades del gazetteer mundial que el usuario resolvió, si el territorio
+    #: vino de ahí. Es la referencia estable: `territory` guarda las claves ya
+    #: materializadas en este universo.
+    territory_entity_ids: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
@@ -216,12 +437,24 @@ class Club(Base):
     policies: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
     fan_base: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     resource_multiplier: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
-    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="MXN")
+    #: Organización que el club se dio: gobierno, acuerdo de sede y reparto de
+    #: responsabilidades. Es un resultado del generador, nunca una entrada.
+    organization: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+    #: Desglose de las cuentas con el origen y la base de cada importe.
+    finance_profile: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+    #: Moneda de la jurisdicción del club. `None` si su territorio no tiene
+    #: ancla monetaria declarada: entonces sus importes quedan sin determinar.
+    currency: Mapped[str | None] = mapped_column(String(8), nullable=True)
     annual_budget: Mapped[Decimal] = mapped_column(MoneyType, nullable=False, default=0)
     cash: Mapped[Decimal] = mapped_column(MoneyType, nullable=False, default=0)
     debt: Mapped[Decimal] = mapped_column(MoneyType, nullable=False, default=0)
     history_note: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    #: active | folded. Un club que desaparece conserva su fila y su historia:
+    #: no se borra, deja de competir.
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="active")
+    #: Temporadas consecutivas sin poder cubrir sus obligaciones. Una mala no
+    #: cierra un club; una racha sí.
+    seasons_insolvent: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     __table_args__ = (UniqueConstraint("universe_id", "club_key", name="uq_clubs_universe_key"),)
 
@@ -229,7 +462,11 @@ class Club(Base):
 class ClubMembership(Base):
     """Participación de un club en una competición.
 
-    Ascender o descender cambia filas de aquí, nunca el `club.id`.
+    Ascender o descender cambia filas de aquí, nunca el `club.id`. La vigencia
+    se expresa en temporadas (`start_season`/`end_season`) y no solo en
+    ediciones, porque un ascenso se resuelve cuando la edición de destino
+    todavía no existe: el club ya es miembro de su nueva competición desde la
+    temporada siguiente, aunque su calendario se construya después.
     """
 
     __tablename__ = "club_memberships"
@@ -250,6 +487,16 @@ class ClubMembership(Base):
     )
     end_edition_id: Mapped[str | None] = mapped_column(
         ForeignKey("competition_editions.id", ondelete="SET NULL")
+    )
+    #: Primera temporada en la que la pertenencia es válida.
+    start_season: Mapped[int | None] = mapped_column(Integer)
+    #: Última temporada en la que fue válida. NULL = sigue vigente.
+    end_season: Mapped[int | None] = mapped_column(Integer)
+    #: Cómo entró el club: generación inicial, ascenso o descenso.
+    origin: Mapped[str] = mapped_column(String(24), nullable=False, default="generated")
+
+    __table_args__ = (
+        Index("ix_membership_competition_season", "competition_id", "start_season", "end_season"),
     )
 
 
@@ -578,8 +825,8 @@ class CompetitionRelationship(Base):
     temporada de entrada en vigor) vive aquí y en ningún otro sitio, para que
     las dos competiciones muestren la misma regla.
 
-    Etapa 2: las validaciones están activas; el intercambio de clubes al cerrar
-    temporada todavía no está implementado.
+    El intercambio de clubes al cerrar temporada lee esta fila y solo esta
+    fila; ver `app.application.mobility_service`.
     """
 
     __tablename__ = "competition_relationships"
@@ -630,6 +877,109 @@ class QualificationPath(Base):
         CheckConstraint(
             "source_competition_id <> target_competition_id", name="ck_qualification_not_self"
         ),
+    )
+
+
+class ClubSeasonLedger(Base):
+    """Liquidación de una temporada para un club: lo cobrado y lo pagado.
+
+    Es el libro contable que pide el FIX V2 §7.1, y la diferencia con el
+    presupuesto importa: aquí está lo que **ocurrió**. Un patrocinio prometido
+    que no se cobró figura con su importe esperado y su cobro real, y un partido
+    que no se jugó no vendió entradas.
+
+    La clave única `(club_id, season)` impide liquidar dos veces la misma
+    temporada cuando se reintenta un avance.
+    """
+
+    __tablename__ = "club_season_ledgers"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    universe_id: Mapped[str] = mapped_column(
+        ForeignKey("universes.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    club_id: Mapped[str] = mapped_column(
+        ForeignKey("clubs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    competition_id: Mapped[str | None] = mapped_column(
+        ForeignKey("competition_definitions.id", ondelete="SET NULL")
+    )
+    season: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str | None] = mapped_column(String(8))
+    collected: Mapped[Decimal] = mapped_column(MoneyType, nullable=False, default=0)
+    paid: Mapped[Decimal] = mapped_column(MoneyType, nullable=False, default=0)
+    result: Mapped[Decimal] = mapped_column(MoneyType, nullable=False, default=0)
+    cash_start: Mapped[Decimal] = mapped_column(MoneyType, nullable=False, default=0)
+    cash_end: Mapped[Decimal] = mapped_column(MoneyType, nullable=False, default=0)
+    debt_start: Mapped[Decimal] = mapped_column(MoneyType, nullable=False, default=0)
+    debt_end: Mapped[Decimal] = mapped_column(MoneyType, nullable=False, default=0)
+    #: healthy | strained | insolvent
+    outcome: Mapped[str] = mapped_column(String(16), nullable=False, default="healthy")
+    #: Asientos con su causa: cada línea dice qué se esperaba y qué entró.
+    entries: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    notes: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    __table_args__ = (
+        UniqueConstraint("club_id", "season", name="uq_ledger_club_season"),
+        Index("ix_ledger_universe_season", "universe_id", "season"),
+    )
+
+
+class ClubOrganizationChange(Base):
+    """Un cambio en la organización de un club, con su causa y su fecha.
+
+    Es la historia institucional que el FIX V2 §11.2 pide conservar: la forma de
+    gobierno de un club, su sede y su base social cambian con los años, y el
+    registro dice **por qué** cambió cada cosa. No se sobrescribe el pasado.
+    """
+
+    __tablename__ = "club_organization_changes"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    universe_id: Mapped[str] = mapped_column(
+        ForeignKey("universes.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    club_id: Mapped[str] = mapped_column(
+        ForeignKey("clubs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    season: Mapped[int] = mapped_column(Integer, nullable=False)
+    field: Mapped[str] = mapped_column(String(40), nullable=False)
+    before: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    after: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class SeasonTransition(Base):
+    """Un cierre de temporada ya resuelto entre competiciones vinculadas.
+
+    Es el registro que hace idempotente el intercambio: la clave única
+    (competición superior, temporada) impide que un reintento del avance mueva
+    dos veces a los mismos clubes. Guarda el plan completo, con sus motivos, para
+    que el historial pueda explicar cada movimiento.
+    """
+
+    __tablename__ = "season_transitions"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    universe_id: Mapped[str] = mapped_column(
+        ForeignKey("universes.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    #: La competición superior de la relación; ella es la autoridad de la cuota.
+    upper_competition_id: Mapped[str] = mapped_column(
+        ForeignKey("competition_definitions.id", ondelete="CASCADE"), nullable=False
+    )
+    season: Mapped[int] = mapped_column(Integer, nullable=False)
+    applied_on: Mapped[date] = mapped_column(Date, nullable=False)
+    #: Plan tal como lo devolvió el motor: movimientos, rechazos y notas.
+    plan: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+    promotions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    relegations: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    __table_args__ = (
+        UniqueConstraint("upper_competition_id", "season", name="uq_transition_competition_season"),
     )
 
 

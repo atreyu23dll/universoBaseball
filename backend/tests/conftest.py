@@ -61,6 +61,22 @@ def database() -> None:
     engine.dispose()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def gazetteer(database) -> None:
+    """Importa el extracto versionado de GeoNames una vez por batería.
+
+    Las pruebas que resuelven territorios del mundo lo necesitan, y el extracto
+    —nueve países, 542 localidades— tarda poco más de un segundo. El volcado
+    completo no se usa en pruebas: ni está versionado ni haría falta.
+    """
+    import sys
+
+    sys.path.insert(0, str(BACKEND_DIR.parent))
+    from scripts.import_geonames import import_gazetteer
+
+    import_gazetteer(BACKEND_DIR.parent / "data" / "gazetteer" / "sample")
+
+
 @pytest.fixture
 def session():
     session = SessionLocal()

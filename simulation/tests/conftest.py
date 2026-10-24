@@ -18,6 +18,7 @@ from simulation.geography.provider import FixtureGeographyProvider
 MUNICIPAL = {
     "name": "Liga Municipal de Ciudad Juárez",
     "kind": "municipal_league",
+    "participation_modality": "amateur_organized",
     "relationship_mode": "independent",
     "scope": {"level": "municipal", "country_code": "MX", "place_keys": ["MX-CJS"]},
     "season": {"games_per_club_target": 22},
@@ -29,9 +30,10 @@ MUNICIPAL = {
 NATIONAL_PRO = {
     "name": "Liga Nacional de México",
     "kind": "national_league",
+    "participation_modality": "professional",
     "scope": {"level": "national", "country_code": "MX", "place_keys": ["MX"]},
     "season": {"games_per_club_target": 30, "roster_size": 28},
-    "generation": {"club_count": 10, "professionalization": "professional", "seed": 4242},
+    "generation": {"club_count": 10, "seed": 4242},
 }
 
 WORLD_DATE = date(2042, 3, 20)

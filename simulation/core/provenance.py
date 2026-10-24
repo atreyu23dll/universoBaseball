@@ -12,9 +12,24 @@ from typing import Any
 
 
 class Confidence(StrEnum):
+    """Hasta dónde se sostiene un dato. La interfaz muestra la marca tal cual.
+
+    El FIX V2 de Fase 1 (§5) exige distinguir el supuesto del dato ausente: un
+    índice que se fija en un valor neutral porque no hay evidencia local no es
+    lo mismo que un índice que falta, y ninguno de los dos es una medición.
+    """
+
+    #: Tomado de una fuente publicada que se cita.
     OBSERVED = "observed"
+    #: Heurística nuestra a partir de otra cosa. Es una suposición.
     ESTIMATED = "estimated"
+    #: Supuesto declarado para poder simular, sin evidencia que lo respalde.
+    SCENARIO_ASSUMPTION = "scenario_assumption"
+    #: El dato no existe en las fuentes disponibles y no se rellena.
+    MISSING = "missing"
+    #: Inventado para que el mundo funcione. No describe la realidad.
     FICTIONAL = "fictional"
+    #: Lo fijó el usuario.
     USER_CONFIGURED = "user_configured"
 
 

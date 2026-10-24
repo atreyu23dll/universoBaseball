@@ -35,7 +35,9 @@ def create_universe(
         master_seed=seed,
         sim_version=SIM_VERSION,
         fixture_version=provider.fixture_version(),
-        currency=currency or settings.default_currency,
+        # Sin moneda por omisión: cada club usa la de su jurisdicción. Este
+        # campo solo existe si el usuario quiere una moneda de presentación.
+        currency=currency,
         config=config or {},
         status="active",
     )
@@ -91,6 +93,17 @@ def _seed_geography(
             elevation_m=place.elevation_m,
             confidence=str(place.confidence),
             sources=list(place.sources),
+            economy=(
+                {
+                    "currency": place.economy.currency,
+                    "reference_monthly_cost": str(place.economy.reference_monthly_cost),
+                    "ref_year": place.economy.ref_year,
+                    "confidence": str(place.economy.confidence),
+                    "sources": list(place.economy.sources),
+                }
+                if place.economy is not None
+                else None
+            ),
         )
         session.add(row)
         rows[place.key] = row

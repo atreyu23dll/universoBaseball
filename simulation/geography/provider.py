@@ -8,11 +8,18 @@ sin tocar el motor.
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from pathlib import Path
 from typing import Protocol
 
 from simulation.core.provenance import Confidence
-from simulation.geography.model import Place, PlaceKind, PlaceTree, RegionProfile
+from simulation.geography.model import (
+    EconomicAnchor,
+    Place,
+    PlaceKind,
+    PlaceTree,
+    RegionProfile,
+)
 
 DEFAULT_FIXTURE = Path(__file__).resolve().parents[2] / "data" / "fixtures" / "places.json"
 
@@ -44,6 +51,16 @@ class FixtureGeographyProvider:
                     confidence=Confidence(p["confidence"]),
                     sources=tuple(p.get("sources", ())),
                 )
+            anchor = None
+            if entry.get("economy"):
+                e = entry["economy"]
+                anchor = EconomicAnchor(
+                    currency=str(e["currency"]),
+                    reference_monthly_cost=Decimal(str(e["reference_monthly_cost"])),
+                    ref_year=int(e["ref_year"]),
+                    confidence=Confidence(e.get("confidence", "estimated")),
+                    sources=tuple(e.get("sources", ())),
+                )
             place = Place(
                 key=entry["key"],
                 kind=PlaceKind(entry["kind"]),
@@ -57,6 +74,7 @@ class FixtureGeographyProvider:
                 confidence=Confidence(entry["confidence"]),
                 sources=tuple(entry.get("sources", ())),
                 profile=profile,
+                economy=anchor,
             )
             tree.places[place.key] = place
         _validate_tree(tree)

@@ -133,6 +133,18 @@
         <strong>{status.job.status}</strong>
         — {status.job.progress.days_done}/{status.job.progress.days_requested} días,
         {status.job.progress.games_played} partidos simulados.
+        {#if status.job.progress.transitions_applied}
+          Se cerraron {status.job.progress.transitions_applied} temporada(s) con
+          {status.job.progress.club_movements} clubes cambiando de categoría.
+        {/if}
+        {#if status.job.progress.clubs_settled}
+          {status.job.progress.clubs_settled} club(es) liquidaron su temporada{#if status.job.progress.clubs_folded}
+            y {status.job.progress.clubs_folded} dejaron de existir por no poder
+            cubrir sus obligaciones{/if}.
+        {/if}
+        {#if status.job.progress.seasons_opened}
+          {status.job.progress.seasons_opened} temporada(s) nueva(s) con calendario.
+        {/if}
         {#if status.job.error}<br /><span style="color:var(--danger)">{status.job.error}</span>{/if}
         {#if status.job.progress.notes.length}
           <br /><span class="muted">{status.job.progress.notes.join(' · ')}</span>
@@ -172,6 +184,12 @@
                     <span class={competition.relationship_mode === 'independent' ? 'tag accent' : 'tag warn'}>
                       {competition.relationship_mode === 'independent' ? 'independiente' : 'dependiente'}
                     </span>
+                    {#if competition.mobility}
+                      <div class="small muted">
+                        {competition.mobility.role === 'upper' ? 'desciende' : 'asciende'}
+                        {competition.mobility.slots} con {competition.mobility.with.join(', ')}
+                      </div>
+                    {/if}
                   </td>
                   <td class="small">
                     {#if competition.editions.length === 0}

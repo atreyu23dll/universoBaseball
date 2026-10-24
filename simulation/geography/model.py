@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from decimal import Decimal
 from enum import StrEnum
 
 from simulation.core.provenance import Confidence
@@ -37,6 +38,25 @@ class RegionProfile:
 
 
 @dataclass(frozen=True)
+class EconomicAnchor:
+    """Ancla monetaria de una jurisdicción.
+
+    Es el **único** punto donde los índices relativos del perfil regional se
+    convierten en importes. `reference_monthly_cost` es el gasto mensual de
+    referencia de un hogar en la moneda local, estimado y con año declarado, de
+    modo que cualquier presupuesto que el motor calcule se puede leer como
+    «tantos meses de gasto doméstico». Un territorio sin ancla no recibe cifras
+    inventadas: sus importes quedan sin determinar.
+    """
+
+    currency: str
+    reference_monthly_cost: Decimal
+    ref_year: int
+    confidence: Confidence = Confidence.ESTIMATED
+    sources: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class Place:
     key: str
     kind: PlaceKind
@@ -50,6 +70,8 @@ class Place:
     confidence: Confidence = Confidence.ESTIMATED
     sources: tuple[str, ...] = ()
     profile: RegionProfile | None = None
+    #: Solo en países: moneda y coste de referencia de la jurisdicción.
+    economy: EconomicAnchor | None = None
 
 
 @dataclass
@@ -97,6 +119,29 @@ class PlaceTree:
             if ancestor.kind == PlaceKind.COUNTRY:
                 return ancestor
         return None
+
+    def economic_anchor(self, key: str) -> EconomicAnchor | None:
+        """Ancla monetaria vigente en un lugar: la de su país.
+
+        Devuelve `None` cuando la jurisdicción no tiene ancla declarada. El
+        motor **no** rellena ese hueco con la moneda de otro país.
+        """
+        node = self.get(key)
+        if node.economy is not None:
+            return node.economy
+        country = self.country_of(key)
+        if country is not None and country.economy is not None:
+            return country.economy
+        return None
+
+    def currency_of(self, key: str) -> str | None:
+        """Moneda de curso legal del territorio, o `None` si no se sabe.
+
+        La moneda es un dato derivado de la jurisdicción, nunca del idioma de la
+        interfaz ni un ajuste global del universo.
+        """
+        anchor = self.economic_anchor(key)
+        return anchor.currency if anchor is not None else None
 
     def effective_profile(self, key: str) -> RegionProfile:
         """Perfil del lugar o, si no tiene, el del ancestro más cercano que sí."""

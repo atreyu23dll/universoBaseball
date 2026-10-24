@@ -2,49 +2,159 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { api } from '$lib/api/client';
-  import type { GenerationPreview, Place } from '$lib/api/types';
-  import { CONFIDENCE_LABEL, formatMoney, formatNumber, INSTITUTION_LABEL, TIER_LABEL, VENUE_LABEL } from '$lib/format';
+  import type {
+    Draft,
+    GenerationPreview,
+    GeoContext,
+    GeoEntity,
+    GeoSearchResult,
+    GeoStatus,
+    MobilityRules,
+    Place,
+    Preview
+  } from '$lib/api/types';
+  import {
+    CONFIDENCE_LABEL,
+    DRAFT_STATE_LABEL,
+    GEO_CONFIDENCE_LABEL,
+    ISSUE_CODE_LABEL,
+    GEO_KIND_LABEL,
+    GOVERNANCE_LABEL,
+    MODALITY_LABEL,
+    VENUE_USAGE_LABEL,
+    formatMoney,
+    formatNumber,
+    INSTITUTION_LABEL,
+    VENUE_LABEL
+  } from '$lib/format';
   import ConfidenceTag from '$lib/components/ConfidenceTag.svelte';
   import ErrorNotice from '$lib/components/ErrorNotice.svelte';
 
+  /** De la lista de competiciones aquí solo hacen falta el id y el nombre. */
+  type CompetitionOption = { id: string; name: string };
+
   const universeId = $derived($page.params.id);
+
+  const STEPS = [
+    'Identidad',
+    'Territorio',
+    'Modalidad',
+    'Categoría',
+    'Participantes',
+    'Calendario',
+    'Reglamento',
+    'Relaciones',
+    'Previsualización'
+  ];
 
   let step = $state(1);
   let places = $state<Place[]>([]);
-  let preview = $state<GenerationPreview | null>(null);
+  let competitions = $state<CompetitionOption[]>([]);
   let error = $state<unknown>(null);
   let working = $state(false);
+  let linkWarning = $state('');
+  let createdEditionId = $state('');
 
-  // --- Paso A: identidad y ámbito ---
+  // El asistente trabaja sobre un borrador guardado y una propuesta inmutable.
+  // Confirmar exige la huella de la intención: así no se puede crear un mundo
+  // distinto del que se vio en pantalla.
+  let draft = $state<Draft | null>(null);
+  let preview = $state<Preview | null>(null);
+  let savingDraft = $state(false);
+  const blocking = $derived(preview?.issues.filter((i) => i.severity === 'blocking') ?? []);
+  const warnings = $derived(preview?.issues.filter((i) => i.severity === 'warning') ?? []);
+  const previewIsCurrent = $derived(
+    preview !== null && draft !== null && preview.intent_fingerprint === draft.intent_fingerprint
+  );
+
+  // --- Paso 1: identidad y clase de competición ---
   let name = $state('Liga Municipal de Ciudad Juárez');
   let kind = $state('municipal_league');
+  let seed = $state('18723');
+
+  // --- Paso 2: territorio y jurisdicción ---
+  // El territorio se resuelve contra el gazetteer mundial: el usuario busca un
+  // lugar y elige una entidad concreta. Lo que se guarda es su identificador,
+  // no el texto que escribió.
   let scopeLevel = $state('municipal');
-  let selectedPlaces = $state<string[]>(['MX-CJS']);
-  let professionalization = $state('contextual_auto');
-  let economy = $state('contextual_auto');
+  let selectedPlaces = $state<string[]>([]);
+  let geoStatus = $state<GeoStatus | null>(null);
+  let geoQuery = $state('');
+  let geoCountry = $state('');
+  let geoResults = $state<GeoEntity[]>([]);
+  let geoNote = $state('');
+  let geoSearching = $state(false);
+  let chosen = $state<GeoEntity[]>([]);
+  let chosenContext = $state<Record<string, GeoContext>>({});
+  let territoryMode = $state<'administrative_area' | 'radius'>('administrative_area');
+  let radiusKm = $state(50);
 
-  // --- Paso B: relación con otras competiciones ---
-  // El valor por omisión es INDEPENDIENTE y la interfaz no ofrece crear ligas
-  // inferiores desde aquí: una competición nueva no arrastra ninguna otra.
-  let relationshipMode = $state('independent');
+  // --- Paso 3: modalidad de participación ---
+  // ÚNICA pregunta de naturaleza institucional del asistente. No hay —ni puede
+  // haber— controles de presupuesto, propiedad, personal o estadios: eso lo
+  // decide cada institución según su entorno.
+  let modality = $state('amateur_organized');
 
-  // --- Paso C: formato ---
+  // --- Paso 4: categoría y elegibilidad ---
+  let minimumAge = $state(18);
+  let hasMaximumAge = $state(false);
+  let maximumAge = $state(40);
+  let ageCutoff = $state('season_start');
+  let cutoffMonthDay = $state('01-01');
+  let keepsCategory = $state(true);
+  let residencyRequired = $state(false);
+  const involvesMinors = $derived(minimumAge < 18);
+
+  // --- Paso 5: participantes y admisión ---
   let clubCount = $state(12);
+  let talentPool = $state('shared_geographic');
+  let minimumActiveRoster = $state(14);
+  let foreignLimitEnabled = $state(false);
+  let foreignLimit = $state(5);
+
+  // --- Paso 6: calendario y estructura ---
   let gamesTarget = $state(44);
-  let rosterSize = $state(26);
+  let gamesPerSeries = $state(1);
+  let daysBetweenSeries = $state(0);
+  let offseasonDays = $state(14);
   let restDays = $state<number[]>([0]);
+
+  // --- Paso 7: reglamento deportivo y requisitos de admisión ---
+  let rosterSize = $state(26);
+  let designatedHitter = $state(true);
+  let extraInnings = $state(true);
+  let mercyEnabled = $state(false);
+  let mercyRunDiff = $state(12);
   let standingsPrimary = $state('win_percentage');
   let tiebreakers = $state<string[]>(['head_to_head', 'run_differential']);
   let playoffSlots = $state(4);
   let playoffFormat = $state('best_of_series');
   let roundLengths = $state('3,5');
-  let designatedHitter = $state(true);
-  let seed = $state('18723');
+  let licenceRequired = $state(false);
+  let safetyCertRequired = $state(false);
+  let amateurStatusRequired = $state(false);
+  let minimumVenueCapacityEnabled = $state(false);
+  let minimumVenueCapacity = $state(1000);
+  let compensationRule = $state('');
+  let entryFeeEnabled = $state(false);
+  let entryFee = $state(0);
+
+  // --- Paso 8: relaciones competitivas ---
+  let relationshipMode = $state('independent');
+  let linkPosition = $state<'below' | 'above'>('below');
+  let linkRelation = $state('promotion_relegation');
+  let linkPartnerId = $state('');
+  let linkSlots = $state(2);
+  let linkLowerMethod = $state('top_standings');
+  let linkMinCapacity = $state('');
+  let linkMaxDebt = $state('');
+  let linkFailurePolicy = $state('substitute');
+  let linkFromSeason = $state('');
+  let partnerRules = $state<MobilityRules | null>(null);
 
   const cityPlaces = $derived(places.filter((p) => p.kind === 'city'));
   const regionPlaces = $derived(places.filter((p) => p.kind === 'region'));
   const countryPlaces = $derived(places.filter((p) => p.kind === 'country'));
-
   const availablePlaces = $derived(
     scopeLevel === 'municipal'
       ? cityPlaces
@@ -54,10 +164,95 @@
           ? countryPlaces
           : [...countryPlaces, ...cityPlaces]
   );
+  /** Moneda de la jurisdicción elegida: sale del territorio, no de un ajuste. */
+  const resolvedCurrency = $derived(
+    chosen[0]?.currency ?? places.find((p) => p.key === selectedPlaces[0])?.currency ?? null
+  );
+  /** ¿Hay territorio suficiente para continuar? */
+  const hasTerritory = $derived(chosen.length > 0 || selectedPlaces.length > 0);
+  /** Avisos de lo que no se sabe del territorio elegido. */
+  const territoryWarnings = $derived(
+    chosen.flatMap((entity) => chosenContext[entity.id]?.warnings ?? [])
+  );
 
-  /** Rondas necesarias para el bracket: 4 plazas → 2 rondas, 8 → 3. */
+  async function searchGeography(event?: SubmitEvent) {
+    event?.preventDefault();
+    geoNote = '';
+    if (geoQuery.trim().length < 2) {
+      geoNote = 'Escribe al menos dos caracteres.';
+      return;
+    }
+    geoSearching = true;
+    try {
+      const params = new URLSearchParams({ q: geoQuery.trim(), limit: '10' });
+      if (geoCountry.trim()) params.set('country', geoCountry.trim().toUpperCase());
+      const result = await api.get<GeoSearchResult>(`/geography/search?${params}`);
+      geoResults = result.items;
+      geoNote = result.note;
+    } catch (err) {
+      geoResults = [];
+      geoNote = err instanceof Error ? err.message : 'la búsqueda falló';
+    } finally {
+      geoSearching = false;
+    }
+  }
+
+  async function chooseEntity(entity: GeoEntity) {
+    if (chosen.some((e) => e.id === entity.id)) return;
+    chosen = [...chosen, entity];
+    // Al elegir se consulta qué se sabe del territorio y qué no: es lo que
+    // permite decir «aquí no hay datos económicos» antes de generar nada.
+    try {
+      chosenContext = {
+        ...chosenContext,
+        [entity.id]: await api.get<GeoContext>(`/geography/entities/${entity.id}/context`)
+      };
+    } catch {
+      /* el contexto es informativo: su ausencia no bloquea */
+    }
+  }
+
+  function dropEntity(id: string) {
+    chosen = chosen.filter((e) => e.id !== id);
+  }
   const expectedRounds = $derived(playoffSlots >= 2 ? Math.log2(playoffSlots) : 0);
+  const partner = $derived(competitions.find((c) => c.id === linkPartnerId) ?? null);
+  const isHierarchy = $derived(
+    relationshipMode === 'dependent' && linkRelation === 'promotion_relegation'
+  );
+  const upperName = $derived(linkPosition === 'below' ? (partner?.name ?? '—') : name);
+  const lowerName = $derived(linkPosition === 'below' ? name : (partner?.name ?? '—'));
+  const existingQuota = $derived(
+    linkPosition === 'below' && partnerRules?.has_hierarchy ? partnerRules.exchange_slots : null
+  );
 
+  const MODALITY_HELP: Record<string, string> = {
+    llanera:
+      'Llanera o recreativa informal. Admite equipos de barrio, grupos comunitarios, asociaciones y también clubes con mejor financiación, mientras cumplan la admisión. No presupone pobreza ni ausencia de patrocinio.',
+    amateur_organized:
+      'Amateur organizada. Prioriza registros y prácticas de amateurismo. Un club solvente no se convierte en profesional por tener recursos.',
+    school_formative:
+      'Escolar o formativa. La adscripción a un centro puede ser requisito de elegibilidad y con menores se exigen salvaguardas. No obliga a que cada club sea una escuela con patrimonio propio.',
+    semi_professional:
+      'Semiprofesional. Conviven dedicaciones y compensaciones distintas según contrato y contexto. No obliga a estadio propio ni a un modelo único de organización.',
+    professional:
+      'Profesional. Puede exigir licencia y contratos, pero los recursos de sus clubes varían mucho: ni riqueza ilimitada ni el mismo modelo jurídico para todos.'
+  };
+
+  async function loadPartnerRules() {
+    partnerRules = null;
+    if (!linkPartnerId) return;
+    try {
+      partnerRules = await api.get<MobilityRules>(`/competitions/${linkPartnerId}/mobility`);
+      if (partnerRules.has_hierarchy && partnerRules.exchange_slots && linkPosition === 'below') {
+        linkSlots = partnerRules.exchange_slots;
+      }
+    } catch {
+      partnerRules = null;
+    }
+  }
+
+  /** Reglamento de la competición. Aquí no hay un solo campo sobre los clubes. */
   function buildRuleset() {
     const lengths = roundLengths
       .split(',')
@@ -66,17 +261,51 @@
     return {
       name,
       kind,
-      relationship_mode: relationshipMode,
+      participation_modality: modality,
+      // Siempre independiente en el reglamento: la dependencia la crea la
+      // relación que se registra justo después de crearla.
+      relationship_mode: 'independent',
       scope: {
         level: scopeLevel,
-        country_code: 'MX',
-        place_keys: selectedPlaces
+        ...(chosen.length
+          ? {
+              entity_ids: chosen.map((e) => e.id),
+              mode: territoryMode,
+              ...(territoryMode === 'radius' ? { radius_km: radiusKm } : {})
+            }
+          : { place_keys: selectedPlaces }),
+        ...(chosen[0]?.country_iso2 ? { country_code: chosen[0].country_iso2 } : {})
+      },
+      eligibility: {
+        minimum_age: minimumAge,
+        maximum_age: hasMaximumAge ? maximumAge : null,
+        age_cutoff: ageCutoff,
+        ...(ageCutoff === 'fixed_date' ? { cutoff_month_day: cutoffMonthDay } : {}),
+        keeps_category_through_season: keepsCategory,
+        minor_safeguarding: involvesMinors,
+        residency_required: residencyRequired
+      },
+      admission: {
+        amateur_status_required: amateurStatusRequired,
+        facility_safety_certification_required: safetyCertRequired,
+        licence_required: licenceRequired,
+        minimum_venue_capacity: minimumVenueCapacityEnabled ? minimumVenueCapacity : null,
+        minimum_active_roster: minimumActiveRoster
+      },
+      financial_regulations: {
+        ...(compensationRule ? { compensation_rule: compensationRule } : {}),
+        ...(entryFeeEnabled ? { entry_fee: entryFee } : {})
       },
       season: {
         games_per_club_target: gamesTarget,
+        games_per_series: gamesPerSeries,
+        days_between_series: daysBetweenSeries,
+        offseason_days: offseasonDays,
         roster_size: rosterSize,
         rest_days_weekday: restDays,
-        designated_hitter: designatedHitter
+        designated_hitter: designatedHitter,
+        extra_innings: extraInnings,
+        ...(mercyEnabled ? { mercy_rule_run_diff: mercyRunDiff } : {})
       },
       standings: { primary: standingsPrimary, tiebreakers },
       playoffs:
@@ -85,22 +314,57 @@
           : { slots: playoffSlots, format: playoffFormat, round_lengths: lengths },
       generation: {
         club_count: clubCount,
-        professionalization,
-        economy,
+        talent_pool: talentPool,
+        ...(foreignLimitEnabled ? { foreign_player_limit: foreignLimit } : {}),
         seed: seed.trim() === '' ? null : Number(seed)
       }
     };
+  }
+
+  function buildRelationship() {
+    const body: Record<string, unknown> = { relation_kind: linkRelation };
+    if (linkRelation !== 'promotion_relegation') return body;
+    body.exchange_slots = linkSlots;
+    body.lower_selection = { method: linkLowerMethod };
+    const requirements: Record<string, number> = {};
+    if (linkMinCapacity.trim() !== '') requirements.min_venue_capacity = Number(linkMinCapacity);
+    if (linkMaxDebt.trim() !== '') requirements.max_debt_to_budget = Number(linkMaxDebt);
+    if (Object.keys(requirements).length) {
+      body.requirements = requirements;
+      body.on_requirement_failure = linkFailurePolicy;
+    }
+    if (linkFromSeason.trim() !== '') body.effective_from_season = Number(linkFromSeason);
+    return body;
+  }
+
+  /** Guarda la intención en el borrador. Sin crear nada en el mundo. */
+  async function saveDraft(): Promise<Draft | null> {
+    savingDraft = true;
+    try {
+      const intent = buildRuleset();
+      draft = draft
+        ? await api.patch<Draft>(`/competitions/drafts/${draft.id}`, { intent })
+        : await api.post<Draft>(`/universes/${universeId}/competitions/drafts`, { intent });
+      return draft;
+    } catch (err) {
+      error = err;
+      return null;
+    } finally {
+      savingDraft = false;
+    }
   }
 
   async function runPreview() {
     working = true;
     error = null;
     try {
-      preview = await api.post<GenerationPreview>(
-        `/universes/${universeId}/competitions/preview`,
-        buildRuleset()
-      );
-      step = 4;
+      const guardado = await saveDraft();
+      if (!guardado) return;
+      preview = await api.post<Preview>(`/universes/${universeId}/competitions/previews`, {
+        intent: buildRuleset(),
+        draft_id: guardado.id
+      });
+      step = 9;
     } catch (err) {
       error = err;
       preview = null;
@@ -115,16 +379,41 @@
   }
 
   async function confirm() {
+    if (!preview || !draft) return;
     working = true;
     error = null;
+    linkWarning = '';
     try {
-      const created = await api.post<{ id: string }>(
-        `/universes/${universeId}/competitions`,
-        buildRuleset()
+      // La huella es lo que demuestra que se crea lo previsualizado. Si el
+      // borrador cambió, el servidor responde conflicto en vez de crear otra
+      // cosa en silencio.
+      const created = await api.post<{ competition_id: string; created: boolean }>(
+        '/competitions/commit',
+        { preview_id: preview.preview_id, intent_fingerprint: preview.intent_fingerprint },
+        { 'Idempotency-Key': `${draft.id}:${preview.intent_fingerprint.slice(0, 16)}` }
       );
+      const competitionId = created.competition_id;
+      if (relationshipMode === 'dependent' && linkPartnerId) {
+        const [upper, lower] =
+          linkPosition === 'below'
+            ? [linkPartnerId, competitionId]
+            : [competitionId, linkPartnerId];
+        try {
+          await api.post(`/competitions/${upper}/relationships`, {
+            target_competition_id: lower,
+            ...buildRelationship()
+          });
+        } catch (err) {
+          linkWarning = err instanceof Error ? err.message : 'no se pudo crear el vínculo';
+        }
+      }
       const edition = await api.post<{ edition_id: string }>(
-        `/competitions/${created.id}/generate`
+        `/competitions/${competitionId}/generate`
       );
+      if (linkWarning) {
+        createdEditionId = edition.edition_id;
+        return;
+      }
       window.location.href = `/ediciones/${edition.edition_id}`;
     } catch (err) {
       error = err;
@@ -151,8 +440,17 @@
 
   onMount(async () => {
     try {
-      const response = await api.get<{ items: Place[] }>(`/universes/${universeId}/geography`);
-      places = response.items;
+      const [geography, existing] = await Promise.all([
+        api.get<{ items: Place[] }>(`/universes/${universeId}/geography`),
+        api.get<{ items: CompetitionOption[] }>(`/universes/${universeId}/competitions`)
+      ]);
+      places = geography.items;
+      competitions = existing.items;
+      try {
+        geoStatus = await api.get<GeoStatus>('/geography/status');
+      } catch {
+        geoStatus = null;
+      }
     } catch (err) {
       error = err;
     }
@@ -163,83 +461,217 @@
 
 <h1>Crear competición</h1>
 <p class="muted small">
-  Esto es lo único que hace falta definir. Clubes, jugadores, estadios,
-  presupuestos y calendario los genera el motor a partir de estas reglas.
+  Esto es lo único que hace falta definir: <strong>las condiciones de la
+  competición</strong>. Los clubes, su forma de organizarse, quién los financia,
+  qué instalaciones usan y a quién pagan los genera y administra el motor según
+  el entorno de cada uno. El asistente no te va a preguntar por ninguna de esas
+  cosas.
 </p>
 
 <ErrorNotice {error} />
 
-<div class="row" style="margin-bottom:18px">
-  {#each ['Identidad y ámbito', 'Relación', 'Formato y reglamento', 'Previsualización'] as label, index}
-    <span class={step === index + 1 ? 'tag accent' : 'tag'}>{index + 1}. {label}</span>
+<div class="row steps">
+  {#each STEPS as label, index}
+    <button
+      class={step === index + 1 ? 'tag accent' : 'tag'}
+      onclick={() => (step = index + 1)}
+      type="button"
+    >{index + 1}. {label}</button>
   {/each}
 </div>
 
 {#if step === 1}
   <div class="panel">
-    <h2>Paso A — Identidad y ámbito</h2>
+    <h2>Paso 1 — Identidad y clase de competición</h2>
     <div class="grid two">
-      <div>
-        <div class="field">
-          <label for="nombre">Nombre de la competición</label>
-          <input id="nombre" bind:value={name} />
-        </div>
-        <div class="field">
-          <label for="tipo">Tipo</label>
-          <select id="tipo" bind:value={kind}>
-            <option value="municipal_league">Liga municipal</option>
-            <option value="regional_league">Liga regional</option>
-            <option value="national_league">Liga nacional</option>
-            <option value="domestic_league">Liga doméstica</option>
-            <option value="international_club_league">Liga internacional de clubes</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="alcance">Alcance territorial</label>
-          <select id="alcance" bind:value={scopeLevel} onchange={() => (selectedPlaces = [])}>
-            <option value="municipal">Municipal</option>
-            <option value="regional">Regional</option>
-            <option value="national">Nacional</option>
-            <option value="multinational">Multinacional</option>
-          </select>
-          <p class="small muted" style="margin:6px 0 0">
-            El alcance no impone el grado de profesionalización: son dos
-            parámetros independientes.
-          </p>
-        </div>
+      <div class="field">
+        <label for="nombre">Nombre de la competición</label>
+        <input id="nombre" bind:value={name} />
       </div>
-      <div>
-        <div class="field">
-          <label for="prof">Profesionalización</label>
-          <select id="prof" bind:value={professionalization}>
-            <option value="contextual_auto">Automática por contexto (recomendado)</option>
-            <option value="amateur">Amateur</option>
-            <option value="semi_professional">Semiprofesional</option>
-            <option value="professional">Profesional</option>
-            <option value="elite">Élite</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="econ">Intensidad económica</label>
-          <select id="econ" bind:value={economy}>
-            <option value="contextual_auto">Automática por contexto</option>
-            <option value="amateur">Baja</option>
-            <option value="semi_professional">Media</option>
-            <option value="professional">Alta</option>
-            <option value="elite">Muy alta</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="semilla">Semilla de generación</label>
-          <input id="semilla" bind:value={seed} inputmode="numeric" />
-        </div>
+      <div class="field">
+        <label for="tipo">Clase</label>
+        <select id="tipo" bind:value={kind}>
+          <option value="municipal_league">Liga municipal</option>
+          <option value="regional_league">Liga regional</option>
+          <option value="national_league">Liga nacional</option>
+          <option value="domestic_league">Liga doméstica</option>
+          <option value="international_club_league">Liga internacional de clubes</option>
+          <option value="youth_league">Liga juvenil</option>
+          <option value="reserve_league">Liga filial</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="participantes">Tipo de participante</label>
+        <select id="participantes" disabled>
+          <option value="clubs">Clubes</option>
+        </select>
+        <p class="small muted" style="margin:6px 0 0">
+          Las competiciones de selecciones nacionales son Etapa 3 y todavía no
+          están implementadas; el motor las rechaza en vez de disfrazarlas de
+          liga de clubes.
+        </p>
+      </div>
+      <div class="field">
+        <label for="semilla">Semilla de generación</label>
+        <input id="semilla" bind:value={seed} inputmode="numeric" />
+        <p class="small muted" style="margin:6px 0 0">
+          Misma semilla y mismas reglas, mismo mundo. Podrás regenerar antes de
+          confirmar.
+        </p>
       </div>
     </div>
+    <button onclick={() => (step = 2)}>Continuar</button>
+  </div>
+{:else if step === 2}
+  <div class="panel">
+    <h2>Paso 2 — Territorio y jurisdicción</h2>
+    <p class="small muted">
+      Busca cualquier localidad, región o país del mundo. Lo que se guarda es la
+      <strong>entidad geográfica resuelta</strong>, no el texto que escribas: así
+      el territorio tiene identidad, fuente y moneda propias.
+    </p>
 
-    <fieldset>
-      <legend>Territorio</legend>
+    {#if geoStatus && !geoStatus.imported}
+      <div class="notice">
+        <strong>No hay gazetteer importado.</strong> {geoStatus.note}
+        Mientras no lo esté, solo puedes usar los lugares curados de abajo.
+      </div>
+    {/if}
+
+    <form onsubmit={searchGeography} class="buscador">
+      <div class="field grow">
+        <label for="geo-q">Buscar un lugar</label>
+        <input
+          id="geo-q"
+          bind:value={geoQuery}
+          placeholder="Kampala, Ciudad Juárez, Tokyo, Hermosillo…"
+          autocomplete="off"
+        />
+      </div>
+      <div class="field">
+        <label for="geo-pais">País (ISO, opcional)</label>
+        <input id="geo-pais" bind:value={geoCountry} maxlength="2" placeholder="MX" />
+      </div>
+      <button type="submit" disabled={geoSearching}>
+        {geoSearching ? 'Buscando…' : 'Buscar'}
+      </button>
+    </form>
+
+    {#if geoNote}<p class="small muted">{geoNote}</p>{/if}
+
+    {#if geoResults.length}
+      <table>
+        <thead>
+          <tr>
+            <th>Lugar</th><th>Tipo</th><th>Jerarquía</th>
+            <th class="num">Población</th><th>Moneda</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each geoResults as entity (entity.id)}
+            <tr>
+              <td>
+                {entity.name}
+                <div class="small muted">{entity.country_name} · {entity.source}:{entity.source_id}</div>
+              </td>
+              <td class="small">{GEO_KIND_LABEL[entity.kind] ?? entity.kind}</td>
+              <td class="small muted">{entity.admin_path ?? '—'}</td>
+              <td class="num">{entity.population ? formatNumber(entity.population) : '—'}</td>
+              <td class="small">
+                {#if entity.currency}{entity.currency}{:else}<span class="muted">sin datos</span>{/if}
+              </td>
+              <td>
+                <button
+                  class="ghost small"
+                  type="button"
+                  onclick={() => chooseEntity(entity)}
+                  disabled={chosen.some((e) => e.id === entity.id)}
+                >Elegir</button>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      {#if geoStatus}<p class="small muted">Datos de {geoStatus.attribution}.</p>{/if}
+    {/if}
+
+    {#if chosen.length}
+      <h3 style="margin-top:18px">Territorio de la competición</h3>
+      {#each chosen as entity (entity.id)}
+        <div class="row-block">
+          <div class="spread">
+            <div>
+              <strong>{entity.name}</strong>
+              <span class="tag">{GEO_KIND_LABEL[entity.kind] ?? entity.kind}</span>
+              {#if entity.status !== 'verified'}<span class="tag warn">resolución incompleta</span>{/if}
+              <div class="small muted">
+                {entity.admin_path ?? entity.country_name}
+                {#if entity.population} · {formatNumber(entity.population)} hab.{/if}
+                {#if entity.currency} · moneda {entity.currency}{/if}
+              </div>
+            </div>
+            <button class="ghost small" type="button" onclick={() => dropEntity(entity.id)}>
+              Quitar
+            </button>
+          </div>
+          {#if chosenContext[entity.id]}
+            {@const ctx = chosenContext[entity.id]}
+            <div class="small" style="margin-top:8px">
+              <span class="tag">
+                población: {GEO_CONFIDENCE_LABEL[ctx.population.confidence] ?? ctx.population.confidence}
+              </span>
+              <span class="tag">
+                índices: {GEO_CONFIDENCE_LABEL[ctx.indices.confidence] ?? ctx.indices.confidence}
+              </span>
+              <span class={ctx.boundary.available ? 'tag accent' : 'tag warn'}>
+                {ctx.boundary.available ? 'con límite administrativo' : 'sin polígono publicado'}
+              </span>
+            </div>
+            {#each ctx.warnings as warning}
+              <p class="small warn-text">{warning}</p>
+            {/each}
+          {/if}
+        </div>
+      {/each}
+
+      <div class="grid two" style="margin-top:12px">
+        <div class="field">
+          <label for="modo">Delimitación</label>
+          <select id="modo" bind:value={territoryMode}>
+            <option value="administrative_area">Las unidades elegidas</option>
+            <option value="radius">Radio desde la primera</option>
+          </select>
+          {#if territoryMode === 'radius'}
+            <p class="small muted" style="margin:6px 0 0">
+              Alternativa declarada cuando no hay polígono administrativo: es una
+              aproximación en línea recta, no respeta fronteras, y se dice.
+            </p>
+          {/if}
+        </div>
+        {#if territoryMode === 'radius'}
+          <div class="field">
+            <label for="radio">Radio en kilómetros</label>
+            <input id="radio" type="number" min="1" max="1500" bind:value={radiusKm} />
+          </div>
+        {/if}
+      </div>
+    {/if}
+
+    <details style="margin-top:18px">
+      <summary class="small muted">
+        Lugares curados de este universo ({availablePlaces.length}) — índices calibrados a mano
+      </summary>
+      <div class="field">
+        <label for="alcance">Alcance territorial</label>
+        <select id="alcance" bind:value={scopeLevel} onchange={() => (selectedPlaces = [])}>
+          <option value="municipal">Municipal</option>
+          <option value="regional">Regional</option>
+          <option value="national">Nacional</option>
+          <option value="multinational">Multinacional</option>
+        </select>
+      </div>
       {#if availablePlaces.length === 0}
-        <p class="small muted">No hay lugares de este tipo en el universo.</p>
+        <p class="small muted">No hay lugares curados de este tipo en el universo.</p>
       {:else}
         <div class="row">
           {#each availablePlaces as place (place.key)}
@@ -255,52 +687,188 @@
             </button>
           {/each}
         </div>
-        <p class="small muted" style="margin:10px 0 0">
-          Las poblaciones son estimaciones de orden de magnitud con año
-          declarado, no un censo. Sirven para escalar el mercado.
-        </p>
       {/if}
-    </fieldset>
+    </details>
 
-    <button onclick={() => (step = 2)} disabled={selectedPlaces.length === 0}>Continuar</button>
-  </div>
-{:else if step === 2}
-  <div class="panel">
-    <h2>Paso B — Relación con otras competiciones</h2>
-    <div class="notice info">
-      El valor por omisión es <strong>independiente</strong>, y lo seguirá siendo
-      hasta que crees un vínculo explícito. Crear esta liga
-      <strong>no</strong> genera ninguna división inferior, filial ni categoría
-      juvenil.
-    </div>
-    <div class="field">
-      <label for="relacion">Naturaleza</label>
-      <select id="relacion" bind:value={relationshipMode}>
-        <option value="independent">Independiente</option>
-      </select>
-    </div>
-    <p class="small muted">
-      La opción «dependiente» se configura después, desde el grafo de
-      competiciones, vinculando dos ligas que ya existen: así la relación es la
-      única autoridad de sus plazas de ascenso y descenso.
-      <strong>Aviso:</strong> el intercambio de clubes al cerrar temporada es
-      Etapa 2 y todavía no está implementado.
-    </p>
+    {#if resolvedCurrency}
+      <p class="small muted">
+        Moneda de la jurisdicción: <strong>{resolvedCurrency}</strong>. Sale del
+        territorio, no de un ajuste del universo.
+      </p>
+    {/if}
+    {#if territoryWarnings.length}
+      <div class="notice">
+        Lo que el simulador <strong>no</strong> sabe de este territorio y no va a
+        inventar: {territoryWarnings.length} advertencia(s) arriba. Se podrá
+        generar el mundo, pero los importes que falten saldrán sin determinar.
+      </div>
+    {/if}
+
     <div class="row">
       <button class="ghost" onclick={() => (step = 1)}>Atrás</button>
-      <button onclick={() => (step = 3)}>Continuar</button>
+      <button onclick={() => (step = 3)} disabled={!hasTerritory}>Continuar</button>
     </div>
   </div>
 {:else if step === 3}
   <div class="panel">
-    <h2>Paso C — Formato competitivo y reglamento</h2>
+    <h2>Paso 3 — Modalidad de participación</h2>
+    <p class="small muted">
+      Una sola pregunta, y lo que define son <strong>reglas de participación</strong>:
+      qué prácticas y acreditaciones admite la competición.
+    </p>
+    <div class="field">
+      <label for="modalidad">¿Qué modalidad tendrá esta competición?</label>
+      <select id="modalidad" bind:value={modality}>
+        <option value="llanera">Llanera / recreativa informal</option>
+        <option value="amateur_organized">Amateur organizada</option>
+        <option value="school_formative">Escolar / formativa</option>
+        <option value="semi_professional">Semiprofesional</option>
+        <option value="professional">Profesional</option>
+      </select>
+    </div>
+    <div class="notice info">{MODALITY_HELP[modality]}</div>
+    <ul class="small muted">
+      <li>
+        <strong>No</strong> determina el patrimonio de los clubes, su propietario,
+        sus salarios, sus instalaciones ni su personal.
+      </li>
+      <li>
+        Dentro de la misma competición pueden convivir instituciones muy
+        distintas, y cambiar con los años, mientras cumplan los requisitos.
+      </li>
+      <li>
+        Si necesitas una exigencia real —prohibir salarios, pedir licencia,
+        certificar la instalación— se configura en el paso de reglamento, con
+        valor normativo.
+      </li>
+    </ul>
+    <div class="row">
+      <button class="ghost" onclick={() => (step = 2)}>Atrás</button>
+      <button onclick={() => (step = 4)}>Continuar</button>
+    </div>
+  </div>
+{:else if step === 4}
+  <div class="panel">
+    <h2>Paso 4 — Categoría y elegibilidad</h2>
     <div class="grid two">
-      <fieldset>
-        <legend>Estructura y calendario</legend>
+      <div>
         <div class="field">
-          <label for="clubes">Número de clubes</label>
-          <input id="clubes" type="number" min="2" max="64" bind:value={clubCount} />
+          <label for="edad-min">Edad mínima</label>
+          <input id="edad-min" type="number" min="4" max="75" bind:value={minimumAge} />
         </div>
+        <div class="field">
+          <label class="row" style="gap:8px">
+            <input type="checkbox" bind:checked={hasMaximumAge} style="width:auto" />
+            <span>Hay edad máxima</span>
+          </label>
+          {#if hasMaximumAge}
+            <input type="number" min="4" max="99" bind:value={maximumAge} />
+          {:else}
+            <p class="small muted" style="margin:6px 0 0">Sin tope: una liga de 40+ no lo necesita.</p>
+          {/if}
+        </div>
+      </div>
+      <div>
+        <div class="field">
+          <label for="corte">Corte de edad</label>
+          <select id="corte" bind:value={ageCutoff}>
+            <option value="season_start">Al inicio de la temporada</option>
+            <option value="calendar_year">Año natural (1 de enero)</option>
+            <option value="fixed_date">Fecha fija del reglamento</option>
+          </select>
+        </div>
+        {#if ageCutoff === 'fixed_date'}
+          <div class="field">
+            <label for="corte-fecha">Fecha de corte (MM-DD)</label>
+            <input id="corte-fecha" bind:value={cutoffMonthDay} placeholder="04-30" />
+          </div>
+        {/if}
+        <div class="field">
+          <label class="row" style="gap:8px">
+            <input type="checkbox" bind:checked={keepsCategory} style="width:auto" />
+            <span>Quien cumple años tras el corte termina la temporada en su categoría</span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="row" style="gap:8px">
+            <input type="checkbox" bind:checked={residencyRequired} style="width:auto" />
+            <span>Exigir residencia en el territorio</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    {#if involvesMinors}
+      <div class="notice">
+        Competición con menores: la <strong>salvaguarda es obligatoria</strong> y se
+        activa sola. El motor añadirá a las cuentas de cada club el seguro y la
+        atención médica que eso implica. Elegir «infantil» no equivale por sí solo
+        a una autorización de seguridad.
+      </div>
+    {/if}
+    <p class="small muted">
+      La edad es una condición de inscripción, no una liga aparte: crear una
+      categoría 8–12 <strong>no</strong> crea otra de 13–17, y quien supera la edad
+      sigue existiendo en el universo.
+    </p>
+
+    <div class="row">
+      <button class="ghost" onclick={() => (step = 3)}>Atrás</button>
+      <button onclick={() => (step = 5)}>Continuar</button>
+    </div>
+  </div>
+{:else if step === 5}
+  <div class="panel">
+    <h2>Paso 5 — Participantes y admisión</h2>
+    <div class="grid two">
+      <div>
+        <div class="field">
+          <label for="clubes">Número objetivo de clubes</label>
+          <input id="clubes" type="number" min="2" max="64" bind:value={clubCount} />
+          <p class="small muted" style="margin:6px 0 0">
+            Si el territorio no los sostiene, la previsualización lo advierte. El
+            motor no inventa instituciones a la fuerza.
+          </p>
+        </div>
+        <div class="field">
+          <label for="roster-min">Mínimo de inscritos activos por equipo</label>
+          <input id="roster-min" type="number" min="6" max="40" bind:value={minimumActiveRoster} />
+        </div>
+      </div>
+      <div>
+        <div class="field">
+          <label for="talento">Procedencia admitida de los jugadores</label>
+          <select id="talento" bind:value={talentPool}>
+            <option value="shared_geographic">Del territorio de la competición</option>
+            <option value="local_only">Solo de la localidad</option>
+            <option value="open_international">Abierta, sin restricción de origen</option>
+          </select>
+          <p class="small muted" style="margin:6px 0 0">
+            Es una regla de elegibilidad, no un selector de calidad: el talento
+            vive en un mercado compartido con las demás competiciones.
+          </p>
+        </div>
+        <div class="field">
+          <label class="row" style="gap:8px">
+            <input type="checkbox" bind:checked={foreignLimitEnabled} style="width:auto" />
+            <span>Limitar extranjeros por equipo</span>
+          </label>
+          {#if foreignLimitEnabled}
+            <input type="number" min="0" max="40" bind:value={foreignLimit} />
+          {/if}
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <button class="ghost" onclick={() => (step = 4)}>Atrás</button>
+      <button onclick={() => (step = 6)}>Continuar</button>
+    </div>
+  </div>
+{:else if step === 6}
+  <div class="panel">
+    <h2>Paso 6 — Calendario y estructura</h2>
+    <div class="grid two">
+      <div>
         <div class="field">
           <label for="partidos">Partidos por club (objetivo)</label>
           <input id="partidos" type="number" min="2" max="250" bind:value={gamesTarget} />
@@ -310,8 +878,22 @@
           </p>
         </div>
         <div class="field">
-          <label for="roster">Tamaño de plantilla</label>
-          <input id="roster" type="number" min="14" max="40" bind:value={rosterSize} />
+          <label for="serie">Partidos por serie</label>
+          <input id="serie" type="number" min="1" max="7" bind:value={gamesPerSeries} />
+        </div>
+        <div class="field">
+          <label for="entre-series">Días de descanso entre series</label>
+          <input id="entre-series" type="number" min="0" max="14" bind:value={daysBetweenSeries} />
+        </div>
+      </div>
+      <div>
+        <div class="field">
+          <label for="pretemporada">Días entre temporadas</label>
+          <input id="pretemporada" type="number" min="1" max="180" bind:value={offseasonDays} />
+          <p class="small muted" style="margin:6px 0 0">
+            El hueco en el que se resuelven ascensos y descensos antes de que la
+            temporada siguiente tenga calendario.
+          </p>
         </div>
         <div class="field" role="group" aria-labelledby="descanso-leyenda">
           <span class="small muted" id="descanso-leyenda">Días de descanso semanal</span>
@@ -325,18 +907,46 @@
             {/each}
           </div>
         </div>
+      </div>
+    </div>
+    <div class="row">
+      <button class="ghost" onclick={() => (step = 5)}>Atrás</button>
+      <button onclick={() => (step = 7)}>Continuar</button>
+    </div>
+  </div>
+{:else if step === 7}
+  <div class="panel">
+    <h2>Paso 7 — Reglamento deportivo y requisitos de admisión</h2>
+    <div class="grid two">
+      <fieldset>
+        <legend>Reglas de juego</legend>
+        <div class="field">
+          <label for="roster">Tamaño de plantilla</label>
+          <input id="roster" type="number" min="14" max="40" bind:value={rosterSize} />
+        </div>
         <div class="field">
           <label class="row" style="gap:8px">
             <input type="checkbox" bind:checked={designatedHitter} style="width:auto" />
             <span>Bateador designado</span>
           </label>
         </div>
-      </fieldset>
-
-      <fieldset>
-        <legend>Clasificación y postemporada</legend>
         <div class="field">
-          <label for="criterio">Criterio principal</label>
+          <label class="row" style="gap:8px">
+            <input type="checkbox" bind:checked={extraInnings} style="width:auto" />
+            <span>Entradas extra para deshacer empates</span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="row" style="gap:8px">
+            <input type="checkbox" bind:checked={mercyEnabled} style="width:auto" />
+            <span>Regla de nocaut por diferencia</span>
+          </label>
+          {#if mercyEnabled}
+            <input type="number" min="5" max="30" bind:value={mercyRunDiff} />
+          {/if}
+        </div>
+        <div class="field">
+          <label for="criterio">Criterio de clasificación</label>
           <select id="criterio" bind:value={standingsPrimary}>
             <option value="win_percentage">Porcentaje de victorias</option>
             <option value="wins">Victorias absolutas</option>
@@ -377,64 +987,393 @@
             <div class="field">
               <label for="rondas">Longitud de cada ronda ({expectedRounds} necesarias)</label>
               <input id="rondas" bind:value={roundLengths} placeholder="3,5" />
-              <p class="small muted" style="margin:6px 0 0">
-                Números impares separados por comas, una por ronda.
-              </p>
             </div>
           {/if}
         {/if}
       </fieldset>
+
+      <fieldset>
+        <legend>Requisitos de admisión y normas económicas</legend>
+        <p class="small muted">
+          Solo exigencias <strong>verificables</strong> del reglamento. No son
+          preferencias sobre cómo deben ser los clubes: son condiciones que un
+          club tiene que cumplir para inscribirse.
+        </p>
+        <div class="field">
+          <label class="row" style="gap:8px">
+            <input type="checkbox" bind:checked={licenceRequired} style="width:auto" />
+            <span>Exigir licencia de la competición</span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="row" style="gap:8px">
+            <input type="checkbox" bind:checked={safetyCertRequired} style="width:auto" />
+            <span>Exigir certificado de seguridad de la instalación</span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="row" style="gap:8px">
+            <input type="checkbox" bind:checked={amateurStatusRequired} style="width:auto" />
+            <span>Exigir condición de amateur a los inscritos</span>
+          </label>
+        </div>
+        <div class="field">
+          <label class="row" style="gap:8px">
+            <input type="checkbox" bind:checked={minimumVenueCapacityEnabled} style="width:auto" />
+            <span>Exigir un aforo mínimo</span>
+          </label>
+          {#if minimumVenueCapacityEnabled}
+            <input type="number" min="0" max="200000" bind:value={minimumVenueCapacity} />
+          {/if}
+        </div>
+        <div class="field">
+          <label for="compensacion">Norma de compensación a los jugadores</label>
+          <select id="compensacion" bind:value={compensationRule}>
+            <option value="">La que corresponda a la modalidad</option>
+            <option value="unrestricted">Sin restricción</option>
+            <option value="expenses_only">Solo gastos justificados</option>
+            <option value="no_salaried_players">Prohibidos los salarios</option>
+          </select>
+          <p class="small muted" style="margin:6px 0 0">
+            «No se permiten salarios en esta liga» es una regla posible. «Todos los
+            equipos serán pobres» no lo es: eso no se puede configurar aquí.
+          </p>
+        </div>
+        <div class="field">
+          <label class="row" style="gap:8px">
+            <input type="checkbox" bind:checked={entryFeeEnabled} style="width:auto" />
+            <span>Cuota de inscripción en la competición</span>
+          </label>
+          {#if entryFeeEnabled}
+            <input type="number" min="0" bind:value={entryFee} />
+          {/if}
+        </div>
+      </fieldset>
     </div>
     <div class="row">
-      <button class="ghost" onclick={() => (step = 2)}>Atrás</button>
-      <button onclick={runPreview} disabled={working}>
+      <button class="ghost" onclick={() => (step = 6)}>Atrás</button>
+      <button onclick={() => (step = 8)}>Continuar</button>
+    </div>
+  </div>
+{:else if step === 8}
+  <div class="panel">
+    <h2>Paso 8 — Relaciones competitivas</h2>
+    <div class="notice info">
+      El valor por omisión es <strong>independiente</strong>. Crear esta liga
+      <strong>no</strong> genera ninguna división inferior, filial ni categoría
+      juvenil: aquí solo puedes vincularla con competiciones que ya existen.
+    </div>
+
+    <div class="row" style="margin-bottom:14px">
+      <button
+        class={relationshipMode === 'independent' ? 'button' : 'button ghost'}
+        onclick={() => (relationshipMode = 'independent')}
+      >Independiente</button>
+      <button
+        class={relationshipMode === 'dependent' ? 'button' : 'button ghost'}
+        onclick={() => (relationshipMode = 'dependent')}
+        disabled={competitions.length === 0}
+      >Vinculada a otra competición</button>
+    </div>
+
+    {#if relationshipMode === 'independent'}
+      <p class="small muted">
+        Existe por sí sola: genera sus clubes, juega su temporada y corona a su
+        campeón sin ascender ni descender con nadie. Siempre podrás vincularla
+        después desde el grafo de competiciones.
+      </p>
+    {:else if competitions.length === 0}
+      <p class="small muted">No hay ninguna otra competición con la que vincularla.</p>
+    {:else}
+      <div class="grid two">
+        <div>
+          <div class="field">
+            <label for="posicion">Esta liga queda…</label>
+            <select id="posicion" bind:value={linkPosition} onchange={() => void loadPartnerRules()}>
+              <option value="below">por debajo de otra competición</option>
+              <option value="above">por encima de otra competición</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="pareja">Competición</label>
+            <select id="pareja" bind:value={linkPartnerId} onchange={() => void loadPartnerRules()}>
+              <option value="">—</option>
+              {#each competitions as competition (competition.id)}
+                <option value={competition.id}>{competition.name}</option>
+              {/each}
+            </select>
+          </div>
+          <div class="field">
+            <label for="naturaleza">Naturaleza exacta del vínculo</label>
+            <select id="naturaleza" bind:value={linkRelation}>
+              <option value="promotion_relegation">División: ascenso y descenso de clubes</option>
+              <option value="affiliate">Filial: mueve jugadores, no clubes</option>
+              <option value="youth">Juvenil: mueve jugadores, no clubes</option>
+              <option value="development">Programa de desarrollo</option>
+            </select>
+          </div>
+        </div>
+
+        {#if isHierarchy}
+          <fieldset>
+            <legend>Plazas de movilidad</legend>
+            <div class="field">
+              <label for="plazas-mov">Plazas de intercambio (total de la superior)</label>
+              <input id="plazas-mov" type="number" min="1" max="12" bind:value={linkSlots} />
+              {#if existingQuota}
+                <p class="small muted" style="margin:6px 0 0">
+                  «{partner?.name}» ya intercambia <strong>{existingQuota}</strong> plazas
+                  en total con sus alimentadoras. Es un total que se reparte, no una
+                  cuota por rama: se adopta ese mismo número.
+                </p>
+              {/if}
+            </div>
+            <div class="field">
+              <label for="criterio-ascenso">Quién asciende de la inferior</label>
+              <select id="criterio-ascenso" bind:value={linkLowerMethod}>
+                <option value="top_standings">Los mejores de la tabla</option>
+                <option value="playoff_champion">El campeón primero, luego por tabla</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="aforo-min">Aforo mínimo para ascender (opcional)</label>
+              <input id="aforo-min" bind:value={linkMinCapacity} inputmode="numeric" placeholder="sin requisito" />
+            </div>
+            <div class="field">
+              <label for="deuda-max">Deuda máxima, en veces su presupuesto (opcional)</label>
+              <input id="deuda-max" bind:value={linkMaxDebt} inputmode="decimal" placeholder="sin requisito" />
+            </div>
+            {#if linkMinCapacity.trim() !== '' || linkMaxDebt.trim() !== ''}
+              <div class="field">
+                <label for="politica">Si el club que debería ascender no cumple</label>
+                <select id="politica" bind:value={linkFailurePolicy}>
+                  <option value="substitute">Asciende el siguiente que sí cumpla</option>
+                  <option value="block">La plaza queda vacía (y nadie baja por ella)</option>
+                  <option value="exception">Asciende por excepción, y queda registrado</option>
+                </select>
+              </div>
+            {/if}
+            <div class="field">
+              <label for="desde">En vigor desde la temporada (opcional)</label>
+              <input id="desde" bind:value={linkFromSeason} inputmode="numeric" placeholder="la próxima" />
+            </div>
+          </fieldset>
+        {/if}
+      </div>
+
+      {#if linkPartnerId}
+        <div class="notice">
+          {#if isHierarchy}
+            Al cerrar cada temporada, <strong>{linkSlots}</strong> club(es) ascenderán
+            de «{lowerName}» a «{upperName}» y otros {linkSlots} descenderán en
+            sentido contrario, conservando su identidad.
+          {:else}
+            Vínculo de desarrollo entre «{name}» y «{partner?.name}»: moverá
+            jugadores. Ningún club cambiará de categoría.
+          {/if}
+        </div>
+      {/if}
+    {/if}
+
+    <div class="row">
+      <button class="ghost" onclick={() => (step = 7)}>Atrás</button>
+      <button
+        onclick={runPreview}
+        disabled={working || (relationshipMode === 'dependent' && !linkPartnerId)}
+      >
         {working ? 'Generando…' : 'Previsualizar con esta semilla'}
       </button>
     </div>
   </div>
-{:else if step === 4 && preview}
+{:else if step === 9 && preview}
   <div class="panel">
     <div class="spread">
-      <h2>Paso D — Previsualización</h2>
+      <h2>Paso 9 — Previsualización, viabilidad y confirmación</h2>
       <div class="row">
-        <button class="ghost" onclick={() => (step = 3)}>Cambiar reglas</button>
-        <button class="ghost" onclick={reroll} disabled={working}>Otra semilla</button>
-        <button onclick={confirm} disabled={working}>
-          {working ? 'Creando el mundo…' : 'Confirmar y generar'}
+        <button class="ghost" onclick={() => (step = 7)}>Modificar competición</button>
+        <button class="ghost" onclick={reroll} disabled={working}>Regenerar propuesta</button>
+        <button
+          onclick={confirm}
+          disabled={working || createdEditionId !== '' || blocking.length > 0 || !previewIsCurrent}
+        >
+          {working ? 'Creando el mundo…' : 'Crear competición'}
         </button>
       </div>
     </div>
     <p class="small muted">
-      Nada de esto está guardado todavía. Puedes volver a generar cuantas veces
-      quieras antes de confirmar.
+      Esta propuesta está <strong>guardada pero no creada</strong>: el mundo no se
+      ha tocado. Puedes validarla o regenerarla, pero no editar club por club:
+      esas decisiones son de cada institución.
+    </p>
+    <p class="small muted mono">
+      propuesta {preview.preview_id.slice(0, 8)} · huella
+      {preview.intent_fingerprint.slice(0, 16)}… · motor {preview.engine_version} ·
+      semilla {preview.seed}
+      {#if draft}· borrador {DRAFT_STATE_LABEL[draft.state] ?? draft.state}{/if}
     </p>
 
-    {#each preview.warnings as warning}
-      <div class="notice">{warning}</div>
+    {#if !previewIsCurrent}
+      <div class="notice">
+        Has cambiado algo después de generar esta propuesta, así que ya no
+        describe lo que crearías. <strong>Vuelve a previsualizar</strong>: el
+        servidor rechaza confirmar una propuesta obsoleta.
+      </div>
+    {/if}
+
+    {#if blocking.length}
+      <div class="notice">
+        <strong>No se puede crear todavía.</strong>
+        <ul class="small">
+          {#each blocking as issue}
+            <li>
+              <span class="tag warn">{ISSUE_CODE_LABEL[issue.code] ?? issue.code}</span>
+              {issue.message}
+              {#each issue.suggestions as suggestion}<div class="muted">· {suggestion}</div>{/each}
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
+
+    {#if linkWarning}
+      <div class="notice">
+        La competición <strong>se creó</strong> y su mundo también, pero el vínculo
+        no: {linkWarning}. Queda independiente; puedes vincularla desde el
+        <a href={`/universos/${universeId}/grafo`}>grafo de competiciones</a>.
+        {#if createdEditionId}
+          <a href={`/ediciones/${createdEditionId}`}>Ver la edición generada</a>.
+        {/if}
+      </div>
+    {/if}
+
+    {#each warnings as issue}
+      <div class="notice">
+        <span class="tag">{ISSUE_CODE_LABEL[issue.code] ?? issue.code}</span>
+        {issue.message}
+      </div>
     {/each}
 
     <div class="grid three" style="margin:16px 0">
       <div class="stat">
-        <div class="value">{TIER_LABEL[preview.context.professionalization_tier] ?? preview.context.professionalization_tier}</div>
-        <div class="label">nivel resuelto · índice {preview.context.professionalization_score.toFixed(3)}</div>
-      </div>
-      <div class="stat">
-        <div class="value">{formatMoney(preview.budget_range.median, preview.context.currency)}</div>
+        <div class="value">{MODALITY_LABEL[preview.context.participation_modality] ?? preview.context.participation_modality}</div>
         <div class="label">
-          presupuesto mediano · de {formatMoney(preview.budget_range.min, preview.context.currency)}
-          a {formatMoney(preview.budget_range.max, preview.context.currency)}
+          modalidad · compensación {preview.context.compensation_rule}
         </div>
       </div>
       <div class="stat">
-        <div class="value">{preview.schedule.games}</div>
+        <div class="value">
+          {#if preview.context.currency}
+            {formatMoney(preview.context.budget_range.median, preview.context.currency)}
+          {:else}
+            sin determinar
+          {/if}
+        </div>
         <div class="label">
-          partidos · {preview.schedule.games_per_club} por club
-          {#if preview.schedule.adjusted}(pediste {preview.schedule.requested_games_per_club}){/if}
+          presupuesto mediano
+          {#if preview.context.currency}
+            · de {formatMoney(preview.context.budget_range.min, preview.context.currency)}
+            a {formatMoney(preview.context.budget_range.max, preview.context.currency)}
+          {:else}
+            · esta jurisdicción no tiene datos económicos
+          {/if}
+        </div>
+      </div>
+      <div class="stat">
+        <div class="value">{preview.context.schedule.games}</div>
+        <div class="label">
+          partidos · {preview.context.schedule.games_per_club} por club
+          {#if preview.context.schedule.adjusted}(pediste {preview.context.schedule.requested_games_per_club}){/if}
         </div>
       </div>
     </div>
 
-    <h3>Mercados admisibles</h3>
+    {#if preview.context.reference_monthly_cost}
+      <p class="small muted">
+        Nivel de recursos resultante: <strong>{preview.context.resource_tier}</strong>
+        (índice {preview.context.effective_level}). Los importes están en
+        {preview.context.currency} y se pueden leer como múltiplos del coste
+        mensual de referencia de la jurisdicción
+        ({formatMoney(preview.context.reference_monthly_cost, preview.context.currency ?? 'MXN')}),
+        que es una estimación declarada, no una cifra oficial.
+      </p>
+    {/if}
+
+    <h3>Instituciones que el motor propone</h3>
+    <p class="small muted">
+      Ninguna de estas características se eligió en el formulario: cada club
+      negoció con su entorno por separado.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Club</th>
+          <th>Zona</th>
+          <th>Gobierno</th>
+          <th>Sede</th>
+          <th class="num">Aforo</th>
+          <th class="num">Presupuesto</th>
+          <th>Cuentas</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each preview.proposed_clubs as club}
+          <tr>
+            <td>
+              <span class="row" style="gap:8px">
+                <span style={`display:inline-block;width:10px;height:10px;border-radius:2px;background:${club.primary_color};border:1px solid ${club.secondary_color}`}></span>
+                {club.name}
+              </span>
+            </td>
+            <td class="small">{club.place}</td>
+            <td class="small">
+              {GOVERNANCE_LABEL[club.governance ?? ''] ?? club.governance ?? '—'}
+              {#if club.has_owner === false}<span class="tag">sin propietario</span>{/if}
+            </td>
+            <td class="small">{VENUE_USAGE_LABEL[club.venue_usage ?? ''] ?? club.venue_usage ?? '—'}</td>
+            <td class="num">{formatNumber(club.capacity)}</td>
+            <td class="num">
+              {#if club.financial_assessment?.currency}
+                {formatMoney(club.annual_budget, club.financial_assessment.currency)}
+              {:else}
+                <span class="muted">sin determinar</span>
+              {/if}
+            </td>
+            <td class="small">
+              {#if club.financial_assessment}
+                <details>
+                  <summary>
+                    {club.financial_assessment.components.length} partidas ·
+                    {club.financial_assessment.confidence}
+                  </summary>
+                  <ul class="desglose">
+                    {#each club.financial_assessment.components as component}
+                      <li>
+                        <strong>{component.label}</strong>
+                        {#if component.amount && club.financial_assessment.currency}
+                          · {formatMoney(component.amount, club.financial_assessment.currency)}
+                        {:else}
+                          · <span class="muted">sin cifra</span>
+                        {/if}
+                        <span class={component.kind === 'revenue' ? 'tag accent' : 'tag'}>
+                          {component.kind === 'revenue' ? 'ingreso' : 'gasto'}
+                        </span>
+                        {#if component.mandatory}<span class="tag warn">obligatorio</span>{/if}
+                        <div class="muted">{component.basis}</div>
+                      </li>
+                    {/each}
+                  </ul>
+                  {#each club.financial_assessment.risks as risk}
+                    <p class="small">{risk}</p>
+                  {/each}
+                </details>
+              {/if}
+            </td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:20px">Mercados admisibles</h3>
     <table>
       <thead>
         <tr>
@@ -460,45 +1399,15 @@
       </tbody>
     </table>
 
-    <h3 style="margin-top:20px">Clubes que se generarían</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Club</th>
-          <th>Zona</th>
-          <th>Institución</th>
-          <th class="num">Presupuesto anual</th>
-          <th>Instalación</th>
-          <th class="num">Aforo</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each preview.clubs as club}
-          <tr>
-            <td>
-              <span class="row" style="gap:8px">
-                <span style={`display:inline-block;width:10px;height:10px;border-radius:2px;background:${club.primary_color};border:1px solid ${club.secondary_color}`}></span>
-                {club.name}
-              </span>
-            </td>
-            <td class="small">{club.place}</td>
-            <td class="small">{INSTITUTION_LABEL[club.institutional_type] ?? club.institutional_type}</td>
-            <td class="num">{formatMoney(club.annual_budget, preview.context.currency)}</td>
-            <td class="small">{club.venue_name} <span class="muted">({VENUE_LABEL[club.venue_type] ?? club.venue_type})</span></td>
-            <td class="num">{formatNumber(club.capacity)}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
     <p class="small muted">
-      {formatNumber(preview.people_generated)} personas en la población deportiva,
-      de las cuales {formatNumber(preview.free_agents)} quedarían sin equipo.
+      {formatNumber(preview.context.people_generated)} personas en la población deportiva,
+      de las cuales {formatNumber(preview.context.free_agents)} quedarían sin equipo.
       Semilla <span class="mono">{preview.seed}</span>, reglamento
       <span class="mono">{preview.ruleset_checksum.slice(0, 12)}</span>.
     </p>
 
     <h3 style="margin-top:20px">De dónde salen estos números</h3>
-    {#each preview.provenance as record}
+    {#each preview.context.provenance as record}
       <div style="margin-bottom:10px">
         <div class="small muted mono">{record.procedure}</div>
         {#each record.notes.slice(0, 6) as note}
@@ -515,3 +1424,42 @@
     {/each}
   </div>
 {/if}
+
+<style>
+  .steps {
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+  }
+  .steps button {
+    border: 0;
+    cursor: pointer;
+  }
+  ul.desglose {
+    margin: 8px 0 0;
+    padding-left: 16px;
+  }
+  ul.desglose li {
+    margin-bottom: 8px;
+  }
+  form.buscador {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  form.buscador .grow {
+    flex: 1 1 260px;
+  }
+  .row-block {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .warn-text {
+    color: var(--accent-2);
+  }
+  button.small {
+    padding: 2px 8px;
+    font-size: 0.85em;
+  }
+</style>

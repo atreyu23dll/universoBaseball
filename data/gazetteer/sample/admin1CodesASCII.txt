@@ -1,0 +1,209 @@
+AR.14	Misiones	Misiones	3430657
+AR.09	Formosa	Formosa	3433896
+AR.07	Buenos Aires F.D.	Buenos Aires F.D.	3433955
+AR.08	Entre Rios	Entre Rios	3434137
+AR.06	Corrientes	Corrientes	3435214
+AR.01	Buenos Aires	Buenos Aires	3435907
+AR.24	Tucuman	Tucuman	3833578
+AR.23	Tierra del Fuego	Tierra del Fuego	3834450
+AR.22	Santiago del Estero	Santiago del Estero	3835868
+AR.21	Santa Fe	Santa Fe	3836276
+AR.20	Santa Cruz	Santa Cruz	3836350
+AR.19	San Luis	San Luis	3837029
+AR.18	San Juan	San Juan	3837152
+AR.17	Salta	Salta	3838231
+AR.16	Rio Negro	Rio Negro	3838830
+AR.15	Neuquen	Neuquen	3843122
+AR.13	Mendoza	Mendoza	3844419
+AR.12	La Rioja	La Rioja	3848949
+AR.11	La Pampa	La Pampa	3849574
+AR.10	Jujuy	Jujuy	3853404
+AR.05	Cordoba	Cordoba	3860255
+AR.04	Chubut	Chubut	3861244
+AR.03	Chaco	Chaco	3861887
+AR.02	Catamarca	Catamarca	3862286
+AU.08	Western Australia	Western Australia	2058645
+AU.05	South Australia	South Australia	2061327
+AU.03	Northern Territory	Northern Territory	2064513
+AU.07	Victoria	Victoria	2145234
+AU.06	Tasmania	Tasmania	2147291
+AU.04	Queensland	Queensland	2152274
+AU.02	New South Wales	New South Wales	2155400
+AU.01	Australian Capital Territory	Australian Capital Territory	2177478
+BR.22	Rio Grande do Norte	Rio Grande do Norte	3390290
+BR.20	Piauí	Piaui	3392213
+BR.30	Pernambuco	Pernambuco	3392268
+BR.17	Paraíba	Paraiba	3393098
+BR.16	Pará	Para	3393129
+BR.13	Maranhão	Maranhao	3395443
+BR.06	Ceará	Ceara	3402362
+BR.03	Amapá	Amapa	3407762
+BR.02	Alagoas	Alagoas	3408096
+BR.28	Sergipe	Sergipe	3447799
+BR.27	São Paulo	Sao Paulo	3448433
+BR.26	Santa Catarina	Santa Catarina	3450387
+BR.23	Rio Grande do Sul	Rio Grande do Sul	3451133
+BR.21	Rio de Janeiro	Rio de Janeiro	3451189
+BR.18	Paraná	Parana	3455077
+BR.15	Minas Gerais	Minas Gerais	3457153
+BR.11	Mato Grosso do Sul	Mato Grosso do Sul	3457415
+BR.14	Mato Grosso	Mato Grosso	3457419
+BR.29	Goiás	Goias	3462372
+BR.07	Federal District	Federal District	3463504
+BR.08	Espírito Santo	Espirito Santo	3463930
+BR.05	Bahia	Bahia	3471168
+BR.31	Tocantins	Tocantins	3474575
+BR.25	Roraima	Roraima	3662560
+BR.04	Amazonas	Amazonas	3665361
+BR.01	Acre	Acre	3665474
+BR.24	Rondônia	Rondonia	3924825
+CU.16	Villa Clara Province	Villa Clara Province	3534168
+CU.15	Santiago de Cuba Province	Santiago de Cuba Province	3536725
+CU.14	Sancti Spíritus Province	Sancti Spiritus Province	3540665
+CU.01	Pinar del Río	Pinar del Rio	3544088
+CU.03	Matanzas Province	Matanzas Province	3547394
+CU.13	Las Tunas Province	Las Tunas Province	3550595
+CU.04	Isla de la Juventud	Isla de la Juventud	3556608
+CU.12	Holguín Province	Holguin Province	3556965
+CU.10	Guantánamo Province	Guantanamo Province	3557685
+CU.09	Granma Province	Granma Province	3558052
+CU.02	Havana	Havana	3564073
+CU.08	Cienfuegos Province	Cienfuegos Province	3564120
+CU.07	Ciego de Ávila Province	Ciego de Avila Province	3564175
+CU.05	Camagüey	Camaguey	3566062
+CU.AR	Artemisa	Artemisa	7668824
+CU.MA	Mayabeque	Mayabeque	7668827
+DO.27	Valverde Province	Valverde Province	3492112
+DO.26	Santiago Rodríguez	Santiago Rodriguez	3492912
+DO.25	Santiago Province	Santiago Province	3492918
+DO.24	San Pedro de Macorís	San Pedro de Macoris	3493031
+DO.23	San Juan Province	San Juan Province	3493091
+DO.33	San Cristóbal	San Cristobal	3493186
+DO.21	Sánchez Ramírez	Sanchez Ramirez	3493192
+DO.20	Samaná	Samana	3493232
+DO.19	Hermanas Mirabal	Hermanas Mirabal	3493282
+DO.18	Puerto Plata	Puerto Plata	3494267
+DO.35	Peravia	Peravia	3495015
+DO.16	Pedernales Province	Pedernales Province	3495136
+DO.34	Nacional	Nacional	3496024
+DO.32	Monte Plata Province	Monte Plata Province	3496132
+DO.15	Monte Cristi Province	Monte Cristi Province	3496200
+DO.31	Monseñor Nouel	Monsenor Nouel	3496274
+DO.14	María Trinidad Sánchez	Maria Trinidad Sanchez	3496772
+DO.30	La Vega	La Vega	3499977
+DO.12	La Romana	La Romana	3500955
+DO.10	La Altagracia Province	La Altagracia Province	3503706
+DO.09	Independencia	Independencia	3504326
+DO.29	Hato Mayor Province	Hato Mayor Province	3504766
+DO.08	Espaillat Province	Espaillat Province	3505867
+DO.28	El Seíbo	El Seibo	3506189
+DO.11	Elías Piña	Elias Pina	3507269
+DO.06	Duarte Province	Duarte Province	3508718
+DO.04	Dajabón	Dajabon	3508951
+DO.03	Barahona Province	Barahona Province	3512042
+DO.02	Baoruco Province	Baoruco Province	3512050
+DO.01	Azua Province	Azua Province	3512209
+DO.36	San José de Ocoa	San Jose de Ocoa	6201372
+DO.37	Santo Domingo Province	Santo Domingo Province	6201373
+ES.31	Murcia	Murcia	2513413
+ES.CE	Ceuta	Ceuta	2519582
+ES.07	Balearic Islands	Balearic Islands	2521383
+ES.51	Andalusia	Andalusia	2593109
+ES.53	Canary Islands	Canary Islands	2593110
+ES.54	Castille-La Mancha	Castille-La Mancha	2593111
+ES.57	Extremadura	Extremadura	2593112
+ES.60	Valencia	Valencia	2593113
+ES.34	Asturias	Asturias	3114710
+ES.32	Navarre	Navarre	3115609
+ES.29	Madrid	Madrid	3117732
+ES.27	La Rioja	La Rioja	3336897
+ES.39	Cantabria	Cantabria	3336898
+ES.52	Aragon	Aragon	3336899
+ES.55	Castille and León	Castille and Leon	3336900
+ES.56	Catalonia	Catalonia	3336901
+ES.58	Galicia	Galicia	3336902
+ES.59	Basque Country	Basque Country	3336903
+ES.ML	Melilla	Melilla	6362988
+JP.46	Yamanashi	Yamanashi	1848649
+JP.45	Yamaguchi	Yamaguchi	1848681
+JP.43	Wakayama	Wakayama	1848938
+JP.42	Toyama	Toyama	1849872
+JP.41	Tottori	Tottori	1849890
+JP.40	Tokyo	Tokyo	1850144
+JP.39	Tokushima	Tokushima	1850157
+JP.38	Tochigi	Tochigi	1850310
+JP.37	Shizuoka	Shizuoka	1851715
+JP.36	Shimane	Shimane	1852442
+JP.35	Shiga	Shiga	1852553
+JP.34	Saitama	Saitama	1853226
+JP.33	Saga	Saga	1853299
+JP.32	Osaka	Osaka	1853904
+JP.47	Okinawa	Okinawa	1854345
+JP.31	Okayama	Okayama	1854381
+JP.30	Oita	Oita	1854484
+JP.29	Niigata	Niigata	1855429
+JP.28	Nara	Nara	1855608
+JP.27	Nagasaki	Nagasaki	1856156
+JP.26	Nagano	Nagano	1856210
+JP.25	Miyazaki	Miyazaki	1856710
+JP.23	Mie	Mie	1857352
+JP.22	Kyoto	Kyoto	1857907
+JP.21	Kumamoto	Kumamoto	1858419
+JP.20	Kochi	Kochi	1859133
+JP.19	Kanagawa	Kanagawa	1860291
+JP.18	Kagoshima	Kagoshima	1860825
+JP.17	Kagawa	Kagawa	1860834
+JP.15	Ishikawa	Ishikawa	1861387
+JP.13	Hyōgo	Hyogo	1862047
+JP.11	Hiroshima	Hiroshima	1862413
+JP.10	Gunma	Gunma	1863501
+JP.09	Gifu	Gifu	1863640
+JP.07	Fukuoka	Fukuoka	1863958
+JP.06	Fukui	Fukui	1863983
+JP.05	Ehime	Ehime	1864226
+JP.01	Aichi	Aichi	1865694
+JP.44	Yamagata	Yamagata	2110554
+JP.24	Miyagi	Miyagi	2111888
+JP.16	Iwate	Iwate	2112518
+JP.14	Ibaraki	Ibaraki	2112669
+JP.08	Fukushima	Fukushima	2112922
+JP.04	Chiba	Chiba	2113014
+JP.02	Akita	Akita	2113124
+JP.12	Hokkaido	Hokkaido	2130037
+JP.03	Aomori	Aomori	2130656
+MX.31	Yucatán	Yucatan	3514211
+MX.30	Veracruz	Veracruz	3514780
+MX.29	Tlaxcala	Tlaxcala	3515359
+MX.28	Tamaulipas	Tamaulipas	3516391
+MX.27	Tabasco	Tabasco	3516458
+MX.23	Quintana Roo	Quintana Roo	3520887
+MX.22	Querétaro	Queretaro	3520914
+MX.21	Puebla	Puebla	3521082
+MX.20	Oaxaca	Oaxaca	3522509
+MX.19	Nuevo León	Nuevo Leon	3522542
+MX.17	Morelos	Morelos	3522961
+MX.15	México	Mexico	3523272
+MX.13	Hidalgo	Hidalgo	3527115
+MX.12	Guerrero	Guerrero	3527213
+MX.09	Mexico City	Mexico City	3527646
+MX.05	Chiapas	Chiapas	3531011
+MX.04	Campeche	Campeche	3531730
+MX.32	Zacatecas	Zacatecas	3979840
+MX.26	Sonora	Sonora	3982846
+MX.25	Sinaloa	Sinaloa	3983035
+MX.24	San Luis Potosí	San Luis Potosi	3985605
+MX.18	Nayarit	Nayarit	3995012
+MX.16	Michoacán	Michoacan	3995955
+MX.14	Jalisco	Jalisco	4004156
+MX.11	Guanajuato	Guanajuato	4005267
+MX.10	Durango	Durango	4011741
+MX.08	Colima	Colima	4013513
+MX.07	Coahuila	Coahuila	4013674
+MX.06	Chihuahua	Chihuahua	4014336
+MX.03	Baja California Sur	Baja California Sur	4017698
+MX.02	Baja California	Baja California	4017700
+MX.01	Aguascalientes	Aguascalientes	4019231
+UG.C	Central Region	Central Region	234594
+UG.E	Eastern Region	Eastern Region	8260673
+UG.N	Northern Region	Northern Region	8260674
+UG.W	Western Region	Western Region	8260675

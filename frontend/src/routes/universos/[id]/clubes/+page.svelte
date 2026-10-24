@@ -41,7 +41,7 @@
   <table>
     <thead>
       <tr>
-        <th>Club</th><th>Institución</th><th>Zona</th>
+        <th>Club</th><th>Compite en</th><th>Institución</th><th>Zona</th>
         <th class="num">Presupuesto</th><th class="num">Recursos</th>
         <th>Instalación</th><th class="num">Aforo</th><th class="num">Afición</th>
       </tr>
@@ -55,6 +55,9 @@
                      shape={club.crest_shape} motif={club.crest_motif} size={20} />
               <a href={`/clubes/${club.id}`}>{club.name}</a>
             </span>
+          </td>
+          <td class="small">
+            {#if club.competition_name}{club.competition_name}{:else}<span class="muted">sin competición</span>{/if}
           </td>
           <td class="small">{INSTITUTION_LABEL[club.institutional_type] ?? club.institutional_type}</td>
           <td class="small">

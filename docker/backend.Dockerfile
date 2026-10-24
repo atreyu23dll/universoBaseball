@@ -14,6 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY simulation ./simulation
 COPY backend ./backend
 COPY data ./data
+# Los scripts operativos viven con la API porque necesitan su conexión a la
+# base: importar el gazetteer mundial o sembrar una demostración se hacen con
+# `docker compose exec api python scripts/...`.
+COPY scripts ./scripts
 
 ENV PYTHONPATH=/app:/app/backend
 

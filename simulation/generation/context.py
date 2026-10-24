@@ -1,9 +1,18 @@
-"""Contexto de mercado: por qué una liga barrial no es una liga nacional.
+"""Contexto de mercado: qué ofrece el territorio donde se juega.
 
-Nada aquí es una tabla de valores fijos por etiqueta. Cada número sale de una
-fórmula sobre el perfil regional y las reglas del usuario, y queda anotado en
-`GenerationRecord` para que la interfaz pueda responder «este presupuesto viene
-de tamaño de mercado y nivel de profesionalización».
+Lo que este módulo **ya no hace** (FIX V2 de Fase 1, §7.2): producir un «nivel
+de liga» que multiplique presupuestos. La causalidad va al revés:
+
+```text
+territorio + reglas  →  recursos locales finitos  →  cuentas de cada club
+                                                  →  nivel efectivo de la competición
+```
+
+El `market_score` describe el entorno —economía, tamaño de mercado, cultura
+deportiva— y sirve para repartir plazas y ponderar qué instituciones son
+plausibles. El dinero lo calcula `simulation.economy` club por club, y el nivel
+competitivo de la liga **emerge** de lo que esos clubes acabaron pudiendo
+sostener (`effective_level`), no de una etiqueta elegida en un formulario.
 
 Advertencia honesta: los coeficientes son **heurísticas sin calibrar** contra
 datos económicos reales. Ver `docs/simulation-calibration.md`.
@@ -16,11 +25,12 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 
 from simulation.competitions.ruleset import (
-    ContextualLevel,
+    ParticipationModality,
     RuleSet,
     ScopeLevel,
 )
 from simulation.core.provenance import Confidence, GenerationRecord
+from simulation.economy.model import ResourceTier, resource_tier
 from simulation.geography.model import Place, PlaceKind, PlaceTree
 
 PROCEDURE_VERSION = "context/1.0.0"
@@ -39,23 +49,6 @@ _SCOPE_NUDGE = {
     ScopeLevel.MULTINATIONAL: 0.08,
 }
 
-_EXPLICIT_LEVEL_SCORE = {
-    ContextualLevel.AMATEUR: 0.18,
-    ContextualLevel.SEMI_PROFESSIONAL: 0.42,
-    ContextualLevel.PROFESSIONAL: 0.68,
-    ContextualLevel.ELITE: 0.9,
-}
-
-_TIER_BOUNDS = (
-    (0.30, ContextualLevel.AMATEUR),
-    (0.55, ContextualLevel.SEMI_PROFESSIONAL),
-    (0.80, ContextualLevel.PROFESSIONAL),
-    (1.01, ContextualLevel.ELITE),
-)
-
-# Unidad monetaria base del presupuesto por "unidad de mercado". Heurística.
-_BUDGET_UNIT = Decimal("40000")
-
 
 def market_pull(population: int) -> float:
     """Atracción de mercado en 0-1 a partir de la población captable.
@@ -65,13 +58,6 @@ def market_pull(population: int) -> float:
     if population <= 0:
         return 0.0
     return max(0.0, min(1.0, math.log10(population) / 7.0))
-
-
-def score_to_tier(score: float) -> ContextualLevel:
-    for bound, tier in _TIER_BOUNDS:
-        if score < bound:
-            return tier
-    return ContextualLevel.ELITE
 
 
 @dataclass
@@ -119,28 +105,73 @@ class CompetitionContext:
 
     ruleset_name: str
     scope_level: ScopeLevel
-    professionalization_score: float
-    professionalization_tier: ContextualLevel
-    economy_score: float
-    maturity_score: float
+    modality: ParticipationModality
+    #: Descripción del entorno, 0-1: economía, tamaño de mercado y cultura
+    #: deportiva de los territorios elegidos. **No** es un nivel de riqueza de
+    #: los clubes ni multiplica ningún importe.
+    market_score: float
     aggregate_population: int
     eligible_markets: list[MarketProfile]
-    currency: str = "MXN"
+    #: Moneda de la jurisdicción. `None` si el territorio no tiene ancla.
+    currency: str | None = None
+    reference_monthly_cost: Decimal | None = None
     record: GenerationRecord = field(default=None)  # type: ignore[assignment]
+    #: Nivel competitivo **emergente**: se fija después de generar los clubes,
+    #: a partir de los recursos que de verdad pudieron sostener. Mientras no se
+    #: calcule vale `None`, y nada que dependa de él puede ejecutarse antes.
+    effective_level: float | None = None
+    effective_tier: ResourceTier | None = None
+
+    @property
+    def level(self) -> float:
+        """Nivel efectivo ya calculado. Falla si se pide antes de tiempo."""
+        if self.effective_level is None:
+            raise ValueError(
+                "el nivel de la competición se calcula a partir de los recursos de "
+                "sus clubes: no está disponible antes de generarlos"
+            )
+        return self.effective_level
 
     @property
     def talent_mean(self) -> float:
-        """Centro de la distribución de habilidad de la competición, 0-1.
+        """Centro de la distribución de habilidad que esta liga **atrae**, 0-1.
 
-        Una liga más profesional concentra mejores jugadores porque puede
-        pagarlos y atraerlos, no porque sus ciudades produzcan gente distinta.
+        No crea capacidades: una competición con más recursos atrae y retiene a
+        mejores jugadores del mercado compartido porque puede ofrecerles más
+        —compensación donde está permitida, instalaciones, exposición—. El
+        origen de nadie modifica su techo (V2 §3.6).
         """
-        return 0.28 + 0.44 * self.professionalization_score
+        return 0.28 + 0.44 * self.level
 
     @property
     def talent_spread(self) -> float:
-        """Dispersión: las ligas modestas son más heterogéneas."""
-        return 0.16 - 0.05 * self.professionalization_score
+        """Dispersión: las competiciones con menos recursos son más heterogéneas."""
+        return 0.16 - 0.05 * self.level
+
+
+def market_for_place(tree: PlaceTree, place_key: str) -> MarketProfile:
+    """Perfil de mercado de un lugar concreto del árbol.
+
+    Lo usa la generación para los mercados del alcance de la competición y el
+    re-presupuesto de cada temporada para la zona en la que un club **ya** está,
+    que puede no pertenecer al alcance de su competición actual: un club
+    ascendido no se muda.
+    """
+    place = tree.get(place_key)
+    profile = tree.effective_profile(place_key)
+    return MarketProfile(
+        place_key=place.key,
+        place_name=place.name,
+        catchment_population=profile.population,
+        economy_index=profile.economy_index,
+        culture_index=profile.baseball_culture_index,
+        infrastructure_index=profile.infrastructure_index,
+        cost_of_living_index=profile.cost_of_living_index,
+        confidence=profile.confidence,
+        elevation_m=place.elevation_m,
+        lat=place.lat,
+        lon=place.lon,
+    )
 
 
 def resolve_markets(tree: PlaceTree, ruleset: RuleSet) -> list[MarketProfile]:
@@ -167,28 +198,20 @@ def resolve_markets(tree: PlaceTree, ruleset: RuleSet) -> list[MarketProfile]:
         if place.key in seen:
             continue
         seen.add(place.key)
-        profile = tree.effective_profile(place.key)
-        markets.append(
-            MarketProfile(
-                place_key=place.key,
-                place_name=place.name,
-                catchment_population=profile.population,
-                economy_index=profile.economy_index,
-                culture_index=profile.baseball_culture_index,
-                infrastructure_index=profile.infrastructure_index,
-                cost_of_living_index=profile.cost_of_living_index,
-                confidence=profile.confidence,
-                elevation_m=place.elevation_m,
-                lat=place.lat,
-                lon=place.lon,
-            )
-        )
+        markets.append(market_for_place(tree, place.key))
     if not markets:
         raise ValueError("el territorio de la competición no contiene mercados utilizables")
     return sorted(markets, key=lambda m: m.place_key)
 
 
-def build_context(tree: PlaceTree, ruleset: RuleSet, currency: str = "MXN") -> CompetitionContext:
+def build_context(
+    tree: PlaceTree, ruleset: RuleSet, currency: str | None = None
+) -> CompetitionContext:
+    """Resuelve el entorno de la competición. **No** decide dinero ni nivel.
+
+    `currency` solo se acepta para forzar una moneda en pruebas; lo normal es
+    que salga del ancla monetaria del territorio.
+    """
     markets = resolve_markets(tree, ruleset)
     record = GenerationRecord(
         entity_kind="competition_context",
@@ -204,114 +227,138 @@ def build_context(tree: PlaceTree, ruleset: RuleSet, currency: str = "MXN") -> C
     total = float(aggregate_population) or 1.0
     economy = sum(m.economy_index * m.catchment_population for m in markets) / total
     culture = sum(m.culture_index * m.catchment_population for m in markets) / total
-    infrastructure = sum(m.infrastructure_index * m.catchment_population for m in markets) / total
     pull = market_pull(aggregate_population)
 
     auto_score = _W_ECONOMY * economy + _W_MARKET * pull + _W_CULTURE * culture
     nudge = _SCOPE_NUDGE[ruleset.scope.level]
-    contextual_score = max(0.0, min(1.0, auto_score + nudge))
-
-    if ruleset.generation.professionalization is ContextualLevel.CONTEXTUAL_AUTO:
-        prof_score = record.note(
-            "professionalization_score",
-            round(contextual_score, 4),
-            Confidence.ESTIMATED,
-            (
-                f"contextual_auto: {_W_ECONOMY}*economía({economy:.3f}) + "
-                f"{_W_MARKET}*mercado({pull:.3f}) + {_W_CULTURE}*cultura({culture:.3f}) "
-                f"{nudge:+.2f} por alcance {ruleset.scope.level}"
-            ),
-            economy=round(economy, 4),
-            market_pull=round(pull, 4),
-            culture=round(culture, 4),
-            scope_nudge=nudge,
-        )
-    else:
-        prof_score = record.note(
-            "professionalization_score",
-            _EXPLICIT_LEVEL_SCORE[ruleset.generation.professionalization],
-            Confidence.USER_CONFIGURED,
-            f"el usuario fijó profesionalización={ruleset.generation.professionalization}",
-            contextual_would_be=round(contextual_score, 4),
-        )
-
-    if ruleset.generation.economy is ContextualLevel.CONTEXTUAL_AUTO:
-        economy_score = record.note(
-            "economy_score",
-            round(max(0.0, min(1.0, 0.6 * economy + 0.4 * pull)), 4),
-            Confidence.ESTIMATED,
-            "contextual_auto: 0.6*economía regional + 0.4*atracción de mercado",
-            economy=round(economy, 4),
-            market_pull=round(pull, 4),
-        )
-    else:
-        economy_score = record.note(
-            "economy_score",
-            _EXPLICIT_LEVEL_SCORE[ruleset.generation.economy],
-            Confidence.USER_CONFIGURED,
-            f"el usuario fijó economía={ruleset.generation.economy}",
-        )
-
-    if ruleset.generation.institutional_maturity is ContextualLevel.CONTEXTUAL_AUTO:
-        maturity_score = record.note(
-            "maturity_score",
-            round(max(0.0, min(1.0, 0.5 * infrastructure + 0.3 * culture + 0.2 * pull)), 4),
-            Confidence.ESTIMATED,
-            "contextual_auto: 0.5*infraestructura + 0.3*cultura + 0.2*mercado",
-            infrastructure=round(infrastructure, 4),
-        )
-    else:
-        maturity_score = record.note(
-            "maturity_score",
-            _EXPLICIT_LEVEL_SCORE[ruleset.generation.institutional_maturity],
-            Confidence.USER_CONFIGURED,
-            f"el usuario fijó madurez={ruleset.generation.institutional_maturity}",
-        )
-
-    tier = score_to_tier(prof_score)
-    record.note(
-        "professionalization_tier",
-        str(tier),
+    market_score = record.note(
+        "market_score",
+        round(max(0.0, min(1.0, auto_score + nudge)), 4),
         Confidence.ESTIMATED,
-        f"umbrales fijos sobre el índice: {prof_score:.3f} cae en {tier}",
+        (
+            f"{_W_ECONOMY}*economía({economy:.3f}) + {_W_MARKET}*mercado({pull:.3f}) + "
+            f"{_W_CULTURE}*cultura({culture:.3f}) {nudge:+.2f} por alcance "
+            f"{ruleset.scope.level}. Describe el entorno; no multiplica presupuestos"
+        ),
+        economy=round(economy, 4),
+        market_pull=round(pull, 4),
+        culture=round(culture, 4),
+        scope_nudge=nudge,
+    )
+
+    # Moneda y ancla de la jurisdicción. Si el territorio no la tiene, se dice:
+    # el motor no presume la moneda del idioma de la interfaz.
+    anchor_key = ruleset.scope.place_keys[0]
+    anchor = tree.economic_anchor(anchor_key)
+    if currency is not None:
+        resolved_currency: str | None = currency
+        reference_cost = anchor.reference_monthly_cost if anchor else None
+    elif anchor is not None:
+        resolved_currency = anchor.currency
+        reference_cost = anchor.reference_monthly_cost
+        record.note(
+            "currency",
+            anchor.currency,
+            anchor.confidence,
+            (
+                f"moneda de curso legal de la jurisdicción de {anchor_key}; coste "
+                f"mensual de referencia {anchor.reference_monthly_cost} "
+                f"({anchor.ref_year})"
+            ),
+            reference_monthly_cost=str(anchor.reference_monthly_cost),
+        )
+    else:
+        resolved_currency = None
+        reference_cost = None
+        record.assumptions.append(
+            f"La jurisdicción de {anchor_key} no tiene ancla monetaria declarada: los "
+            "importes de sus instituciones quedan sin determinar en vez de inventarse."
+        )
+
+    record.note(
+        "participation_modality",
+        str(ruleset.participation_modality),
+        Confidence.USER_CONFIGURED,
+        (
+            f"{ruleset.modality.description} Regla de compensación vigente: "
+            f"{ruleset.effective_compensation_rule}"
+        ),
     )
     record.assumptions.append(
-        "Los coeficientes de profesionalización y economía son heurísticos, no "
-        "calibrados contra datos económicos reales."
+        "El índice de mercado es una heurística sin calibrar. Describe el entorno "
+        "y reparte plazas; ningún importe se deriva de él."
     )
     if any(m.confidence is not Confidence.OBSERVED for m in markets):
         record.assumptions.append(
-            "Al menos un mercado usa población o índices estimados/ficticios; la "
-            "escala económica resultante hereda esa incertidumbre."
+            "Al menos un mercado usa población o índices estimados/ficticios; las "
+            "cuentas de sus clubes heredan esa incertidumbre."
         )
 
     return CompetitionContext(
         ruleset_name=ruleset.name,
         scope_level=ruleset.scope.level,
-        professionalization_score=float(prof_score),
-        professionalization_tier=tier,
-        economy_score=float(economy_score),
-        maturity_score=float(maturity_score),
+        modality=ruleset.participation_modality,
+        market_score=float(market_score),
         aggregate_population=aggregate_population,
         eligible_markets=markets,
-        currency=currency,
+        currency=resolved_currency,
+        reference_monthly_cost=reference_cost,
         record=record,
     )
 
 
-def club_budget(
-    market: MarketProfile,
-    context: CompetitionContext,
-    resource_multiplier: float,
-) -> Decimal:
-    """Presupuesto anual del club.
+#: Divisor de la función que traduce recursos en nivel de juego:
+#: `nivel = log10(meses_de_coste_de_referencia + 1) / LEVEL_SCALE`.
+#:
+#: No es un número arbitrario: es una **función de transferencia calibrada**
+#: contra las bandas del propio motor de partidos. Se fija con un punto de
+#: anclaje: una liga nacional profesional, cuyos clubes reúnen del orden de 100
+#: meses de gasto doméstico de su país, tiene que caer en 0.68, que es el nivel
+#: al que `LeagueRates` reproduce béisbol de calidad profesional. De ahí
+#: `log10(103) / 0.68 ≈ 2.96`. Una liga llanera de barrio, con 6-15 meses, cae
+#: en torno a 0.34 con la misma función.
+#:
+#: Depende del fixture con el que se calibró; si cambian las anclas monetarias
+#: o los coeficientes de coste, hay que volver a medirlo con
+#: `make calibrate`. Ver `docs/simulation-calibration.md`.
+LEVEL_SCALE = 2.96
 
-    `mercado^0.55 × economía local × nivel de la competición × desigualdad`.
-    Heurística documentada, no una cifra observada.
+
+def resolve_effective_level(
+    context: CompetitionContext,
+    operating_budgets_in_months: list[float],
+) -> CompetitionContext:
+    """Fija el nivel competitivo a partir de lo que los clubes pudieron sostener.
+
+    Es el paso que invierte la causalidad: el nivel **sale** del dinero que las
+    instituciones reunieron de verdad, no al contrario. La escala es logarítmica
+    sobre meses de coste de referencia, porque duplicar el presupuesto no
+    duplica la calidad del juego.
     """
-    units = Decimal(str(round((market.catchment_population / 1000.0) ** 0.55, 4)))
-    local = Decimal(str(round(0.4 + 1.6 * market.economy_index, 4)))
-    league = Decimal(str(round(0.2 + 6.0 * context.professionalization_score**2.2, 4)))
-    spread = Decimal(str(round(resource_multiplier, 4)))
-    value = _BUDGET_UNIT * units * local * league * spread
-    return value.quantize(Decimal("1"))
+    if not operating_budgets_in_months:
+        context.effective_level = round(0.25 + 0.3 * context.market_score, 4)
+        context.effective_tier = None
+        return context
+
+    ordered = sorted(operating_budgets_in_months)
+    median = ordered[len(ordered) // 2]
+    # 1 mes → 0.10; 10 → 0.33; 100 → 0.67; 1000 → 1.0
+    level = math.log10(max(1.0, median) + 1.0) / LEVEL_SCALE
+    context.effective_level = round(max(0.05, min(1.0, level)), 4)
+    context.effective_tier = resource_tier(median)
+    if context.record is not None:
+        context.record.note(
+            "effective_level",
+            context.effective_level,
+            Confidence.ESTIMATED,
+            (
+                f"log10(mediana de presupuesto en meses de coste de referencia = "
+                f"{median:.1f}) / {LEVEL_SCALE} sobre {len(ordered)} clubes ya "
+                f"generados. "
+                f"Nivel de recursos resultante: {context.effective_tier}"
+            ),
+            median_months=round(median, 2),
+            min_months=round(ordered[0], 2),
+            max_months=round(ordered[-1], 2),
+        )
+    return context

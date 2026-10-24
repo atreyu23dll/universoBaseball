@@ -8,6 +8,7 @@ interfaz sin esperar.
 Uso:
     make seed-demo
     python scripts/seed_demo.py --nombre "Mi mundo" --semilla 4242
+    python scripts/seed_demo.py --con-ascenso --temporada-completa
 """
 
 from __future__ import annotations
@@ -21,12 +22,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT), str(ROOT / "backend")]
 
-from app.application import competition_service, sim_service, universe_service
+from app.application import (
+    competition_service,
+    mobility_service,
+    relationship_service,
+    sim_service,
+    universe_service,
+)
 from app.infrastructure.database import session_scope
 
 LIGA_MUNICIPAL = {
     "name": "Liga Municipal de Ciudad Juárez",
     "kind": "municipal_league",
+    "participation_modality": "amateur_organized",
     "relationship_mode": "independent",
     "scope": {"level": "municipal", "country_code": "MX", "place_keys": ["MX-CJS"]},
     "season": {"games_per_club_target": 44, "roster_size": 26},
@@ -36,6 +44,19 @@ LIGA_MUNICIPAL = {
     },
     "playoffs": {"slots": 4, "format": "best_of_series", "round_lengths": [3, 5]},
     "generation": {"club_count": 12, "seed": 18723},
+}
+
+#: Segunda división para la demostración de ascenso y descenso. Existe solo si
+#: se pide: una liga no arrastra a ninguna otra por su cuenta.
+LIGA_ASCENSO = {
+    "name": "Liga de Ascenso de Chihuahua",
+    "kind": "regional_league",
+    "participation_modality": "amateur_organized",
+    "relationship_mode": "independent",
+    "scope": {"level": "regional", "country_code": "MX", "place_keys": ["MX-CHH"]},
+    "season": {"games_per_club_target": 44, "roster_size": 26, "offseason_days": 10},
+    "playoffs": {"slots": 4, "format": "best_of_series", "round_lengths": [3, 5]},
+    "generation": {"club_count": 12, "seed": 55123},
 }
 
 
@@ -50,6 +71,14 @@ def main() -> int:
         help="simula hasta coronar campeón (tarda del orden de medio minuto)",
     )
     parser.add_argument("--dias", type=int, default=30)
+    parser.add_argument(
+        "--con-ascenso",
+        action="store_true",
+        help=(
+            "añade una segunda división vinculada con dos plazas de intercambio "
+            "para ver el ascenso y el descenso al cerrar la temporada"
+        ),
+    )
     args = parser.parse_args()
 
     with session_scope() as session:
@@ -73,6 +102,21 @@ def main() -> int:
         )
         edition_id = edition.id
 
+        if args.con_ascenso:
+            inferior = competition_service.create_competition(session, universe_id, LIGA_ASCENSO)
+            competition_service.generate_edition(session, inferior.id)
+            relationship_service.create_relationship(
+                session,
+                competition.id,
+                {
+                    "target_competition_id": inferior.id,
+                    "relation_kind": "promotion_relegation",
+                    "exchange_slots": 2,
+                },
+            )
+            reglas = mobility_service.effective_rules(session, competition.id)
+            print(f"vínculo    {reglas['note']}")
+
     started = time.perf_counter()
     progress = sim_service.advance_universe(
         universe_id=universe_id,
@@ -83,6 +127,17 @@ def main() -> int:
         f"simulación {time.perf_counter() - started:.1f}s  "
         f"{progress.days_done} días, {progress.games_played} partidos"
     )
+    if progress.transitions_applied:
+        print(
+            f"movilidad  {progress.transitions_applied} cierre(s) de temporada, "
+            f"{progress.club_movements} clubes cambiaron de categoría, "
+            f"{progress.seasons_opened} temporada(s) nueva(s)"
+        )
+        with session_scope() as session:
+            for transition in mobility_service.history(session, universe_id):
+                for movimiento in transition["plan"]["movements"]:
+                    flecha = "↑" if movimiento["direction"] == "promoted" else "↓"
+                    print(f"  {flecha} {movimiento['club_name'][:34]:34s} {movimiento['reason']}")
 
     with session_scope() as session:
         from app.application import query_service

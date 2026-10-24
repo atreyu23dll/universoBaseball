@@ -24,7 +24,7 @@ MIN_GAMES_PER_SECOND = 150.0
 def test_rendimiento_de_una_temporada(municipal_world, capsys):
     clubs = municipal_world.clubs
     season = SeasonRules(games_per_club_target=44)
-    rates = LeagueRates.for_level(municipal_world.context.professionalization_score)
+    rates = LeagueRates.for_level(municipal_world.context.level)
     rosters = {c.key: {k: municipal_world.people[k] for k in c.roster} for c in clubs}
 
     total = 300

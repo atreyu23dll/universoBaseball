@@ -1,8 +1,12 @@
 # Arquitectura — Baseball Universe
 
-> Estado: **Etapa 0 + vertical de Etapa 1 implementadas**. Las etapas 2–6 están
-> diseñadas (contratos y tablas previstas) pero **no** implementadas. Cada
-> afirmación de este documento se marca como `[IMPLEMENTADO]`, `[PARCIAL]` o
+> Estado: **Etapa 0, vertical de Etapa 1, movilidad de Etapa 2 y fases P0, P1,
+> P2 y P3 del FIX V2 de Fase 1 implementadas**. De la Etapa 2 funciona el intercambio
+> de clubes por ascenso y descenso con sus temporadas encadenadas; los grupos y
+> divisiones dentro de una competición, no. Del FIX V2 funciona el formulario
+> contraído a la competición, la economía de abajo arriba y el gazetteer
+> mundial de GeoNames. Las etapas 3–6 están diseñadas pero **no**
+> implementadas. Cada afirmación se marca como `[IMPLEMENTADO]`, `[PARCIAL]` o
 > `[PLANIFICADO]`.
 
 ## 1. Forma general
@@ -10,10 +14,10 @@
 Monolito modular con tres artefactos desplegables y un paquete de dominio puro:
 
 ```
-frontend/   SvelteKit + TypeScript   (UI: universos, wizard de liga, tablas, reloj)
+frontend/   SvelteKit + TypeScript   (UI: universos, asistente de 9 pasos, tablas, reloj)
 backend/    FastAPI + SQLAlchemy     (API REST, validación, orquestación, persistencia)
-simulation/ Paquete Python puro      (motor: RNG, generación, calendario, partidos)
-data/       Fixtures y schemas       (geografía local marcada por procedencia)
+simulation/ Paquete Python puro      (motor: RNG, geografía, generación, economía, partidos)
+data/       Fixtures y schemas       (geografía local con procedencia y ancla monetaria)
 ```
 
 Regla de dependencias (verificada por `backend/tests/test_layering.py` [IMPLEMENTADO]):
@@ -117,7 +121,136 @@ camino y no por atajos.
 estado. El contrato de mensajes está redactado en `docs/implementation-plan.md`
 pero no hay servidor WS: no lo anunciamos como disponible.
 
-## 6. Motor de partidos
+## 6. Frontera entre temporadas
+
+[IMPLEMENTADO] Al cerrar una edición, el avance del día cruza la frontera de
+temporada dentro de **la misma transacción** que la provocó
+(`app/application/season_service.py`):
+
+1. Si la competición no está vinculada a ninguna otra, abre su temporada
+   siguiente con los clubes que ya pertenecen a ella.
+2. Si está vinculada, **espera** a que todas las ligas de la escalera cierren la
+   misma temporada. Entonces resuelve el intercambio y solo después abre las
+   ediciones nuevas: la liga de arriba no puede tener calendario antes de saber
+   quién sube.
+
+El plan de ascensos y descensos lo resuelve el motor puro
+(`simulation/competitions/mobility.py`), que recibe clasificaciones ya resueltas
+y devuelve movimientos con su motivo. El servicio lo aplica:
+
+- cierra las `club_memberships` vigentes y abre las nuevas, **sin tocar
+  `club.id`**, su estadio, su plantilla, su caja, su deuda ni su historia;
+- reescala el presupuesto hacia el nivel de la nueva categoría una fracción
+  configurable (heurística, con su procedencia anotada) y mueve la reputación
+  despacio;
+- registra un `SimulationEvent` por movimiento y una fila en
+  `season_transitions` cuya clave única `(competición superior, temporada)` hace
+  **idempotente** la operación: reintentar el avance no mueve a nadie dos veces.
+
+La pertenencia tiene vigencia por temporadas (`start_season`, `end_season`)
+además de por edición, porque un ascenso se resuelve cuando la edición de
+destino todavía no existe.
+
+Consecuencia en el contrato del reloj: `until_season_end` ya no puede significar
+«hasta que no queden partidos pendientes» —eso no vuelve a ocurrir nunca—, así
+que el avance apunta las ediciones abiertas al empezar y para cuando todas han
+terminado.
+
+Antes de mover a nadie, el servicio **liquida la temporada de cada club**
+(`app/application/club_evolution_service.py`). El orden no es casual: un club
+que cierra no asciende, y una plaza no puede adjudicarse a quien ya no existe.
+
+1. `simulation/economy/season_close.py` calcula **lo cobrado y lo pagado**, que
+   no es lo previsto: hay socios que dejan de pagar, patrocinadores que
+   incumplen y partidos que no se jugaron y no vendieron entradas. Las
+   obligaciones, en cambio, se pagan enteras —con caja o con deuda— y lo que no
+   se cubre se convierte en deuda con interés.
+2. `simulation/economy/evolution.py` decide **en qué se convierte** el club: su
+   afición se mueve por lo que hizo en el campo, su alcance en la zona sube o
+   baja con las cuentas, su sede mejora o se degrada, y su forma de gobierno se
+   formaliza con años, arraigo y solvencia.
+3. Dos temporadas consecutivas sin poder cubrir sus obligaciones y el club deja
+   de competir. Conserva su fila, su historia y sus títulos; lo que no ocurre es
+   que se le regale el dinero que le falta para mantener el número de equipos de
+   la liga.
+
+Después, una segunda pasada **vuelve a presupuestar** la temporada siguiente de
+los supervivientes (`simulation/generation/season_forecast.py`) con la misma
+función que usó la generación, con la afición y el alcance ya evolucionados y
+con los recursos de la zona repartidos entre los clubes que quedan. La bolsa
+publicitaria local se recalcula desde el territorio, así que no crece porque un
+club crezca: lo que uno gana lo pierden sus vecinos.
+
+Queda todo escrito en `club_season_ledgers` —clave única `(club_id, season)`,
+que vuelve **idempotente** la liquidación igual que `season_transitions` lo hace
+con el intercambio— y en `club_organization_changes`, con la causa de cada
+cambio. La ficha del club lo muestra: lo real frente a lo previsto, asiento por
+asiento.
+
+[PLANIFICADO] Grupos, divisiones y conferencias dentro de una competición;
+extracción de cupos hacia copas (`QualificationPath` ejecutándose); fusiones y
+refundaciones de clubes, que V2 §6.3 menciona y aquí no existen.
+
+## 7. Geografía: gazetteer mundial y qué se sabe de cada sitio
+
+[IMPLEMENTADO] Dos fuentes con papeles distintos:
+
+- **`gazetteer_*`** (global, compartido entre universos): GeoNames importado.
+  252 países con su moneda ISO 4217, 3 865 divisiones de primer nivel y 236 632
+  localidades con variantes de nombre. Identificador propio más referencia
+  externa estable `(source, source_id)`.
+- **`places` / `region_profiles`** (por universo): la copia local del territorio
+  que esa partida usa, materializada desde el gazetteer al crear una
+  competición, para que cada universo pueda calibrar sus índices sin tocar los
+  demás.
+
+La resolución recorre `unresolved → candidates → user_selected → verified |
+incomplete`. Lo que la competición guarda es el **identificador** de la entidad,
+no el texto que escribió el usuario; un nombre a mano devuelve
+`GEOGRAPHY_UNRESOLVED`.
+
+Cobertura y conocimiento son cosas distintas, y el modelo las distingue:
+GeoNames da identidad, jerarquía, coordenadas, altitud, población y moneda
+—todo `observed`, con fuente citable—, y **no** da economía local, cultura
+beisbolística ni infraestructura deportiva. Esos índices salen como
+`scenario_assumption` con valor neutral, nunca deducidos del país, y si el
+universo ya tiene ese lugar calibrado a mano se reutilizan sus índices.
+
+Sin ancla monetaria curada, las cuentas de los clubes de esa jurisdicción salen
+con `insufficient_data` y los conceptos declarados sin cifra. Ver
+`docs/adr/0006-gazetteer-mundial-geonames.md`.
+
+## 8. Causalidad de la generación
+
+[IMPLEMENTADO] El orden no es un detalle de implementación: es el contrato que
+impide que una etiqueta del formulario decida el dinero (FIX V2 §7.2, ADR 0005).
+
+```text
+territorio + reglas de la competición
+  → recursos locales finitos (patrocinio, socios, campos) — y disputados
+    → organización propia de cada club (gobierno, sede, ambición)
+      → instalación compatible con su acuerdo de sede
+        → cuentas de abajo arriba: lo que recauda y lo que puede pagar
+          → nivel efectivo de la competición, que emerge de todo lo anterior
+            → talento que esa competición atrae del mercado compartido
+```
+
+Lo hace cumplir el código, no la buena voluntad: `generate_clubs` ya no recibe
+la población deportiva, y `CompetitionContext.level` **lanza una excepción** si
+alguien lo consulta antes de que `resolve_effective_level` lo haya calculado.
+
+El único punto donde un índice relativo se convierte en dinero es el **ancla
+monetaria** del territorio (`EconomicAnchor`: moneda de curso legal y gasto
+mensual de referencia de un hogar, estimado y fechado). Sin ancla no hay
+importes: las cuentas salen con `insufficient_data` y la interfaz lo dice.
+
+La frontera de responsabilidades está en el DTO, no solo en la interfaz: el
+reglamento admite `participation_modality`, `eligibility`, `admission` y
+`financial_regulations`, y **rechaza** con el código
+`DEPRECATED_CLUB_GENERATION_FIELD` cualquier campo que intente decidir el
+presupuesto, la propiedad, el personal o la instalación de los clubes.
+
+## 9. Motor de partidos
 
 [IMPLEMENTADO] Nivel 1 de los tres que pide la especificación: máquina de
 estados **turno de bateo por turno de bateo**. No existe una fórmula que elija
@@ -133,13 +266,23 @@ doble matanza), avance de corredores y anotación.
 [PLANIFICADO] Niveles 2 (lanzamiento por lanzamiento) y 3 (trayectoria física).
 El motor expone la interfaz `MatchEngine` para que convivan calibrados entre sí.
 
-## 7. Qué no existe todavía
+## 10. Qué no existe todavía
 
 Dicho sin rodeos, para que nadie lo busque en el código:
 
-- Ascenso/descenso transaccional y grafo de relaciones **ejecutándose**: las
-  tablas y las validaciones de ciclo existen; el intercambio de clubes al cerrar
-  temporada no (Etapa 2).
+- **Mapa cartográfico.** La geografía se resuelve y se consulta como texto, que
+  es lo accesible y lo que pide el requisito; no hay vista MapLibre ni polígonos
+  descargados de geoBoundaries.
+- **Coste de referencia para 246 países.** Se conoce la moneda de 251 de 252,
+  pero el ancla que convierte índices en importes solo está curada para cinco:
+  los demás territorios generan mundos completos sin cifras económicas.
+- Grupos, divisiones y conferencias dentro de una misma competición: hoy toda
+  competición es una tabla única (resto de la Etapa 2).
+- `QualificationPath` **ejecutándose**: las rutas de cupos se registran y se
+  validan, pero no extraen participantes (Etapa 3).
+- Consecuencias del ascenso más allá del presupuesto y la reputación: no hay
+  renegociación de contratos ni ajuste de plantilla al cambiar de categoría
+  (Etapa 4).
 - Selecciones nacionales, elegibilidad por liga doméstica, preeliminatorias (Etapa 3).
 - Economía con libro mayor, patrocinios, fichajes, IA institucional (Etapa 4).
 - Lanzamiento por lanzamiento, clima por fecha real, vista 2D del parque (Etapa 5).

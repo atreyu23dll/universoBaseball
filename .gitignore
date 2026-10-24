@@ -20,3 +20,8 @@ frontend/.npm-cache/
 
 # Sistema
 .DS_Store
+
+# Volcado completo de GeoNames: 43 MB de datos de terceros que se descargan con
+# `make import-geonames`, no se versionan. El extracto reducido para pruebas sí
+# está en el repositorio, en data/gazetteer/sample/.
+data/gazetteer/geonames/

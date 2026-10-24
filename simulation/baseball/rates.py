@@ -24,7 +24,13 @@ from simulation.people.model import Person
 BASE_WALK = 0.085
 BASE_HBP = 0.009
 BASE_STRIKEOUT = 0.210
-BASE_HOMERUN = 0.0275
+#: Reajustada de 0.0275 a 0.0245 el 22/10/2026, al corregir la edad al corte:
+#: antes un jugador «de 25 años» tenía en realidad 24.5 de media, porque la
+#: fecha de nacimiento se sorteaba sin mirar el corte del reglamento. Al
+#: corregirlo, la población envejeció medio año, la potencia subió y el
+#: escenario profesional se iba a 0.0371 jonrones por turno frente a la banda
+#: de referencia [0.025, 0.035]. Ver docs/simulation-calibration.md.
+BASE_HOMERUN = 0.0245
 BASE_TRIPLE = 0.004
 BASE_DOUBLE = 0.045
 BASE_SINGLE = 0.145

@@ -25,11 +25,18 @@ app = FastAPI(
     version="0.1.0",
     summary="Simulador de ecosistemas de béisbol, local y reproducible",
     description=(
-        "Etapa 0 y vertical de Etapa 1 implementadas: universo, liga independiente, "
+        "Etapa 0 y vertical de Etapa 1 implementadas, más el FIX V2 de Fase 1 en sus "
+        "fases P0, P1, P2 y P3: el usuario configura la competición y nunca la "
+        "estructura interna de los clubes, los presupuestos se calculan de abajo "
+        "arriba con su procedencia, y el territorio se resuelve contra un gazetteer "
+        "mundial. Detalle: universo, liga independiente, "
         "generación contextual, calendario, motor de partidos turno a turno, "
-        "clasificación, postemporada y avance del tiempo persistente. "
-        "Las relaciones de ascenso/descenso, las selecciones nacionales y la "
-        "economía profunda están diseñadas pero NO implementadas."
+        "clasificación, postemporada y avance del tiempo persistente. De la Etapa 2 "
+        "funciona el intercambio de clubes por ascenso y descenso al cerrar la "
+        "temporada, con su cuota única, sus requisitos y la apertura de la temporada "
+        "siguiente; los grupos y divisiones dentro de una misma competición todavía "
+        "no. Las selecciones nacionales, la economía profunda y el béisbol "
+        "lanzamiento por lanzamiento están diseñados pero NO implementados."
     ),
 )
 
@@ -95,7 +102,25 @@ def health() -> dict[str, object]:
         "sim_version": SIM_VERSION,
         "database": "postgresql" if not settings.is_sqlite else "sqlite",
         "stages_implemented": ["0", "1"],
-        "stages_pending": ["2", "3", "4", "5", "6"],
+        "stages_partial": {
+            "fix_v2_fase_1": (
+                "P0, P1, P2 y P3 hechos: el formulario configura la competición y "
+                "no los clubes, hay modalidad de participación y elegibilidad por "
+                "edad, la economía es de abajo arriba con moneda por jurisdicción "
+                "y el territorio se resuelve contra un gazetteer mundial de "
+                "GeoNames. Falta P4 (huella de intención en la previsualización) y "
+                "P5 (evolución institucional en el tiempo); el coste de "
+                "referencia que permite calcular importes solo está curado para "
+                "cinco países"
+            ),
+            "2": (
+                "ascenso y descenso transaccional, cuota única con varias "
+                "alimentadoras, requisitos de ascenso y temporadas encadenadas; "
+                "sin grupos ni divisiones dentro de una competición y sin "
+                "extracción de cupos hacia copas"
+            ),
+        },
+        "stages_pending": ["3", "4", "5", "6"],
     }
 
 

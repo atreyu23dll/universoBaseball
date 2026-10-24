@@ -21,6 +21,8 @@ from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.application import season_service
+from app.application.competition_service import competition_professionalization
 from app.application.errors import ConflictError, LockedError, NotFoundError, ValidationFailure
 from app.application.mappers import club_row_to_domain, person_row_to_domain, venue_row_to_domain
 from app.application.universe_service import get_universe, record_event
@@ -39,7 +41,6 @@ from simulation.competitions.ruleset import PlayoffFormat, RuleSet
 from simulation.competitions.standings import GameOutcome, compute_standings
 from simulation.core.errors import RuleValidationError
 from simulation.core.events import EventType, SimulationEvent
-from simulation.generation.context import build_context
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,12 @@ class AdvanceProgress:
     days_done: int = 0
     games_played: int = 0
     editions_completed: int = 0
+    transitions_applied: int = 0
+    club_movements: int = 0
+    seasons_opened: int = 0
+    #: Temporadas liquidadas y clubes que dejaron de existir al cerrarlas.
+    clubs_settled: int = 0
+    clubs_folded: int = 0
     world_date: date | None = None
     notes: list[str] = field(default_factory=list)
 
@@ -63,6 +70,11 @@ class AdvanceProgress:
             "days_done": self.days_done,
             "games_played": self.games_played,
             "editions_completed": self.editions_completed,
+            "transitions_applied": self.transitions_applied,
+            "club_movements": self.club_movements,
+            "seasons_opened": self.seasons_opened,
+            "clubs_settled": self.clubs_settled,
+            "clubs_folded": self.clubs_folded,
             "world_date": self.world_date.isoformat() if self.world_date else None,
             "notes": self.notes,
         }
@@ -245,6 +257,33 @@ def advance_universe(
     limit = settings.max_advance_days if until_season_end else days
     progress = AdvanceProgress(days_requested=days)
 
+    # «Hasta el fin de la temporada» significa las ediciones que están abiertas
+    # AHORA. Desde que el mundo abre la temporada siguiente por su cuenta, no
+    # puede significar «hasta que no queden partidos»: eso ya no pasa nunca.
+    watched: set[str] = set()
+    if until_season_end:
+        with session_scope() as session:
+            watched = {
+                row.id
+                for row in session.scalars(
+                    select(m.CompetitionEdition).where(
+                        m.CompetitionEdition.universe_id == universe_id,
+                        m.CompetitionEdition.status.in_(("scheduled", "in_progress")),
+                    )
+                ).all()
+            }
+        if not watched:
+            # El mundo está justo en la frontera: la temporada anterior cerró y
+            # la siguiente no se ha abierto. No se puede devolver «nada que
+            # hacer», porque entonces no habría manera de cruzarla; se avanza un
+            # día, que es lo que resuelve ascensos y abre la temporada nueva, y
+            # se para ahí en vez de simularla entera.
+            limit = 1
+            progress.notes.append(
+                "ninguna edición estaba en marcha: se avanza un día para cruzar la "
+                "frontera de temporada y abrir la siguiente si corresponde"
+            )
+
     for _ in range(limit):
         # Un día, una transacción. Si algo revienta en el día 7, los 6
         # anteriores están guardados y el mundo sigue siendo coherente.
@@ -254,14 +293,31 @@ def advance_universe(
             progress.days_done += 1
             progress.games_played += day_result["games"]
             progress.editions_completed += day_result["editions_completed"]
+            progress.transitions_applied += day_result["transitions"]
+            progress.club_movements += day_result["club_movements"]
+            progress.seasons_opened += day_result["seasons_opened"]
+            progress.clubs_settled += day_result["clubs_settled"]
+            progress.clubs_folded += day_result["clubs_folded"]
+            for note in day_result["notes"]:
+                if note not in progress.notes:
+                    progress.notes.append(note)
             progress.world_date = universe.world_date
             if job_id:
                 job = session.get(m.SimJob, job_id)
                 if job is not None:
                     job.progress = progress.as_dict()
             pending = day_result["pending_games"]
+            open_editions = day_result["open_editions"]
 
-        if until_season_end and pending == 0:
+        if until_season_end and not (watched & open_editions):
+            if watched:
+                progress.notes.append(
+                    "terminaron todas las ediciones que estaban en marcha al empezar el avance"
+                )
+            break
+        if not until_season_end:
+            continue
+        if pending == 0:
             progress.notes.append("no quedan partidos pendientes en ninguna edición")
             break
     return progress
@@ -308,6 +364,11 @@ def _advance_one_day(session: Session, universe: m.Universe) -> dict:
         if _progress_edition(session, universe, edition):
             editions_completed += 1
 
+    # Cerrada la edición, toca la frontera de temporada: ascensos y descensos
+    # de las ligas vinculadas y apertura de la temporada siguiente. Todo dentro
+    # de la transacción de este día.
+    boundary = season_service.process_season_boundaries(session, universe)
+
     universe.world_date = today + timedelta(days=1)
     record_event(
         session,
@@ -328,7 +389,29 @@ def _advance_one_day(session: Session, universe: m.Universe) -> dict:
         )
         or 0
     )
-    return {"games": played, "editions_completed": editions_completed, "pending_games": pending}
+    open_editions = {
+        row.id
+        for row in session.scalars(
+            select(m.CompetitionEdition).where(
+                m.CompetitionEdition.universe_id == universe.id,
+                m.CompetitionEdition.status.in_(("scheduled", "in_progress")),
+            )
+        ).all()
+    }
+    return {
+        "games": played,
+        "editions_completed": editions_completed,
+        "pending_games": pending,
+        "open_editions": open_editions,
+        "transitions": len(boundary.transitions),
+        "club_movements": sum(
+            len(transition.get("movements", [])) for transition in boundary.transitions
+        ),
+        "seasons_opened": len(boundary.editions_opened),
+        "clubs_settled": sum(s["ledgers"] for s in boundary.settlements),
+        "clubs_folded": sum(len(s["folded"]) for s in boundary.settlements),
+        "notes": boundary.notes,
+    }
 
 
 def _load_ruleset(session: Session, edition: m.CompetitionEdition) -> RuleSet:
@@ -336,35 +419,6 @@ def _load_ruleset(session: Session, edition: m.CompetitionEdition) -> RuleSet:
     if version is None:
         raise NotFoundError("la edición apunta a una versión de reglas inexistente")
     return RuleSet.model_validate(version.rules_json)
-
-
-def _edition_professionalization(session: Session, edition: m.CompetitionEdition) -> float:
-    """Nivel de la competición, reconstruido desde la procedencia guardada.
-
-    Se guarda al generar; si faltara, se recalcula desde el territorio en vez de
-    inventar un número.
-    """
-    row = session.scalars(
-        select(m.GenerationProvenance)
-        .where(
-            m.GenerationProvenance.universe_id == edition.universe_id,
-            m.GenerationProvenance.entity_kind == "competition_context",
-        )
-        .order_by(m.GenerationProvenance.id)
-    ).all()
-    competition = session.get(m.CompetitionDefinition, edition.competition_id)
-    assert competition is not None
-    for record in row:
-        if record.entity_key == competition.name:
-            for note in record.notes:
-                if note["field"] == "professionalization_score":
-                    return float(note["value"])
-
-    from app.application.competition_service import load_place_tree
-
-    tree = load_place_tree(session, edition.universe_id)
-    ruleset = _load_ruleset(session, edition)
-    return build_context(tree, ruleset).professionalization_score
 
 
 def _club_bundle(session: Session, club_id: str) -> tuple:
@@ -436,7 +490,7 @@ def _simulate_and_store(session: Session, universe: m.Universe, game: m.Game) ->
     edition = session.get(m.CompetitionEdition, game.edition_id)
     assert edition is not None
     ruleset = _load_ruleset(session, edition)
-    professionalization = _edition_professionalization(session, edition)
+    professionalization = competition_professionalization(session, edition.competition_id)
 
     home_club, home_roster, home_ids, _ = _club_bundle(session, game.home_club_id)
     away_club, away_roster, away_ids, _ = _club_bundle(session, game.away_club_id)

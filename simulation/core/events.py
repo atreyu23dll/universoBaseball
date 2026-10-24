@@ -18,6 +18,14 @@ class EventType(StrEnum):
     REGULAR_SEASON_ENDED = "regular_season_ended"
     PLAYOFF_ROUND_BUILT = "playoff_round_built"
     EDITION_COMPLETED = "edition_completed"
+    SEASON_TRANSITION_APPLIED = "season_transition_applied"
+    CLUB_PROMOTED = "club_promoted"
+    CLUB_RELEGATED = "club_relegated"
+    PROMOTION_BLOCKED = "promotion_blocked"
+    SEASON_STARTED = "season_started"
+    CLUB_SEASON_SETTLED = "club_season_settled"
+    CLUB_ORGANIZATION_CHANGED = "club_organization_changed"
+    CLUB_FOLDED = "club_folded"
 
 
 @dataclass(frozen=True)

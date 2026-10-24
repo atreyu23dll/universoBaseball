@@ -33,7 +33,7 @@ def _play(world, home_index: int, away_index: int, seed: int, season: SeasonRule
         away=TeamGameInput(away, {k: world.people[k] for k in away.roster}),
         venue=home.venue,
         season=season or SeasonRules(games_per_club_target=44),
-        rates=LeagueRates.for_level(world.context.professionalization_score),
+        rates=LeagueRates.for_level(world.context.level),
         seed=seed,
         park=NEUTRAL_PARK,
     )
@@ -243,7 +243,7 @@ def test_el_clima_y_el_parque_reales_tambien_producen_partidos_validos(tree):
             home_roster={k: world.people[k] for k in home.roster},
             away_roster={k: world.people[k] for k in away.roster},
             season=ruleset.season,
-            professionalization=world.context.professionalization_score,
+            professionalization=world.context.level,
         )
         assert result.state is GameState.FINAL
         assert weather.model == "seasonal_latitude_v1"

@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
+from simulation.competitions.ruleset import AgeCutoff, EligibilityRules
 from simulation.core.provenance import Confidence, GenerationRecord
 from simulation.core.rng import clamped_normal, rng_for, weighted_choice
 from simulation.generation.context import CompetitionContext, MarketProfile
@@ -122,6 +123,46 @@ def _age_weight(age: int) -> float:
     return 0.18
 
 
+def cutoff_date_for(eligibility: EligibilityRules, world_date: date) -> date:
+    """Fecha en la que se mide la edad, según el corte del reglamento.
+
+    No es un detalle: con corte al inicio de temporada, quien cumple años en
+    octubre juega toda la temporada en la categoría que tenía en marzo. Medir la
+    edad en el día equivocado saca de su liga a un niño de doce años.
+    """
+    if eligibility.age_cutoff is AgeCutoff.CALENDAR_YEAR:
+        return date(world_date.year, 1, 1)
+    if eligibility.age_cutoff is AgeCutoff.FIXED_DATE and eligibility.cutoff_month_day:
+        month, day = (int(part) for part in eligibility.cutoff_month_day.split("-"))
+        return date(world_date.year, month, day)
+    return world_date
+
+
+def age_range(eligibility: EligibilityRules) -> tuple[int, int]:
+    """Edades que la competición admite.
+
+    Sin edad máxima declarada se usa un techo amplio: una liga 18+ no se queda
+    sin veteranos, pero tampoco genera gente de 90 años.
+    """
+    low = eligibility.minimum_age
+    high = eligibility.maximum_age if eligibility.maximum_age is not None else max(low + 22, 40)
+    return low, max(low, high)
+
+
+def _youth_weight(age: int, low: int, high: int) -> float:
+    """Reparto por edad dentro de una categoría acotada.
+
+    En una categoría infantil o juvenil no hay «edad de plenitud»: hay una
+    cohorte, con algo más de gente en los años centrales porque los mayores ya
+    pasaron de categoría y los pequeños están empezando.
+    """
+    if high <= low:
+        return 1.0
+    centro = (low + high) / 2.0
+    radio = max(1.0, (high - low) / 2.0)
+    return max(0.25, 1.0 - 0.45 * abs(age - centro) / radio)
+
+
 def _make_person(
     rng: random.Random,
     registry: NameRegistry,
@@ -133,17 +174,36 @@ def _make_person(
     position: Position,
     pitcher_role: PitcherRole | None,
     world_date: date,
+    age_bounds: tuple[int, int] = (17, 40),
+    cutoff: date | None = None,
 ) -> Person:
-    ages = [(age, _age_weight(age)) for age in range(17, 41)]
+    low, high = age_bounds
+    if high < 18 or (low >= 18 and high - low <= 6):
+        # Categoría acotada —infantil, juvenil, veteranos—: cohorte plana.
+        ages = [(age, _youth_weight(age, low, high)) for age in range(low, high + 1)]
+    else:
+        ages = [(age, _age_weight(age)) for age in range(low, high + 1)]
     age = int(weighted_choice(rng, ages))  # type: ignore[arg-type]
-    birth_year = world_date.year - age
-    birth = date(birth_year, rng.randrange(1, 13), rng.randrange(1, 29))
+    # Se cuenta hacia atrás desde el corte, no desde el 1 de enero: así la edad
+    # en la fecha que manda el reglamento es exactamente la sorteada.
+    reference = cutoff or world_date
+    try:
+        aniversario = reference.replace(year=reference.year - age)
+    except ValueError:  # 29 de febrero
+        aniversario = reference.replace(year=reference.year - age, day=28)
+    birth = aniversario - timedelta(days=rng.randrange(0, 365))
 
     overall = clamped_normal(rng, ability_center, ability_spread, 0.05, 0.98)
 
     # La edad modula el rendimiento actual frente al potencial: un chico de 18
     # rinde por debajo de su techo, un veterano por debajo de lo que rindió.
-    if age < 24:
+    if high < 18:
+        # Dentro de una categoría infantil o juvenil, la referencia es la propia
+        # cohorte: nadie «rinde por debajo de un techo adulto» a los diez años.
+        progreso = (age - low) / max(1, high - low)
+        current = overall * (0.82 + 0.18 * progreso)
+        potential = min(0.99, overall * 1.18)
+    elif age < 24:
         current = overall * (0.72 + 0.028 * (age - 17))
         potential = min(0.99, overall * (1.04 + 0.012 * (24 - age)))
     elif age <= 31:
@@ -267,6 +327,7 @@ def generate_talent_pool(
     registry: NameRegistry,
     roster_size: int,
     club_count: int,
+    eligibility: EligibilityRules | None = None,
 ) -> tuple[list[PoolMember], GenerationRecord]:
     """Genera la población deportiva del territorio de la competición.
 
@@ -280,6 +341,21 @@ def generate_talent_pool(
         procedure="generate_talent_pool",
         procedure_version=PROCEDURE_VERSION,
         seed=master_seed,
+    )
+    rules = eligibility or EligibilityRules()
+    bounds = age_range(rules)
+    cutoff = cutoff_date_for(rules, world_date)
+    record.note(
+        "age_range",
+        {"minimum": bounds[0], "maximum": bounds[1]},
+        Confidence.USER_CONFIGURED,
+        (
+            f"la competición admite de {rules.minimum_age} a "
+            f"{rules.maximum_age if rules.maximum_age is not None else 'sin tope'} años "
+            f"medidos el {cutoff.isoformat()} (corte {rules.age_cutoff}); la población se "
+            "genera dentro de ese rango"
+        ),
+        minor_safeguarding=rules.minor_safeguarding,
     )
     needed = roster_size * club_count
     pool_size = record.note(
@@ -342,6 +418,8 @@ def generate_talent_pool(
                 position=position,
                 pitcher_role=pitcher_role,
                 world_date=world_date,
+                age_bounds=bounds,
+                cutoff=cutoff,
             )
             observed = max(0.02, min(0.99, person.overall + person.development.scouting_error))
             pool.append(

@@ -51,6 +51,17 @@ run-api: migrate  ## Arranca la API en 127.0.0.1:8000 sobre SQLite
 run-frontend:  ## Arranca el frontend en 127.0.0.1:5173 (necesita Node)
 	cd frontend && npm run dev
 
+.PHONY: import-geonames
+import-geonames:  ## Descarga e importa el gazetteer mundial de GeoNames (~17 MB)
+	# Los datos son de GeoNames, CC BY 4.0, y exigen atribución; la importación
+	# la registra en cada entidad. Ver data/gazetteer/README.md.
+	$(PY) scripts/import_geonames.py --download --source-dir data/gazetteer/geonames
+	$(PY) scripts/import_geonames.py --source-dir data/gazetteer/geonames
+
+.PHONY: import-geonames-sample
+import-geonames-sample:  ## Importa solo el extracto versionado (nueve países, sin red)
+	$(PY) scripts/import_geonames.py --source-dir data/gazetteer/sample
+
 .PHONY: seed-demo
 seed-demo:  ## Crea un universo de demostración con una temporada simulada
 	$(PY) scripts/seed_demo.py
@@ -111,7 +122,11 @@ build-frontend:  ## Compila el frontend (necesita Node)
 
 .PHONY: calibrate
 calibrate:  ## Mide el comportamiento estadístico del motor
-	$(PY) scripts/calibrate.py --seasons 2
+	# Cuatro semillas, no dos: con dos, métricas de proporción como la cuota de
+	# partidos con entradas extra (~0.12) tienen un error de muestreo del orden
+	# del ancho de su banda de referencia, y la comprobación falla o pasa por un
+	# partido de diferencia. Ver docs/simulation-calibration.md.
+	$(PY) scripts/calibrate.py --seasons 4
 
 .PHONY: smoke-stack
 smoke-stack:  ## Comprueba el stack por el camino del navegador (necesita docker compose up)
