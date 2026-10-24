@@ -214,6 +214,37 @@ class PlayoffFormat(StrEnum):
     SINGLE_ELIMINATION = "single_elimination"
 
 
+class PairingPolicy(StrEnum):
+    """Cómo se forma cada cruce de una ronda.
+
+    Las dos primeras **resiembran**: miran la tabla de la temporada regular y
+    rehacen los cruces con los que siguen vivos. Las dos últimas no, y esa es
+    la diferencia entre una postemporada de liga y un cuadro de copa.
+    """
+
+    #: Mejor contra peor entre los supervivientes. Es la resiembra de la MLB.
+    HIGH_LOW = "high_low"
+    #: Vecinos de la tabla: primero contra segundo, tercero contra cuarto.
+    ADJACENT = "adjacent"
+    #: Las llaves no se mueven: el ganador de un cruce se enfrenta al del cruce
+    #: de al lado, como en un cuadro de copa dibujado de antemano.
+    FIXED = "fixed"
+    #: Sorteo reproducible: el mismo reglamento da siempre los mismos cruces.
+    DRAW = "draw"
+
+
+class PlayoffSeeding(StrEnum):
+    """Quién decide la forma del cuadro."""
+
+    #: La deduce de las plazas: el cuadro es la potencia de dos que las cabe y
+    #: las mejores siembras se saltan la primera ronda. Es lo que hacían los
+    #: reglamentos anteriores a este campo, y sigue siendo el valor por omisión.
+    AUTO = "auto"
+    #: La dibujó el editor: `round_lengths` dice cuántas rondas hay y cada
+    #: puerta dice en cuál entra su plaza. El motor no infiere pases directos.
+    STAGED = "staged"
+
+
 class GroupAssignment(StrEnum):
     """Cómo se reparten los clubes entre los grupos de una competición."""
 
@@ -329,6 +360,13 @@ class PlayoffRules(BaseModel):
     slots: int = 0
     format: PlayoffFormat = PlayoffFormat.NONE
     round_lengths: list[int] = Field(default_factory=list)
+    #: Quién fija la forma del cuadro. Con `staged`, las rondas son las de
+    #: `round_lengths` y la entrada de cada plaza la dicen las puertas.
+    seeding: PlayoffSeeding = PlayoffSeeding.AUTO
+    #: Nombres de las rondas. Vacío conserva «Ronda 1», «Ronda 2»…
+    round_labels: list[str] = Field(default_factory=list)
+    #: Política de cruces por ronda. Vacío conserva mejor contra peor.
+    round_pairings: list[PairingPolicy] = Field(default_factory=list)
 
     @field_validator("round_lengths")
     @classmethod
@@ -348,13 +386,49 @@ class PlayoffRules(BaseModel):
             return self
         if self.slots < 2:
             raise ValueError("un playoff necesita al menos 2 plazas")
-        if self.format is PlayoffFormat.BEST_OF_SERIES and len(self.round_lengths) != self.rounds:
+        if self.seeding is PlayoffSeeding.STAGED:
+            # Con el cuadro dibujado, las rondas no se deducen de las plazas:
+            # son las que el usuario puso, y que su camino cierre con un solo
+            # campeón lo comprueba `validate_sequence` con las puertas delante.
+            if not self.round_lengths:
+                raise ValueError("un cuadro dibujado necesita al menos una ronda")
+        elif self.format is PlayoffFormat.BEST_OF_SERIES and len(self.round_lengths) != self.rounds:
             raise ValueError(
                 f"{self.slots} plazas requieren {self.rounds} rondas "
                 f"({self.byes} pase(s) directo(s) a la segunda); se declararon "
                 f"{len(self.round_lengths)} longitudes de serie"
             )
+        if self.round_labels and len(self.round_labels) != len(self.round_lengths):
+            raise ValueError(
+                "los nombres de las rondas tienen que corresponder uno a uno con sus series"
+            )
+        if any(not label.strip() for label in self.round_labels):
+            raise ValueError("una ronda no puede tener el nombre vacío")
+        if self.round_pairings and len(self.round_pairings) != len(self.round_lengths):
+            raise ValueError("cada ronda necesita exactamente una política de emparejamiento")
         return self
+
+    @property
+    def staged(self) -> bool:
+        """¿El cuadro lo dibujó el editor en vez de deducirse de las plazas?"""
+        return self.seeding is PlayoffSeeding.STAGED
+
+    def pairing_for(self, round_index: int) -> PairingPolicy:
+        if round_index < len(self.round_pairings):
+            return self.round_pairings[round_index]
+        return PairingPolicy.HIGH_LOW
+
+    def best_of_for(self, round_index: int) -> int:
+        """Longitud de la serie de una ronda, sin salirse de la lista."""
+        if round_index < len(self.round_lengths):
+            return self.round_lengths[round_index]
+        return self.round_lengths[-1] if self.round_lengths else 1
+
+    def label_for(self, round_index: int) -> str:
+        """Nombre de una ronda: el que le puso el usuario o su número."""
+        if round_index < len(self.round_labels):
+            return self.round_labels[round_index]
+        return f"Ronda {round_index + 1}"
 
     @property
     def bracket_size(self) -> int:
@@ -376,8 +450,18 @@ class PlayoffRules(BaseModel):
 
     @property
     def rounds(self) -> int:
-        """Rondas que hacen falta para resolver el cuadro."""
+        """Rondas que hacen falta para resolver el cuadro deducido."""
         return max(0, self.bracket_size.bit_length() - 1)
+
+    @property
+    def effective_rounds(self) -> int:
+        """Rondas que se van a jugar: las dibujadas o las que pide el cuadro.
+
+        Un cuadro dibujado puede tener más rondas que plazas dan de sí —una
+        escalerilla donde cada ronda incorpora a uno— y por eso las cuenta su
+        lista de series, no el logaritmo de las plazas.
+        """
+        return len(self.round_lengths) if self.staged else self.rounds
 
     @property
     def first_round_series(self) -> int:

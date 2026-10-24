@@ -37,6 +37,7 @@ from simulation.competitions.playoffs import (
     qualifiers_from_groups,
     schedule_series_game,
     seed_bracket,
+    seed_staged_bracket,
 )
 from simulation.competitions.ruleset import PlayoffFormat, RuleSet
 from simulation.competitions.standings import GameOutcome, compute_standings
@@ -693,9 +694,7 @@ def recompute_standings(
         juego.away_club_id for juego in programados
     }
     entries = [
-        entrada
-        for entrada in todas
-        if entrada.id in con_filas or entrada.club_id in con_partidos
+        entrada for entrada in todas if entrada.id in con_filas or entrada.club_id in con_partidos
     ] or list(todas)
     entry_by_club = {entry.club_id: entry for entry in entries}
     games = [
@@ -763,6 +762,34 @@ def recompute_standings(
         out.append(row)
     session.flush()
     return out
+
+
+def _entries_for_round(pending: list, round_index: int) -> tuple[list[str], list]:
+    """Quiénes entran en una ronda y qué queda esperando rondas posteriores.
+
+    `edition.playoff_byes` guarda dos formas, y las dos se siguen jugando:
+
+    - La anterior a los cuadros dibujados, una lista de identificadores, donde
+      todos los pases directos entraban en la segunda ronda.
+    - La de ahora, `{"club_id": …, "round": n}`, donde cada entrada espera su
+      ronda porque el usuario la colocó ahí.
+    """
+    if not pending:
+        return [], []
+    if isinstance(pending[0], dict):
+        entran = [
+            str(item["club_id"]) for item in pending if int(item.get("round", -1)) == round_index
+        ]
+        quedan = [item for item in pending if int(item.get("round", -1)) != round_index]
+        return entran, quedan
+    if round_index == 1:
+        return [str(item) for item in pending], []
+    return [], list(pending)
+
+
+def _current_stage_key(edition: m.CompetitionEdition) -> str:
+    """Clave con la que se guardan los partidos de la fase actualmente viva."""
+    return edition.stage
 
 
 # --------------------------------------------------------------------------- #
@@ -863,7 +890,7 @@ def _close_regular_season(
         return True
 
     try:
-        if ruleset.structure.has_groups:
+        if ruleset.structure.declared or ruleset.structure.has_groups:
             # Con divisiones no clasifican «los mejores N»: clasifican los
             # primeros de cada grupo y los repechajes. Quién entra y por qué
             # queda registrado.
@@ -899,7 +926,13 @@ def _close_regular_season(
                     headline=_qualifiers_headline(session, clasificados),
                 ),
             )
-            series, byes = seed_bracket([q.entry_key for q in clasificados], ruleset.playoffs)
+            if ruleset.playoffs.staged or any(q.entry_round is not None for q in clasificados):
+                # Cuadro dibujado: las rondas y la entrada de cada plaza son
+                # las que el usuario puso. La tabla sigue decidiendo la localía
+                # y las rondas que resiembran.
+                series, byes = seed_staged_bracket(clasificados, ruleset.playoffs, ranked_clubs)
+            else:
+                series, byes = seed_bracket([q.entry_key for q in clasificados], ruleset.playoffs)
         else:
             series, byes = seed_bracket(ranked_clubs, ruleset.playoffs)
     except RuleValidationError as exc:
@@ -910,10 +943,23 @@ def _close_regular_season(
         return False
 
     edition.stage = "playoffs"
-    # Los pases directos se guardan: entran en la ronda siguiente, que se
-    # construye otro día y en otra transacción.
+    # Los pases directos se guardan: pueden entrar en la ronda siguiente o en
+    # una posterior, que se construirá otro día y en otra transacción.
     edition.playoff_byes = list(byes)
     if byes:
+        esperan = [
+            {
+                "club": _club_name(
+                    session, str(item["club_id"] if isinstance(item, dict) else item)
+                ),
+                "round": (
+                    ruleset.playoffs.label_for(int(item["round"]))
+                    if isinstance(item, dict)
+                    else ruleset.playoffs.label_for(1)
+                ),
+            }
+            for item in byes
+        ]
         record_event(
             session,
             universe,
@@ -921,10 +967,10 @@ def _close_regular_season(
                 event_type=EventType.PLAYOFF_ROUND_BUILT,
                 world_date=universe.world_date,
                 entities={"edition": edition.id},
-                payload={"byes": [_club_name(session, club_id) for club_id in byes]},
+                payload={"byes": esperan},
                 headline=(
-                    f"{len(byes)} club(es) con pase directo a la segunda ronda: "
-                    + ", ".join(_club_name(session, club_id) for club_id in byes)
+                    f"{len(esperan)} club(es) esperan su entrada al cuadro: "
+                    + ", ".join(f"{item['club']} en {item['round']}" for item in esperan)
                 ),
             ),
         )
@@ -1126,12 +1172,10 @@ def _progress_playoffs(
             .order_by(m.EditionEntry.seed_rank)
         ).all()
     ]
-    esperando = list(edition.playoff_byes or ())
+    esperando, edition.playoff_byes = _entries_for_round(
+        list(edition.playoff_byes or ()), round_index + 1
+    )
     following = next_round(series, standings_order, ruleset.playoffs, esperando)
-    if esperando:
-        # Ya entraron: la lista se vacía para que no vuelvan a aparecer en la
-        # ronda siguiente.
-        edition.playoff_byes = []
     if not following:
         champion = series[0].winner
         edition.stage = "completed"

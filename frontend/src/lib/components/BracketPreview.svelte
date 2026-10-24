@@ -51,9 +51,9 @@
         <span class="muestra division"></span> campeones y segundos de su división
         ·
         <span class="muestra repechaje"></span> repechajes, que salen de la tabla
-        general entre los que no clasificaron por su grupo. La siembra es el
-        orden de la tabla general, así que un campeón de división flojo no se
-        pone por encima de uno mejor.
+        general entre los que no clasificaron por su grupo. La siembra conserva
+        el orden de la tabla general, salvo las entradas que hayas colocado a
+        mano en una ronda posterior.
       </p>
     {/if}
 
@@ -63,7 +63,7 @@
         {#each bracket.rounds as ronda (ronda.round)}
           <div class="ronda">
             <div class="small muted cabecera">
-              Ronda {ronda.round} · al mejor de {ronda.best_of}
+              {ronda.label || `Ronda ${ronda.round}`} · al mejor de {ronda.best_of}
             </div>
             {#each ronda.byes as bye}
               <div class="serie bye small">
@@ -83,9 +83,8 @@
       </div>
       {#if bracket.byes}
         <p class="small muted">
-          Con {bracket.slots} clasificados el cuadro es de {bracket.bracket_size}, así
-          que {bracket.byes} siembra(s) se salta(n) la primera ronda. Es lo que
-          hacen las ligas de verdad en vez de redondear el número de clasificados.
+          {bracket.byes} entrada(s) comienza(n) después de la primera ronda, según
+          los pases del cuadro.
         </p>
       {/if}
     {/if}

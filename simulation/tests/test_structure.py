@@ -196,6 +196,56 @@ def test_la_secuencia_de_fases_se_valida_entera() -> None:
     assert any("falta una puerta" in p for p in validate_sequence([sin_salida, CUADRO], 10))
 
 
+def test_un_repechaje_puede_alimentar_una_ronda_con_pases_directos() -> None:
+    regular = Stage(
+        key="regular",
+        label="Regular",
+        divisions=[Division(key="u", label="General", slots=6, intra_cycles=2)],
+        gates=[
+            Gate(
+                division="u",
+                positions=[1, 2],
+                route=GateRoute.DIRECT,
+                target_round=1,
+            ),
+            Gate(
+                division="u",
+                positions=[3, 4, 5, 6],
+                route=GateRoute.WILDCARD,
+                target_round=0,
+            ),
+        ],
+    )
+    cuadro = Stage(
+        key="playoffs",
+        label="Postemporada",
+        format=StageFormat.BRACKET,
+        series_lengths=[1, 3, 5],
+    )
+
+    assert validate_sequence([regular, cuadro], 6) == []
+
+
+def test_el_editor_detecta_una_ronda_con_entrada_huerfana() -> None:
+    regular = Stage(
+        key="regular",
+        label="Regular",
+        divisions=[Division(key="u", label="General", slots=4, intra_cycles=2)],
+        gates=[
+            Gate(division="u", positions=[1, 2, 3], target_round=0),
+            Gate(division="u", positions=[4], target_round=1),
+        ],
+    )
+    cuadro = Stage(
+        key="playoffs",
+        label="Postemporada",
+        format=StageFormat.BRACKET,
+        series_lengths=[1, 3],
+    )
+
+    assert any("falta una entrada" in issue for issue in validate_sequence([regular, cuadro], 4))
+
+
 def test_una_fase_de_tabla_no_puede_tener_una_division_de_un_club() -> None:
     fase = Stage(
         key="r",
@@ -246,7 +296,9 @@ def test_la_forma_corta_se_traduce_a_fases_sin_inventar_nada() -> None:
     assert not ruleset.structure.declared
     fases = ruleset.structure.effective_stages(8, ruleset.playoffs)
 
-    assert [s.key for s in fases] == ["regular", "playoffs"]
+    # Las claves son las que la base usa para la fase de una edición, así que
+    # una estructura derivada y una edición en curso hablan el mismo idioma.
+    assert [s.key for s in fases] == ["regular_season", "playoffs"]
     regular = fases[0]
     assert [(d.label, d.slots, d.intra_cycles, d.inter_cycles) for d in regular.divisions] == [
         ("Grupo 1", 4, 4, 2),
@@ -299,3 +351,105 @@ def test_el_reglamento_rechaza_declarar_las_plazas_dos_veces() -> None:
                 },
             }
         )
+
+
+def test_un_cuadro_dibujado_puede_tener_mas_rondas_que_plazas() -> None:
+    """Una escalerilla: cuatro plazas en tres rondas, incorporando una por ronda.
+
+    El cuadro deducido pediría dos rondas para cuatro plazas. Un cuadro
+    dibujado no se mide así: lo que tiene que cuadrar es que cada ronda forme
+    cruces completos y que el camino acabe con un solo campeón.
+    """
+    regular = Stage(
+        key="regular",
+        label="Regular",
+        divisions=[Division(key="u", label="General", slots=8, intra_cycles=2)],
+        gates=[
+            Gate(division="u", positions=[3, 4], route=GateRoute.SEED, target_round=0),
+            Gate(division="u", positions=[2], route=GateRoute.SEED, target_round=1),
+            Gate(division="u", positions=[1], route=GateRoute.SEED, target_round=2),
+        ],
+    )
+    cuadro = Stage(
+        key="playoffs",
+        label="Postemporada",
+        format=StageFormat.BRACKET,
+        series_lengths=[1, 3, 5],
+    )
+
+    assert validate_sequence([regular, cuadro], 8) == []
+
+
+def test_un_cuadro_dibujado_con_una_ronda_de_mas_no_termina_en_campeon() -> None:
+    """Si sobra una ronda, el camino no cierra y se dice en vez de inventar."""
+    regular = Stage(
+        key="regular",
+        label="Regular",
+        divisions=[Division(key="u", label="General", slots=4, intra_cycles=2)],
+        gates=[Gate(division="u", positions=[1, 2, 3, 4], route=GateRoute.SEED, target_round=0)],
+    )
+    cuadro = Stage(
+        key="playoffs",
+        label="Postemporada",
+        format=StageFormat.BRACKET,
+        series_lengths=[1, 3, 5],
+    )
+
+    problemas = validate_sequence([regular, cuadro], 4)
+    assert any("necesita al menos dos" in p for p in problemas)
+
+
+def test_un_cuadro_dibujado_sin_rondas_se_rechaza() -> None:
+    regular = Stage(
+        key="regular",
+        label="Regular",
+        divisions=[Division(key="u", label="General", slots=4, intra_cycles=2)],
+        gates=[Gate(division="u", positions=[1, 2], route=GateRoute.SEED, target_round=0)],
+    )
+    cuadro = Stage(key="playoffs", label="Postemporada", format=StageFormat.BRACKET)
+
+    assert any("no tiene ninguna ronda" in p for p in validate_sequence([regular, cuadro], 4))
+
+
+def test_las_plazas_de_la_tabla_general_se_numeran_sobre_la_misma_lista() -> None:
+    """Repartir el repechaje en varias puertas no desplaza su numeración.
+
+    El editor escribe una puerta por plaza para que cada una lleve su ronda de
+    entrada. Si cada puerta contase sus puestos sobre lo que dejó la anterior,
+    «el 2.º de los restantes» pasaría a significar «el 3.º», y el usuario
+    vería entrar a un club distinto del que dibujó. Las puertas de la tabla
+    general miran todas la misma lista de descartados.
+    """
+    fase = Stage(
+        key="r",
+        label="Regular",
+        divisions=[
+            Division(key="a", label="A", slots=3, intra_cycles=2, inter_cycles=1),
+            Division(key="b", label="B", slots=3, intra_cycles=2, inter_cycles=1),
+        ],
+        gates=[
+            Gate(division="a", positions=[1], route=GateRoute.SEED, target_round=1, order=0),
+            Gate(division="b", positions=[1], route=GateRoute.SEED, target_round=1, order=1),
+            # Dos plazas de la tabla general, en dos puertas y en rondas
+            # distintas: siguen siendo el 1.º y el 2.º de los restantes.
+            Gate(positions=[1], route=GateRoute.SEED, target_round=0, order=2),
+            Gate(positions=[2], route=GateRoute.SEED, target_round=0, order=3),
+        ],
+    )
+    ranked = [
+        ("a1", "A"),
+        ("a2", "A"),
+        ("b1", "B"),
+        ("a3", "A"),
+        ("b2", "B"),
+        ("b3", "B"),
+    ]
+    clasificados = qualifiers_from_gates(ranked, fase, slots=4)
+
+    # El orden es el dibujado, porque el cuadro lo dibujó el editor.
+    assert [q.entry_key for q in clasificados] == ["a1", "b1", "a2", "a3"]
+    por_clave = {q.entry_key: q for q in clasificados}
+    assert por_clave["a2"].reason == "mejor registro entre los no clasificados"
+    assert por_clave["a3"].reason == "segundo entre los no clasificados"
+    assert por_clave["a2"].route == "wildcard"
+    assert [por_clave[c].entry_round for c in ("a1", "b1", "a2", "a3")] == [1, 1, 0, 0]

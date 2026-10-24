@@ -358,3 +358,165 @@ def test_g07_una_estructura_asimetrica_del_editor_se_juega_entera(
     assert edicion is not None
     assert edicion.status == "completed"
     assert edicion.champion_club_id
+
+
+#: El reglamento que escribe el tablero kanban del paso 6, con el cuadro
+#: dibujado: doce equipos en dos divisiones, los campeones de división
+#: esperando la segunda ronda y cuatro plazas peleando la primera. Es la forma
+#: de la MLB, y lo único que la declara es dónde está cada entrada.
+DIBUJADO = {
+    "name": "Liga con Cuadro Dibujado",
+    "kind": "national_league",
+    "participation_modality": "professional",
+    "scope": {"level": "national", "country_code": "MX", "place_keys": ["MX"]},
+    "season": {"games_per_club_target": 16, "offseason_days": 5, "roster_size": 20},
+    "standings": {"primary": "win_percentage", "tiebreakers": ["head_to_head"]},
+    "structure": {
+        "stages": [
+            {
+                "key": "regular_season",
+                "label": "Temporada regular",
+                "format": "table",
+                "divisions": [
+                    {
+                        "key": "d1",
+                        "label": "Norte",
+                        "slots": 6,
+                        "intra_cycles": 2,
+                        "inter_cycles": 1,
+                    },
+                    {
+                        "key": "d2",
+                        "label": "Sur",
+                        "slots": 6,
+                        "intra_cycles": 2,
+                        "inter_cycles": 1,
+                    },
+                ],
+                "gates": [
+                    # Los campeones de división **no** pasan a la siguiente por
+                    # ser campeones: empiezan en la segunda ronda porque ahí
+                    # los puso el tablero.
+                    {
+                        "division": "d1",
+                        "positions": [1],
+                        "route": "seed",
+                        "target_round": 1,
+                        "order": 0,
+                    },
+                    {
+                        "division": "d2",
+                        "positions": [1],
+                        "route": "seed",
+                        "target_round": 1,
+                        "order": 1,
+                    },
+                    {
+                        "division": "d1",
+                        "positions": [2],
+                        "route": "seed",
+                        "target_round": 0,
+                        "order": 2,
+                    },
+                    {
+                        "division": "d2",
+                        "positions": [2],
+                        "route": "seed",
+                        "target_round": 0,
+                        "order": 3,
+                    },
+                    {
+                        "division": None,
+                        "positions": [1],
+                        "route": "seed",
+                        "target_round": 0,
+                        "order": 4,
+                    },
+                    {
+                        "division": None,
+                        "positions": [2],
+                        "route": "seed",
+                        "target_round": 0,
+                        "order": 5,
+                    },
+                ],
+            },
+            {
+                "key": "playoffs",
+                "label": "Postemporada",
+                "format": "bracket",
+                "series_lengths": [1, 1, 1],
+            },
+        ]
+    },
+    "playoffs": {
+        "slots": 6,
+        "format": "best_of_series",
+        "seeding": "staged",
+        "round_lengths": [1, 1, 1],
+        "round_labels": ["Comodín", "Divisional", "Final"],
+        "round_pairings": ["high_low", "high_low", "high_low"],
+    },
+    "generation": {"club_count": 12, "seed": 4242},
+}
+
+
+def test_g08_un_cuadro_dibujado_se_juega_con_las_entradas_donde_se_pusieron(
+    client: TestClient, universe: dict, session
+) -> None:
+    """El cuadro del tablero: los campeones de división entran en la segunda ronda.
+
+    Es lo que el editor dibuja y lo que antes no se podía expresar: la primera
+    ronda la juegan los segundos y los dos mejores de los restantes, y los
+    campeones esperan. Nadie avanza por llevar una etiqueta: avanza por ganar o
+    porque su entrada estaba puesta en esa ronda.
+    """
+    liga = create_league(client, universe["id"], DIBUJADO)
+    _advance_to_season_end(client, universe["id"], "g08")
+
+    noticias = client.get(f"/api/v1/universes/{universe['id']}/history?limit=500").json()["items"]
+
+    # Quién clasificó y por qué, con las seis plazas del tablero.
+    clasificados = [
+        evento["payload"]["qualifiers"]
+        for evento in noticias
+        if evento["event_type"] == "playoff_round_built" and evento["payload"].get("qualifiers")
+    ][-1]
+    assert len(clasificados) == 6
+    motivos = [q["reason"] for q in clasificados]
+    assert "campeón de Norte" in motivos and "campeón de Sur" in motivos
+    assert "mejor registro entre los no clasificados" in motivos
+    assert "segundo entre los no clasificados" in motivos
+
+    # Los campeones de división esperan, y queda dicho en qué ronda entran.
+    esperas = [
+        evento["payload"]["byes"]
+        for evento in noticias
+        if evento["event_type"] == "playoff_round_built" and evento["payload"].get("byes")
+    ]
+    assert esperas, "la espera de los campeones de división se registra"
+    assert {item["round"] for item in esperas[-1]} == {"Divisional"}
+    assert len(esperas[-1]) == 2
+
+    # La primera ronda la juegan cuatro: los dos segundos y los dos restantes.
+    primera = [
+        evento["payload"]
+        for evento in noticias
+        if evento["event_type"] == "playoff_round_built" and evento["payload"].get("round") == 0
+    ]
+    assert primera and len(primera[-1]["series"]) == 2
+
+    # Y la edición acaba con un campeón, no con una ronda a medias.
+    edicion = session.get(m.CompetitionEdition, liga["edition_id"])
+    assert edicion is not None
+    assert edicion.status == "completed"
+    assert edicion.champion_club_id
+    assert not edicion.warnings, edicion.warnings
+
+    # Tres rondas, con sus nombres, y la tabla sigue siendo la de la temporada.
+    series = session.scalars(
+        select(m.PlayoffSeriesRow).where(m.PlayoffSeriesRow.edition_id == liga["edition_id"])
+    ).all()
+    assert {fila.round_index for fila in series} == {0, 1, 2}
+    tabla = client.get(f"/api/v1/editions/{liga['edition_id']}/standings").json()["items"]
+    assert len(tabla) == 12, "la tabla es la de la temporada regular, no la del cuadro"

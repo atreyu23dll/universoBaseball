@@ -22,7 +22,7 @@ from datetime import date, timedelta
 
 from app.application.errors import ValidationFailure
 from simulation.competitions.groups import group_sizes
-from simulation.competitions.playoffs import PlayoffSeries, seed_bracket
+from simulation.competitions.playoffs import PlayoffSeries, pair_round, seed_bracket
 from simulation.competitions.ruleset import (
     PlayoffFormat,
     PlayoffRules,
@@ -335,8 +335,83 @@ def _gate_seed_label(gate, puesto: int, division: str | None) -> str:
             else (gate.label or "Repechaje")
         )
     if division is None:
-        return f"{orden} de la tabla"
+        # Una plaza de la tabla general no es el puesto N de la tabla: es el
+        # puesto N **entre los que no clasificaron por su división**, y decirlo
+        # de otra forma en el cuadro sería mentir sobre quién la ocupa.
+        return gate.label or f"{orden} de los restantes"
     return f"{orden} de {division}"
+
+
+def _drawn_bracket_view(playoffs: PlayoffRules, clasificados: list[dict]) -> dict:
+    """El cuadro tal como lo dibujó el editor, ronda por ronda.
+
+    Los cruces los forma **el mismo** `pair_round` que los formará en el campo,
+    así que lo que se dibuja aquí no es una maqueta de la política de
+    emparejamiento: es la política. Lo único que no se puede saber todavía es
+    quién gana una serie, y por eso los supervivientes aparecen como «ganador
+    de …» en vez de inventarse un club.
+
+    Sin partidos jugados no hay tabla, así que la siembra de la previsualización
+    es el orden dibujado. En la temporada de verdad las rondas que resiembran
+    usarán la clasificación real.
+    """
+    nombres = {f"s{i}": str(c["label"]) for i, c in enumerate(clasificados)}
+    orden_siembra = [f"s{i}" for i in range(len(clasificados))]
+    rondas: list[dict] = []
+    problemas: list[str] = []
+    vivos: list[str] = []
+
+    for indice in range(len(playoffs.round_lengths)):
+        entran = [f"s{i}" for i, c in enumerate(clasificados) if c["entry_round"] == indice]
+        participantes = [*vivos, *entran]
+        try:
+            series = pair_round(participantes, orden_siembra, playoffs, indice)
+        except RuleValidationError as exc:
+            problemas.append(exc.message)
+            series = []
+        ganadores = []
+        for posicion in range(len(series)):
+            clave = f"w{indice}_{posicion}"
+            nombres[clave] = f"ganador {posicion + 1} de {playoffs.label_for(indice)}"
+            ganadores.append(clave)
+        rondas.append(
+            {
+                "round": indice + 1,
+                "label": playoffs.label_for(indice),
+                "best_of": playoffs.best_of_for(indice),
+                "pairing": str(playoffs.pairing_for(indice)),
+                "entering": [nombres[clave] for clave in entran],
+                "byes": [],
+                "series": [
+                    {"high": nombres[s.high_seed], "low": nombres[s.low_seed]} for s in series
+                ],
+            }
+        )
+        orden_siembra.extend(ganadores)
+        vivos = ganadores
+
+    esperan = sum(1 for c in clasificados if (c["entry_round"] or 0) > 0)
+    return {
+        "format": str(playoffs.format),
+        "slots": playoffs.slots,
+        "bracket_size": playoffs.bracket_size,
+        "byes": esperan,
+        "rounds_needed": len(playoffs.round_lengths),
+        "declared_rounds": len(playoffs.round_lengths),
+        "drawn": True,
+        "note": (
+            problemas[0]
+            if problemas
+            else (
+                f"cuadro dibujado: {len(playoffs.round_lengths)} ronda(s) y "
+                f"{esperan} entrada(s) que empiezan más tarde"
+                if esperan
+                else f"cuadro dibujado de {len(playoffs.round_lengths)} ronda(s)"
+            )
+        ),
+        "qualifiers": clasificados,
+        "rounds": rondas,
+    }
 
 
 def _bracket_view(playoffs: PlayoffRules, structure: StructureRules, etiquetas: list[str]) -> dict:
@@ -364,7 +439,7 @@ def _bracket_view(playoffs: PlayoffRules, structure: StructureRules, etiquetas: 
     division_label = {d.key: d.label for d in fase.divisions}
     for gate in fase.gates:
         etiqueta_division = division_label.get(gate.division) if gate.division else None
-        for puesto in gate.positions:
+        for desplazamiento, puesto in enumerate(gate.positions):
             clasificados.append(
                 {
                     "seed": len(clasificados) + 1,
@@ -375,11 +450,24 @@ def _bracket_view(playoffs: PlayoffRules, structure: StructureRules, etiquetas: 
                     ),
                     "label": _gate_seed_label(gate, puesto, etiqueta_division),
                     "group": etiqueta_division or "",
+                    "entry_round": gate.target_round,
+                    "order": None if gate.order is None else gate.order + desplazamiento,
                 }
             )
+    # Un cuadro dibujado se lee en el orden en que se dibujó: es el que decide
+    # los cruces cuando las llaves no se resiembran.
+    if clasificados and all(c["order"] is not None for c in clasificados):
+        clasificados.sort(key=lambda c: int(c["order"]))
+        for posicion, item in enumerate(clasificados):
+            item["seed"] = posicion + 1
     clasificados = clasificados[: playoffs.slots]
 
     etiquetas_siembra = [c["label"] for c in clasificados]
+    dibujado = playoffs.staged or (
+        bool(clasificados) and all(c["entry_round"] is not None for c in clasificados)
+    )
+    if dibujado:
+        return _drawn_bracket_view(playoffs, clasificados)
     try:
         primera, byes = seed_bracket([f"s{i}" for i in range(len(clasificados))], playoffs)
     except RuleValidationError as exc:
@@ -397,7 +485,10 @@ def _bracket_view(playoffs: PlayoffRules, structure: StructureRules, etiquetas: 
     rondas: list[dict] = [
         {
             "round": 1,
+            "label": playoffs.label_for(0),
             "best_of": primera[0].best_of if primera else 1,
+            "pairing": str(playoffs.pairing_for(0)),
+            "entering": etiquetas_siembra,
             "byes": [nombre(clave) for clave in byes],
             "series": [{"high": nombre(s.high_seed), "low": nombre(s.low_seed)} for s in primera],
         }
@@ -411,11 +502,14 @@ def _bracket_view(playoffs: PlayoffRules, structure: StructureRules, etiquetas: 
         rondas.append(
             {
                 "round": indice + 1,
+                "label": playoffs.label_for(indice),
                 "best_of": (
                     playoffs.round_lengths[indice]
                     if indice < len(playoffs.round_lengths)
                     else rondas[-1]["best_of"]
                 ),
+                "pairing": str(playoffs.pairing_for(indice)),
+                "entering": [],
                 "byes": [],
                 "series": [{"high": "ganador", "low": "ganador"} for _ in range(series)],
             }
@@ -430,6 +524,7 @@ def _bracket_view(playoffs: PlayoffRules, structure: StructureRules, etiquetas: 
         "byes": playoffs.byes,
         "rounds_needed": playoffs.rounds,
         "declared_rounds": len(playoffs.round_lengths),
+        "drawn": False,
         "note": (
             f"{playoffs.slots} clasificados en un cuadro de {playoffs.bracket_size}: "
             f"{playoffs.byes} pase(s) directo(s) a la segunda ronda"

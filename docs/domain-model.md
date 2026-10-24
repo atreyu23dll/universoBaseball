@@ -135,10 +135,27 @@ observado con error. La nacionalidad no otorga calidad: el contexto afecta las
 la liga y no tiene por qué parecerse a sus hermanas. Entre dos divisiones
 distintas se juegan las vueltas que pida la que más pida.
 
-Una `Gate` es la salida de una fase: qué puestos pasan y por qué ruta
-(`direct` o `wildcard`). Una puerta de división cuenta los puestos de su tabla;
-una puerta de la tabla general los cuenta **entre los que todavía no han pasado
-por ninguna puerta anterior**, que es lo que significa un repechaje.
+Una `Gate` es la salida de una fase: qué puesto pasa, de dónde sale, **a qué
+ronda entra** (`target_round`) y en qué **orden** dentro de ella (`order`), que
+es el cruce que el usuario dibujó. Su `route` es `seed`: una entrada neutra
+cuyo significado lo dan su procedencia y su destino, no una etiqueta deportiva.
+`direct` y `wildcard` se conservan para los reglamentos anteriores al cuadro
+dibujado.
+
+Una puerta de división cuenta los puestos de su tabla. Las puertas de la tabla
+general (`division: null`) cuentan sus puestos **entre los que no pasaron por
+ninguna división**, y lo hacen todas sobre la misma lista de descartados: «el
+2.º de los restantes» significa lo mismo esté esa plaza sola en una puerta o
+repartida en varias. Eso es lo que siempre se llamó repechaje.
+
+El cuadro que forman esas entradas lo fija `playoffs.seeding`: con `auto` se
+deduce de las plazas —potencia de dos y pases directos para las mejores
+siembras—; con `staged` es el dibujado, y entonces las rondas son las de
+`round_lengths` y lo que se valida es que el camino cierre con un solo campeón,
+no que las plazas sean potencia de dos. `round_pairings` dice por ronda cómo se
+cruzan: resembrando por la tabla (`high_low`, `adjacent`), por sorteo
+reproducible (`draw`) o sin mover el cuadro (`fixed`, donde el ganador de una
+llave espera al de la llave vecina).
 
 Se admiten dos formas de declararla, **nunca las dos a la vez**: la corta
 (`count`, `groups`, `intra_cycles`, `inter_cycles`, `qualifiers_per_group`,

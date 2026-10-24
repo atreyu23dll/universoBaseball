@@ -310,3 +310,181 @@ def test_un_borrador_a_medias_se_muestra_en_vez_de_romper_la_vista(client: TestC
     assert datos["ok"] is False
     assert datos["issues"], "el borrador inválido se explica"
     assert any("divisiones" in problema for problema in datos["issues"])
+
+
+#: El cuadro que dibuja el tablero del paso 6: dos divisiones de seis, los
+#: campeones esperando la segunda ronda y las llaves de la primera dibujadas a
+#: mano para que se enfrenten las que el usuario quiere.
+CUADRO_DIBUJADO = {
+    "club_count": 12,
+    "season": {
+        "games_per_club_target": 22,
+        "games_per_series": 1,
+        "days_between_series": 0,
+        "rest_days_weekday": [0],
+    },
+    "structure": {
+        "stages": [
+            {
+                "key": "regular_season",
+                "label": "Temporada regular",
+                "format": "table",
+                "divisions": [
+                    {
+                        "key": "d1",
+                        "label": "Norte",
+                        "slots": 6,
+                        "intra_cycles": 2,
+                        "inter_cycles": 1,
+                    },
+                    {
+                        "key": "d2",
+                        "label": "Sur",
+                        "slots": 6,
+                        "intra_cycles": 2,
+                        "inter_cycles": 1,
+                    },
+                ],
+                "gates": [
+                    {
+                        "division": "d1",
+                        "positions": [1],
+                        "route": "seed",
+                        "target_round": 1,
+                        "order": 0,
+                    },
+                    {
+                        "division": "d2",
+                        "positions": [1],
+                        "route": "seed",
+                        "target_round": 1,
+                        "order": 1,
+                    },
+                    {
+                        "division": "d1",
+                        "positions": [2],
+                        "route": "seed",
+                        "target_round": 0,
+                        "order": 2,
+                    },
+                    {
+                        "division": "d2",
+                        "positions": [2],
+                        "route": "seed",
+                        "target_round": 0,
+                        "order": 3,
+                    },
+                    {
+                        "division": None,
+                        "positions": [1],
+                        "route": "seed",
+                        "target_round": 0,
+                        "order": 4,
+                    },
+                    {
+                        "division": None,
+                        "positions": [2],
+                        "route": "seed",
+                        "target_round": 0,
+                        "order": 5,
+                    },
+                ],
+            },
+            {
+                "key": "playoffs",
+                "label": "Postemporada",
+                "format": "bracket",
+                "series_lengths": [3, 5, 7],
+            },
+        ]
+    },
+    "playoffs": {
+        "slots": 6,
+        "format": "best_of_series",
+        "seeding": "staged",
+        "round_lengths": [3, 5, 7],
+        "round_labels": ["Comodín", "Divisional", "Final"],
+        "round_pairings": ["fixed", "high_low", "high_low"],
+    },
+}
+
+
+def test_la_vista_dibuja_el_cuadro_con_cada_entrada_en_su_ronda(client: TestClient) -> None:
+    """La forma de la MLB: los campeones de división entran en la segunda ronda."""
+    datos = client.post("/api/v1/schedule/preview", json=CUADRO_DIBUJADO).json()
+    assert datos["ok"] is True
+    assert datos["issues"] == []
+
+    cuadro = datos["playoffs"]
+    assert cuadro["drawn"] is True
+    assert cuadro["byes"] == 2, "los dos campeones de división empiezan más tarde"
+    assert [r["label"] for r in cuadro["rounds"]] == ["Comodín", "Divisional", "Final"]
+    assert [r["best_of"] for r in cuadro["rounds"]] == [3, 5, 7]
+
+    # Las llaves de la primera ronda son las dibujadas, no una resiembra: el
+    # 2.º del Norte contra el 2.º del Sur porque así quedaron puestas.
+    comodin = cuadro["rounds"][0]
+    assert comodin["pairing"] == "fixed"
+    assert [(s["high"], s["low"]) for s in comodin["series"]] == [
+        ("2.º de Norte", "2.º de Sur"),
+        ("1.º de los restantes", "2.º de los restantes"),
+    ]
+
+    # En la segunda entran los campeones y se cruzan con los supervivientes.
+    divisional = cuadro["rounds"][1]
+    assert divisional["entering"] == ["1.º de Norte", "1.º de Sur"]
+    assert len(divisional["series"]) == 2
+    assert all("ganador" in s["high"] or "ganador" in s["low"] for s in divisional["series"])
+
+    # Y la final sale de esa ronda, con un solo cruce.
+    assert len(cuadro["rounds"][2]["series"]) == 1
+
+
+def test_la_vista_avisa_si_una_ronda_dibujada_se_queda_sin_cruces(client: TestClient) -> None:
+    """Un camino que no cierra se dice mientras se dibuja, no al generar."""
+    roto = {
+        **CUADRO_DIBUJADO,
+        "structure": {
+            "stages": [
+                {
+                    **CUADRO_DIBUJADO["structure"]["stages"][0],
+                    "gates": [
+                        {
+                            "division": "d1",
+                            "positions": [1],
+                            "route": "seed",
+                            "target_round": 0,
+                            "order": 0,
+                        },
+                        {
+                            "division": "d2",
+                            "positions": [1],
+                            "route": "seed",
+                            "target_round": 0,
+                            "order": 1,
+                        },
+                        # De la primera ronda sale un ganador y en la segunda
+                        # entran dos: tres participantes no forman cruces.
+                        {
+                            "division": "d1",
+                            "positions": [2],
+                            "route": "seed",
+                            "target_round": 1,
+                            "order": 2,
+                        },
+                        {
+                            "division": "d2",
+                            "positions": [2],
+                            "route": "seed",
+                            "target_round": 1,
+                            "order": 3,
+                        },
+                    ],
+                },
+                CUADRO_DIBUJADO["structure"]["stages"][1],
+            ]
+        },
+        "playoffs": {**CUADRO_DIBUJADO["playoffs"], "slots": 4},
+    }
+    datos = client.post("/api/v1/schedule/preview", json=roto).json()
+    assert any("falta una entrada" in issue for issue in datos["issues"]), datos["issues"]

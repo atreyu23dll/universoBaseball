@@ -298,12 +298,31 @@ def _structure_view(
     }
 
 
-def edition_standings(session: Session, edition_id: str) -> list[dict]:
+#: Fase con la que el motor escribe la tabla de la temporada, pase lo que pase
+#: con las claves que el usuario le ponga a sus fases en el editor: es la clave
+#: que `editions.stage` y `games.stage` usan desde la primera migración.
+TABLE_STAGE_KEY = "regular_season"
+
+
+def edition_standings(
+    session: Session, edition_id: str, stage_key: str | None = None
+) -> list[dict]:
+    """La tabla de **una** fase de la edición.
+
+    Desde que las fases se encadenan hay una clasificación por fase, y
+    devolverlas todas juntas no es «la tabla»: son dos tablas pegadas, con dos
+    primeros puestos. Sin fase pedida se responde la de la temporada regular,
+    que es la que la gente llama la tabla; una liguilla posterior se pide por
+    su clave.
+    """
     edition = session.get(m.CompetitionEdition, edition_id)
     if edition is None:
         raise NotFoundError(f"no existe la edición {edition_id}")
+    fase = stage_key or TABLE_STAGE_KEY
     rows = session.scalars(
-        select(m.Standing).where(m.Standing.edition_id == edition_id).order_by(m.Standing.rank)
+        select(m.Standing)
+        .where(m.Standing.edition_id == edition_id, m.Standing.stage_key == fase)
+        .order_by(m.Standing.rank)
     ).all()
     entries = {
         entry.id: entry

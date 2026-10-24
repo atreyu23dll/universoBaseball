@@ -134,8 +134,7 @@ clubes. Y mandar el campeón a una copa no le cuesta la independencia a nadie.
 Una competición puede jugarse en una tabla única o repartida en divisiones,
 grupos o conferencias. **El paso 6 del asistente es un editor**: arrancas con
 una tabla única de tus equipos, añades divisiones y arrastras plazas de una a
-otra; cada división tiene sus propias vueltas, y pulsando la insignia de un
-puesto decides si clasifica directo o por repechaje. Debajo se dibuja en vivo lo
+otra, y cada división tiene sus propias vueltas. Debajo se dibuja en vivo lo
 que esa estructura produce.
 
 - **Quién va a cada división lo decide el motor**, no el formulario: por
@@ -150,9 +149,9 @@ que esa estructura produce.
 - **La tabla sigue siendo una por club**, con todos sus partidos; la división
   solo añade el puesto dentro de ella. Una tabla de división no es un torneo
   aparte.
-- **A la postemporada entran los campeones de división y los repechajes.** Con
-  divisiones, las plazas las fija la estructura: un grupo fuerte puede meter a
-  tres clubes y uno flojo solo a su campeón.
+- **A la postemporada entra quien el tablero diga.** Con divisiones, las
+  plazas las fija la estructura: un grupo fuerte puede meter a tres clubes y uno
+  flojo solo a su campeón.
 - **Las divisiones no tienen que parecerse entre sí.** Seis equipos jugando dos
   vueltas internas junto a cuatro jugando tres es una estructura legítima: cada
   división es un subproceso de la liga. La consecuencia —que no todos jueguen el
@@ -160,14 +159,51 @@ que esa estructura produce.
 - **El reparto se rehace cada temporada.** Un club que asciende entra en la
   división que le toca por geografía, sin que nadie lo coloque a mano.
 - **Las plazas de playoff no tienen que ser potencia de dos.** Seis
-  clasificados —dos campeones de división y dos repechajes— caben en un cuadro
-  de ocho donde las dos mejores siembras esperan en la segunda ronda.
+  clasificados caben en un cuadro de ocho donde las dos mejores siembras
+  esperan en la segunda ronda.
+
+## La postemporada se dibuja
+
+La pestaña de postemporada del paso 6 es un **tablero kanban**. La primera
+columna es la competición entera —todos los puestos de todas las divisiones, más
+las plazas de la tabla general— y las demás son las rondas, las que tú añadas y
+como las llames.
+
+- **Una plaza clasifica porque está puesta en una ronda**, y nada más. No hay
+  pase directo ni repechaje: lo que significa una entrada lo dicen su
+  procedencia —el 2.º de su división, o el mejor de los que no pasaron por
+  ninguna— y la ronda en la que empieza. Las etiquetas desaparecieron porque no
+  decidían nada; la posición en el tablero sí.
+- **Los ganadores avanzan solos.** Lo que se coloca a mano es por dónde *entra*
+  cada clasificado; quién llega a la ronda siguiente lo decide el campo.
+- **Y eso basta para los dos formatos que no cabían en el mismo molde.** Ocho
+  divisiones, los campeones a octavos y los ganadores subiendo ronda a ronda, es
+  una copa antigua. Los mismos controles con los campeones de división puestos
+  en la segunda ronda y los comodines peleando la primera son la MLB: los
+  campeones **no** pasan por ser campeones, esperan porque ahí los pusiste.
+- **Las rondas no se deducen de las plazas.** Cuatro clasificados pueden jugar
+  tres rondas si cada una incorpora a uno —una escalerilla— y el motor lo acepta
+  mientras el camino cierre con un solo campeón. Lo que se comprueba no es un
+  logaritmo: es que cada ronda forme cruces completos.
+- **Quién se enfrenta a quién, por ronda.** Resembrando por la tabla —mejor
+  contra peor, como la MLB—, cruzando vecinos, por sorteo reproducible, o con
+  **llaves fijas**: el cuadro dibujado no se mueve y el ganador de un cruce
+  espera al del cruce de al lado, que es lo que hace una copa. Y el orden dentro
+  de una ronda se arrastra, así que las llaves de la primera son exactamente las
+  que dibujaste.
+- **El tablero avisa mientras lo mueves.** Cada ronda dice cuántos juegan y
+  cuántos sobreviven, y una ronda con un número impar de participantes se marca
+  en el momento: falta una entrada, y se dice antes de generar nada.
+
+Los cruces que se ven en cada ronda **los calcula el motor**, con la misma
+función que los formará en el campo. No es una maqueta de la política de
+emparejamiento: es la política.
 
 Y como esos controles se multiplican entre sí, el asistente **dibuja lo que
 producen mientras los mueves**: partidos y jornadas, el reparto de cada club
 entre su división y el resto, la matriz de cuántas veces juega contra cada
-rival, las dos primeras semanas día a día y el cuadro de postemporada con la
-ruta de cada clasificado. Lo calcula el mismo motor que construirá el
+rival, las dos primeras semanas día a día y el cuadro de postemporada con el
+motivo de cada clasificado. Lo calcula el mismo motor que construirá el
 calendario, así que no es una maqueta.
 
 ## Lo que pasa cuando acaba el año

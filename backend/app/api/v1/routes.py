@@ -417,9 +417,15 @@ def edition_detail(session: SessionDep, edition_id: str) -> dict[str, Any]:
 
 
 @router.get("/editions/{edition_id}/standings", tags=["ediciones"])
-def edition_standings(session: SessionDep, edition_id: str) -> dict[str, Any]:
-    items = query_service.edition_standings(session, edition_id)
-    return {"items": items, "total": len(items)}
+def edition_standings(
+    session: SessionDep,
+    edition_id: str,
+    stage: str | None = Query(default=None, description="Fase; por omisión la de tabla"),
+) -> dict[str, Any]:
+    # Una fase por respuesta: con fases encadenadas hay una tabla por fase, y
+    # pegarlas daría una clasificación con dos primeros puestos.
+    items = query_service.edition_standings(session, edition_id, stage)
+    return {"items": items, "total": len(items), "stage": stage or ""}
 
 
 @router.get("/editions/{edition_id}/schedule", tags=["ediciones"])

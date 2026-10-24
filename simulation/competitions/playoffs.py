@@ -15,8 +15,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, timedelta
+from hashlib import sha256
 
-from simulation.competitions.ruleset import PlayoffFormat, PlayoffRules, StructureRules
+from simulation.competitions.ruleset import (
+    PairingPolicy,
+    PlayoffFormat,
+    PlayoffRules,
+    StructureRules,
+)
 from simulation.competitions.structure import Gate, GateRoute, Stage
 from simulation.core.errors import RuleValidationError
 
@@ -76,6 +82,10 @@ class Qualifier:
     #: Puesto en su grupo, cuando entró por él.
     group_rank: int = 0
     reason: str = ""
+    #: Ronda en la que entra, si el cuadro fue colocado a mano. ``None`` usa
+    #: los pases automáticos por siembra del formato clásico.
+    entry_round: int | None = None
+    entry_order: int | None = None
 
 
 def qualifiers_from_gates(
@@ -86,42 +96,55 @@ def qualifiers_from_gates(
     """Quién sale de una fase, por qué puerta y por qué.
 
     `ranked` son los participantes en orden de la tabla general, con la
-    **etiqueta** de su división. Las puertas se resuelven en el orden en que se
-    declararon, y eso importa: una puerta de la tabla general cuenta sus puestos
-    entre los que **todavía no han pasado**, que es lo que significa un
-    repechaje.
+    **etiqueta** de su división.
 
-    El orden de siembra final es el de la tabla general, de modo que un campeón
-    de división flojo no siembra por encima de uno mejor.
+    Se resuelve en dos pasadas, y el orden importa:
+
+    1. Las puertas **de división** toman su puesto dentro de su división.
+    2. Las puertas **de la tabla general** toman su puesto entre los que no
+       pasaron por ninguna división. Todas miran la *misma* lista de
+       descartados, así que «el mejor de los que se quedaron fuera» significa
+       lo mismo esté esa plaza en una puerta o repartida en varias: la
+       numeración no se desplaza por cómo el editor agrupe las puertas.
+
+    El orden de siembra final es el de la tabla general, salvo que el editor
+    haya dibujado el cuadro, y entonces manda el orden que dibujó.
     """
     orden = {key: indice for indice, (key, _) in enumerate(ranked)}
     division_de = {d.key: d.label for d in stage.divisions}
-    ya_pasaron: set[str] = set()
     clasificados: list[Qualifier] = []
 
-    for gate in stage.gates:
-        if gate.division is None:
-            candidatos = [(k, g) for k, g in ranked if k not in ya_pasaron]
-            etiqueta_division = None
-        else:
-            etiqueta_division = division_de.get(gate.division, gate.division)
-            candidatos = [
-                (k, g) for k, g in ranked if g == etiqueta_division and k not in ya_pasaron
-            ]
-        for puesto in gate.positions:
+    def resolver(gate: Gate, candidatos: list[tuple[str, str]], division: str | None) -> None:
+        for offset, puesto in enumerate(gate.positions):
             if puesto > len(candidatos):
                 continue
             clave, grupo = candidatos[puesto - 1]
-            ya_pasaron.add(clave)
             clasificados.append(
                 Qualifier(
                     entry_key=clave,
-                    route=("wildcard" if gate.route is GateRoute.WILDCARD else "group_winner"),
+                    route=_gate_route(gate),
                     group_key=grupo,
                     group_rank=puesto if gate.division else 0,
-                    reason=_gate_reason(gate, puesto, etiqueta_division),
+                    reason=_gate_reason(gate, puesto, division),
+                    entry_round=gate.target_round,
+                    entry_order=(gate.order + offset if gate.order is not None else None),
                 )
             )
+
+    por_division = [g for g in stage.gates if g.division is not None]
+    de_la_tabla = [g for g in stage.gates if g.division is None]
+
+    ya_pasaron: set[str] = set()
+    for gate in por_division:
+        etiqueta = division_de.get(gate.division, gate.division or "")
+        candidatos = [(k, g) for k, g in ranked if g == etiqueta and k not in ya_pasaron]
+        antes = len(clasificados)
+        resolver(gate, candidatos, etiqueta)
+        ya_pasaron |= {q.entry_key for q in clasificados[antes:]}
+
+    descartados = [(k, g) for k, g in ranked if k not in ya_pasaron]
+    for gate in de_la_tabla:
+        resolver(gate, descartados, None)
 
     if len(clasificados) < slots:
         raise RuleValidationError(
@@ -132,17 +155,34 @@ def qualifiers_from_gates(
                 "o comprueba que ninguna división se haya quedado sin clubes",
             ],
         )
+    if clasificados and all(q.entry_order is not None for q in clasificados):
+        return sorted(clasificados, key=lambda q: int(q.entry_order or 0))[:slots]
     return sorted(clasificados, key=lambda q: orden[q.entry_key])[:slots]
+
+
+def _gate_route(gate: Gate) -> str:
+    """Cómo se describe la entrada de una puerta en los eventos y el cuadro.
+
+    Una puerta neutra —las que dibuja el editor— no trae etiqueta deportiva: su
+    ruta la dice su procedencia. Si sale de una división es el puesto de su
+    división; si sale de la tabla general es una plaza entre los descartados,
+    que es lo que siempre se llamó repechaje.
+    """
+    if gate.route is GateRoute.WILDCARD:
+        return "wildcard"
+    if gate.division is None:
+        return "wildcard" if gate.route is GateRoute.SEED else "overall"
+    return "group_winner"
 
 
 def _gate_reason(gate: Gate, puesto: int, division: str | None) -> str:
     if gate.label:
         return f"{gate.label} ({_ordinal(puesto)})" if len(gate.positions) > 1 else gate.label
-    if gate.route is GateRoute.WILDCARD:
+    if gate.route is GateRoute.WILDCARD or (gate.route is GateRoute.SEED and gate.division is None):
         return (
-            "repechaje: mejor registro entre los no clasificados"
+            "mejor registro entre los no clasificados"
             if puesto == 1
-            else (f"repechaje: {_ordinal(puesto)} entre los no clasificados")
+            else f"{_ordinal(puesto)} entre los no clasificados"
         )
     if division is None:
         return f"{_ordinal(puesto)} de la tabla"
@@ -220,49 +260,136 @@ def seed_bracket(
     return series, byes
 
 
+def seed_staged_bracket(
+    qualifiers: list[Qualifier],
+    rules: PlayoffRules,
+    seed_order: list[str] | None = None,
+) -> tuple[list[PlayoffSeries], list[dict[str, int | str]]]:
+    """Siembra un cuadro cuyas entradas se colocaron en rondas concretas.
+
+    La diferencia frente a :func:`seed_bracket` es que los pases no se
+    infieren por potencia de dos: son exactamente los cajones que el usuario
+    dibujó. Cada entrada que no empieza en la primera ronda queda pendiente con
+    su número de ronda, y la espera ahí hasta que le toque.
+
+    `qualifiers` viene en el orden dibujado —el que manda cuando las llaves son
+    fijas— y `seed_order` es la tabla de la temporada regular, que es la que
+    manda cuando la ronda resiembra. Sin tabla, el orden dibujado hace las dos
+    cosas.
+    """
+    if len(qualifiers) < rules.slots:
+        raise RuleValidationError(
+            f"el playoff pide {rules.slots} clasificados pero solo recibió {len(qualifiers)}"
+        )
+    selected = qualifiers[: rules.slots]
+    if any(item.entry_round is None for item in selected):
+        raise RuleValidationError(
+            "el cuadro editable necesita que todas sus entradas estén colocadas en una ronda"
+        )
+    first = [item.entry_key for item in selected if item.entry_round == 0]
+    pending = [
+        {"club_id": item.entry_key, "round": int(item.entry_round or 0)}
+        for item in selected
+        if (item.entry_round or 0) > 0
+    ]
+    tabla = list(seed_order) if seed_order else [q.entry_key for q in selected]
+    return pair_round(first, tabla, rules, 0), pending
+
+
+def pair_round(
+    entries: list[str], seed_order: list[str], rules: PlayoffRules, round_index: int
+) -> list[PlayoffSeries]:
+    """Forma los cruces de una ronda con la política que pida el reglamento.
+
+    `entries` llega en el orden que importa cuando no hay resiembra: el que
+    dibujó el editor en la primera ronda y el de los cruces de la ronda
+    anterior en las siguientes.
+    """
+    if len(entries) < 2 or len(entries) % 2:
+        raise RuleValidationError(
+            f"la ronda {round_index + 1} recibe {len(entries)} participantes y no forma "
+            "cruces completos"
+        )
+    policy = rules.pairing_for(round_index)
+    ordered = _ordered_for_pairing(entries, seed_order, policy, round_index)
+    pairs = [_by_seed(pair, seed_order) for pair in _pair_keys(ordered, policy)]
+    best_of = rules.best_of_for(round_index)
+    return [
+        PlayoffSeries(
+            series_key=f"r{round_index}s{i}",
+            round_index=round_index,
+            high_seed=high,
+            low_seed=low,
+            best_of=best_of,
+            wins={high: 0, low: 0},
+        )
+        for i, (high, low) in enumerate(pairs)
+    ]
+
+
+def _ordered_for_pairing(
+    entries: list[str], seed_order: list[str], policy: PairingPolicy, round_index: int
+) -> list[str]:
+    """Ordena a los participantes antes de cruzarlos.
+
+    Con llaves fijas no se toca el orden recibido: el cuadro es el dibujado y
+    el ganador de un cruce espera al del cruce de al lado. Con las demás
+    políticas se resiembra por la tabla, y el sorteo baraja de forma
+    reproducible: el mismo reglamento da siempre los mismos cruces.
+    """
+    if policy is PairingPolicy.FIXED:
+        return list(entries)
+    ordered = sorted(entries, key=lambda key: _seed_index(key, seed_order))
+    if policy is PairingPolicy.DRAW:
+        ordered.sort(key=lambda key: sha256(f"{round_index}:{key}".encode()).hexdigest())
+    return ordered
+
+
+def _pair_keys(ordered: list[str], policy: PairingPolicy) -> list[tuple[str, str]]:
+    if policy is PairingPolicy.HIGH_LOW:
+        return [(ordered[i], ordered[-1 - i]) for i in range(len(ordered) // 2)]
+    return [(ordered[i], ordered[i + 1]) for i in range(0, len(ordered), 2)]
+
+
+def _seed_index(key: str, seed_order: list[str]) -> int:
+    """Puesto del club en la tabla. Uno que no esté se cruza al final."""
+    try:
+        return seed_order.index(key)
+    except ValueError:
+        return len(seed_order)
+
+
+def _by_seed(pair: tuple[str, str], seed_order: list[str]) -> tuple[str, str]:
+    """La localía la abre el mejor clasificado de la pareja, cruce como sea."""
+    uno, otro = pair
+    if _seed_index(otro, seed_order) < _seed_index(uno, seed_order):
+        return otro, uno
+    return uno, otro
+
+
 def next_round(
     previous: list[PlayoffSeries],
     seed_order: list[str],
     rules: PlayoffRules,
     waiting: list[str] | None = None,
 ) -> list[PlayoffSeries]:
-    """Construye la ronda siguiente con los ganadores, resembrando por siembra.
+    """Construye la ronda siguiente con los ganadores y los que la esperaban.
 
-    `waiting` son los clasificados con pase directo que entran en esta ronda. La
-    resiembra los trata como a cualquier otro: el mejor de la temporada regular
-    se cruza con el peor de los que siguen vivos.
+    `waiting` son los clasificados que entran en esta ronda: los pases directos
+    del cuadro deducido y, en un cuadro dibujado, las plazas que el usuario
+    colocó aquí. Entran a la ronda como cualquier otro superviviente, y cómo se
+    cruzan lo decide la política de la ronda: la resiembra de la tabla, las
+    llaves fijas del cuadro o un sorteo.
     """
     winners = [s.winner for s in previous]
     if any(w is None for w in winners):
         raise RuleValidationError("hay series de la ronda anterior sin resolver")
+    # Los ganadores se toman en el orden de los cruces de los que salen: es lo
+    # que permite que una llave fija espere a la de al lado.
     advancing = [w for w in winners if w is not None] + list(waiting or ())
     if len(advancing) < 2:
         return []
-
-    round_index = previous[0].round_index + 1
-    best_of = (
-        rules.round_lengths[round_index]
-        if round_index < len(rules.round_lengths)
-        else previous[0].best_of
-    )
-    # Resiembra: el mejor clasificado de la temporada regular se cruza con el
-    # peor de los que siguen vivos.
-    advancing.sort(key=lambda key: seed_order.index(key))
-    series: list[PlayoffSeries] = []
-    for i in range(len(advancing) // 2):
-        high = advancing[i]
-        low = advancing[len(advancing) - 1 - i]
-        series.append(
-            PlayoffSeries(
-                series_key=f"r{round_index}s{i}",
-                round_index=round_index,
-                high_seed=high,
-                low_seed=low,
-                best_of=best_of,
-                wins={high: 0, low: 0},
-            )
-        )
-    return series
+    return pair_round(advancing, seed_order, rules, previous[0].round_index + 1)
 
 
 def schedule_series_game(

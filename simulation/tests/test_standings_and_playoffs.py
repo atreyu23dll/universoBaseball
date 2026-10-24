@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from simulation.competitions.playoffs import next_round, seed_bracket
+from simulation.competitions.playoffs import (
+    Qualifier,
+    next_round,
+    seed_bracket,
+    seed_staged_bracket,
+)
 from simulation.competitions.ruleset import (
     PlayoffRules,
     PointsSystem,
@@ -205,6 +210,34 @@ def test_seis_plazas_dan_pase_directo_a_las_dos_mejores_siembras():
     assert final[0].best_of == 7
 
 
+def test_las_entradas_editadas_entran_en_la_ronda_que_les_corresponde():
+    rules = PlayoffRules(
+        slots=6,
+        format="best_of_series",
+        round_lengths=[1, 3, 5],
+        round_labels=["Acceso", "Semifinal", "Final"],
+    )
+    clasificados = [
+        Qualifier(
+            entry_key=key,
+            route="wildcard" if index < 4 else "group_winner",
+            entry_round=0 if index < 4 else 1,
+        )
+        for index, key in enumerate(["a", "b", "c", "d", "e", "f"])
+    ]
+
+    primera, pendientes = seed_staged_bracket(clasificados, rules)
+
+    assert [(s.high_seed, s.low_seed) for s in primera] == [("a", "d"), ("b", "c")]
+    assert pendientes == [{"club_id": "e", "round": 1}, {"club_id": "f", "round": 1}]
+
+    primera[0].wins["a"] = 1
+    primera[1].wins["b"] = 1
+    segunda = next_round(primera, ["a", "b", "c", "d", "e", "f"], rules, ["e", "f"])
+    assert [(s.high_seed, s.low_seed) for s in segunda] == [("a", "f"), ("b", "e")]
+    assert all(s.best_of == 3 for s in segunda)
+
+
 def test_cinco_plazas_dejan_una_sola_serie_en_la_primera_ronda():
     rules = PlayoffRules(slots=5, format="best_of_series", round_lengths=[1, 3, 5])
     assert (rules.bracket_size, rules.byes, rules.first_round_series) == (8, 3, 1)
@@ -222,3 +255,104 @@ def test_el_reglamento_pide_tantas_rondas_como_necesita_el_cuadro():
         PlayoffRules(slots=6, format="best_of_series", round_lengths=[3, 5])
     # Y con las tres, pasa.
     assert PlayoffRules(slots=6, format="best_of_series", round_lengths=[3, 5, 7]).rounds == 3
+
+
+def test_las_llaves_fijas_no_se_resiembran() -> None:
+    """Un cuadro de copa: el ganador de una llave espera al de la llave vecina.
+
+    Es la diferencia con la resiembra: aquí la tabla no vuelve a mandar después
+    de la primera ronda. El 1.º puede acabar cruzándose con el 2.º en semifinal
+    porque así quedó dibujado el cuadro, que es exactamente lo que hace una
+    copa.
+    """
+    rules = PlayoffRules(
+        slots=4,
+        format="best_of_series",
+        round_lengths=[1, 1],
+        round_labels=["Semifinales", "Final"],
+        round_pairings=["fixed", "fixed"],
+        seeding="staged",
+    )
+    clasificados = [
+        Qualifier(entry_key=clave, route="group_winner", entry_round=0, entry_order=indice)
+        for indice, clave in enumerate(["a", "b", "c", "d"])
+    ]
+
+    primera, pendientes = seed_staged_bracket(clasificados, rules, ["a", "b", "c", "d"])
+    assert pendientes == []
+    # Dibujadas en ese orden, las llaves son a-b y c-d, no a-d y b-c.
+    assert [(s.high_seed, s.low_seed) for s in primera] == [("a", "b"), ("c", "d")]
+
+    primera[0].wins["b"] = 1
+    primera[1].wins["c"] = 1
+    final = next_round(primera, ["a", "b", "c", "d"], rules)
+    # La localía la abre el mejor de la tabla, pero el cruce es el del cuadro.
+    assert [(s.high_seed, s.low_seed) for s in final] == [("b", "c")]
+
+
+def test_el_sorteo_de_una_ronda_es_el_mismo_cada_vez() -> None:
+    """Reproducibilidad: sortear no es azar del momento, es azar del reglamento."""
+    rules = PlayoffRules(
+        slots=4,
+        format="best_of_series",
+        round_lengths=[1, 1],
+        round_pairings=["draw", "draw"],
+        seeding="staged",
+    )
+    clasificados = [
+        Qualifier(entry_key=clave, route="group_winner", entry_round=0, entry_order=indice)
+        for indice, clave in enumerate(["a", "b", "c", "d"])
+    ]
+    uno, _ = seed_staged_bracket(clasificados, rules, ["a", "b", "c", "d"])
+    otro, _ = seed_staged_bracket(clasificados, rules, ["a", "b", "c", "d"])
+    assert [(s.high_seed, s.low_seed) for s in uno] == [(s.high_seed, s.low_seed) for s in otro]
+
+
+def test_una_escalerilla_incorpora_un_club_por_ronda() -> None:
+    """Cuatro plazas en tres rondas: el cuadro no tiene que ser potencia de dos.
+
+    Dos equipos abren, el tercero espera una ronda y el cuarto espera dos. El
+    número de rondas lo dice el dibujo, no el logaritmo de las plazas, y por
+    eso el reglamento lo acepta con `seeding='staged'`.
+    """
+    rules = PlayoffRules(
+        slots=4,
+        format="best_of_series",
+        round_lengths=[1, 3, 5],
+        round_labels=["Repechaje", "Semifinal", "Final"],
+        seeding="staged",
+    )
+    assert rules.effective_rounds == 3, "las rondas son las dibujadas"
+    assert rules.rounds == 2, "y no las que deduciría el cuadro por potencia de dos"
+
+    clasificados = [
+        Qualifier(entry_key="c", route="group_winner", entry_round=0, entry_order=0),
+        Qualifier(entry_key="d", route="group_winner", entry_round=0, entry_order=1),
+        Qualifier(entry_key="b", route="group_winner", entry_round=1, entry_order=2),
+        Qualifier(entry_key="a", route="group_winner", entry_round=2, entry_order=3),
+    ]
+    tabla = ["a", "b", "c", "d"]
+    primera, pendientes = seed_staged_bracket(clasificados, rules, tabla)
+    assert [(s.high_seed, s.low_seed) for s in primera] == [("c", "d")]
+    assert pendientes == [{"club_id": "b", "round": 1}, {"club_id": "a", "round": 2}]
+
+    primera[0].wins["d"] = 1
+    segunda = next_round(primera, tabla, rules, ["b"])
+    assert [(s.high_seed, s.low_seed) for s in segunda] == [("b", "d")]
+    assert segunda[0].best_of == 3
+
+    segunda[0].wins["d"] = 2
+    final = next_round(segunda, tabla, rules, ["a"])
+    assert [(s.high_seed, s.low_seed) for s in final] == [("a", "d")]
+    assert final[0].best_of == 5
+
+
+def test_una_ronda_incompleta_se_rechaza_en_vez_de_dejar_a_alguien_sin_rival() -> None:
+    """Tres participantes no forman cruces: se dice, no se descarta a uno."""
+    rules = PlayoffRules(slots=3, format="best_of_series", round_lengths=[1], seeding="staged")
+    clasificados = [
+        Qualifier(entry_key=clave, route="group_winner", entry_round=0, entry_order=indice)
+        for indice, clave in enumerate(["a", "b", "c"])
+    ]
+    with pytest.raises(RuleValidationError, match="no forma cruces completos"):
+        seed_staged_bracket(clasificados, rules, ["a", "b", "c"])

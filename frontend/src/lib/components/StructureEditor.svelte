@@ -6,14 +6,21 @@
   liga y **no tiene por qué parecerse a sus hermanas**: puede tener otro número
   de equipos, otras vueltas internas y otros clasificados.
 
-  La clasificación se marca por puesto: se pulsa la insignia de un puesto y
-  cicla entre no clasifica → pase directo (verde) → repechaje (ámbar). Eso es
-  la puerta: «el 1.º y el 2.º del Norte pasan directos» es una, «el mejor de
-  los que se quedaron fuera entra por repechaje» es otra.
+  La clasificación **no** se decide aquí ni se etiqueta: se dibuja en la
+  pestaña de postemporada, en un tablero donde la primera columna es la
+  competición entera —todos los puestos de todas las divisiones— y las demás
+  son las rondas que el usuario añade y nombra. Una plaza clasifica porque
+  está puesta en una ronda, y nada más. Ya no hay «pase directo» ni
+  «repechaje»: lo que significa cada entrada lo dicen su procedencia —su
+  división, o la tabla general— y la ronda en la que empieza.
 
-  Arrastrar con el ratón no es accesible, así que cada plaza lleva además dos
-  botones para moverla a la división anterior o siguiente, y cada insignia es
-  un botón de verdad.
+  Eso es lo que permite dibujar tanto una copa antigua —ocho divisiones, los
+  primeros a octavos y los ganadores avanzando solos— como una postemporada de
+  la MLB, donde los campeones de división no juegan la primera ronda y entran
+  en la segunda contra los supervivientes del repechaje.
+
+  Arrastrar con el ratón no es accesible, así que cada plaza lleva botones para
+  moverse de división, de ronda y de orden dentro de su ronda.
 -->
 <script lang="ts">
   import { flip } from 'svelte/animate';
@@ -21,6 +28,7 @@
     BracketPreview,
     EditorDivision,
     EditorGate,
+    PairingPolicy,
     SchedulePreview as SchedulePreviewData
   } from '$lib/api/types';
   import BracketPreviewView from './BracketPreview.svelte';
@@ -41,7 +49,10 @@
     offseasonDays: number;
     restDays: number[];
     playoffFormat: string;
-    roundLengths: string;
+    /** Una longitud de serie por ronda. Su tamaño **es** el número de rondas. */
+    roundLengths: number[];
+    roundLabels: string[];
+    roundPairings: PairingPolicy[];
     rosterSize: number;
     designatedHitter: boolean;
     extraInnings: boolean;
@@ -76,6 +87,8 @@
     restDays = $bindable(),
     playoffFormat = $bindable(),
     roundLengths = $bindable(),
+    roundLabels = $bindable(),
+    roundPairings = $bindable(),
     rosterSize = $bindable(),
     designatedHitter = $bindable(),
     extraInnings = $bindable(),
@@ -95,82 +108,263 @@
     oncontinue
   }: Props = $props();
 
-  /** Lo que el usuario está arrastrando. */
+  /** La plaza que se arrastra entre divisiones, en la pestaña de divisiones. */
   let dragging = $state<{ division: string; position: number } | null>(null);
+  /** La entrada que se arrastra por el tablero de la postemporada. */
+  let draggingEntry = $state<{ division: string | null; position: number } | null>(null);
+  let roundDropTarget = $state<number | null>(null);
+  let poolIsTarget = $state(false);
   let dropTarget = $state<string | null>(null);
   let activeView = $state<'structure' | 'schedule' | 'postseason' | 'rules'>('structure');
 
   const totalSlots = $derived(divisions.reduce((suma, d) => suma + d.slots, 0));
-  const directos = $derived(
-    gates.filter((g) => g.route === 'direct').reduce((n, g) => n + g.positions.length, 0)
-  );
-  const repechajes = $derived(
-    gates.filter((g) => g.route === 'wildcard').reduce((n, g) => n + g.positions.length, 0)
-  );
-  const clasificados = $derived(directos + repechajes);
-  const expectedRounds = $derived(
-    clasificados >= 2 ? Math.ceil(Math.log2(clasificados)) : 0
-  );
-  const parsedRoundLengths = $derived(
-    roundLengths
-      .split(',')
-      .map((value) => Number(value.trim()))
-      .filter((value) => Number.isFinite(value) && value > 0)
-  );
+  const roundCount = $derived(roundLengths.length);
+  /**
+   * Columnas del tablero de divisiones.
+   *
+   * Cuatro es el tope porque una tabla más estrecha que eso deja los nombres
+   * de las divisiones sin sitio; ocho divisiones caen entonces en dos filas de
+   * cuatro, que se leen de un vistazo.
+   */
+  const columnasDeTablero = $derived(Math.min(Math.max(divisions.length, 1), 4));
   const seriesOptions = [1, 3, 5, 7, 9];
   const weekdays = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
-  const qualificationCards = $derived(
+  const PAIRING_OPTIONS: Array<{ value: PairingPolicy; label: string; help: string }> = [
+    {
+      value: 'high_low',
+      label: 'Mejor·peor',
+      help: 'Se resiembra por la tabla: el mejor que sigue vivo contra el peor.'
+    },
+    {
+      value: 'adjacent',
+      label: 'Vecinos',
+      help: 'Se resiembra por la tabla y se cruzan vecinos: 1.º-2.º, 3.º-4.º.'
+    },
+    {
+      value: 'fixed',
+      label: 'Fijas',
+      help: 'El cuadro no se mueve: el ganador de un cruce espera al del cruce de al lado.'
+    },
+    {
+      value: 'draw',
+      label: 'Sorteo',
+      help: 'Se sortea cada ronda. El mismo reglamento da siempre los mismos cruces.'
+    }
+  ];
+
+  /**
+   * Una plaza colocada en el cuadro. El editor escribe **una puerta por
+   * plaza**, así que una puerta y una entrada son lo mismo y no hay que
+   * deshacer agrupaciones al mover una sola.
+   */
+  type Placed = { division: string | null; position: number; round: number; order: number };
+
+  const placed = $derived.by<Placed[]>(() =>
     gates.flatMap((gate) =>
-      gate.positions.map((position) => ({
-        key: `${gate.division ?? 'general'}-${gate.route}-${position}`,
-        route: gate.route,
-        label:
-          gate.division === null
-            ? `${gate.label || 'Repechaje'} · plaza ${position}`
-            : `${position}.º de ${divisions.find((division) => division.key === gate.division)?.label ?? 'división'}`
+      gate.positions.map((position, offset) => ({
+        division: gate.division,
+        position,
+        round: gate.target_round ?? 0,
+        order: (gate.order ?? 0) + offset
       }))
     )
   );
+  const clasificados = $derived(placed.length);
+  /** Plazas de la tabla general que ya están en el cuadro. */
+  const generalPositions = $derived(
+    placed.filter((item) => item.division === null).map((item) => item.position)
+  );
+  /**
+   * Cuántas plazas de la tabla general ofrece el plantel: las colocadas y una
+   * libre, para que siempre haya la siguiente a mano sin pedir un número.
+   */
+  const generalRows = $derived(Math.max(0, ...generalPositions) + 1);
   const maxPreviewGames = $derived(
     preview?.ok ? Math.max(1, ...preview.clubs.map((club) => club.games)) : 1
   );
+
+  function entryId(division: string | null, position: number): string {
+    return `${division ?? '·general'}#${position}`;
+  }
+
+  function divisionLabel(key: string | null): string {
+    if (key === null) return 'Tabla general';
+    return divisions.find((division) => division.key === key)?.label ?? 'división';
+  }
+
+  /** Cómo se llama una plaza. Es el mismo nombre que le pone el motor. */
+  function entryLabel(division: string | null, position: number): string {
+    return division === null
+      ? `${position}.º de los restantes`
+      : `${position}.º de ${divisionLabel(division)}`;
+  }
+
+  function placementOf(division: string | null, position: number): Placed | null {
+    return (
+      placed.find((item) => item.division === division && item.position === position) ?? null
+    );
+  }
+
+  function roundOf(division: string | null, position: number): number | null {
+    return placementOf(division, position)?.round ?? null;
+  }
+
+  function entrantsAt(roundIndex: number): Placed[] {
+    return placed
+      .filter((item) => item.round === roundIndex)
+      .sort((a, b) => a.order - b.order);
+  }
+
+  /**
+   * Escribe las puertas desde la lista de plazas colocadas.
+   *
+   * Hace dos cosas que el reglamento necesita y el usuario no debería pensar:
+   * numera el orden de cada entrada —que es el cruce que dibujó— y cierra los
+   * huecos de las plazas de la tabla general, porque «el 3.º de los
+   * restantes» sin que exista un 2.º no significaría nada.
+   */
+  function commit(entries: Placed[]) {
+    const ordered = [...entries]
+      .sort((a, b) => a.round - b.round || a.order - b.order || a.position - b.position)
+      .map((item) => ({ ...item }));
+    let libre = 0;
+    ordered
+      .filter((item) => item.division === null)
+      .sort((a, b) => a.position - b.position)
+      .forEach((item) => {
+        libre += 1;
+        item.position = libre;
+      });
+    gates = ordered.map((item, index) => ({
+      division: item.division,
+      positions: [item.position],
+      route: 'seed' as const,
+      target_round: item.round,
+      order: index
+    }));
+  }
+
+  /** Coloca una plaza en una ronda, al final de las que ya están ahí. */
+  function place(division: string | null, position: number, roundIndex: number) {
+    if (roundIndex < 0 || roundIndex >= roundCount) return;
+    const resto = placed.filter(
+      (item) => !(item.division === division && item.position === position)
+    );
+    const ultimo = Math.max(
+      -1,
+      ...resto.filter((item) => item.round === roundIndex).map((item) => item.order)
+    );
+    commit([...resto, { division, position, round: roundIndex, order: ultimo + 1 }]);
+  }
+
+  /** Devuelve una plaza al plantel: deja de clasificar. */
+  function unplace(division: string | null, position: number) {
+    commit(placed.filter((item) => !(item.division === division && item.position === position)));
+  }
+
+  function toggleEntry(division: string | null, position: number) {
+    if (placementOf(division, position)) unplace(division, position);
+    else place(division, position, 0);
+  }
+
+  function shiftRound(division: string | null, position: number, delta: -1 | 1) {
+    const actual = roundOf(division, position);
+    if (actual === null) return;
+    place(division, position, Math.max(0, Math.min(roundCount - 1, actual + delta)));
+  }
+
+  /** Mueve una entrada dentro de su ronda: con llaves fijas, cambia el cruce. */
+  function reorderEntry(division: string | null, position: number, delta: -1 | 1) {
+    const actual = placementOf(division, position);
+    if (!actual) return;
+    const hermanas = entrantsAt(actual.round);
+    const indice = hermanas.findIndex(
+      (item) => item.division === division && item.position === position
+    );
+    const vecina = hermanas[indice + delta];
+    if (!vecina) return;
+    commit(
+      placed.map((item) => {
+        if (item.division === division && item.position === position) {
+          return { ...item, order: vecina.order };
+        }
+        if (item.division === vecina.division && item.position === vecina.position) {
+          return { ...item, order: actual.order };
+        }
+        return item;
+      })
+    );
+  }
+
+  function dropOnRound(roundIndex: number) {
+    if (!draggingEntry) return;
+    place(draggingEntry.division, draggingEntry.position, roundIndex);
+    draggingEntry = null;
+    roundDropTarget = null;
+  }
+
+  function dropOnPool() {
+    if (!draggingEntry) return;
+    unplace(draggingEntry.division, draggingEntry.position);
+    draggingEntry = null;
+    poolIsTarget = false;
+  }
+
+  function addRound() {
+    if (roundCount >= 8) return;
+    roundLengths = [...roundLengths, roundLengths.at(-1) ?? 5];
+    roundLabels = [...roundLabels, `Ronda ${roundLengths.length}`];
+    roundPairings = [...roundPairings, roundPairings.at(-1) ?? 'high_low'];
+  }
+
+  /** Quita una ronda. Sus entradas vuelven al plantel; las de después, se corren. */
+  function removeRound(roundIndex: number) {
+    if (roundCount <= 1) return;
+    roundLengths = roundLengths.filter((_, index) => index !== roundIndex);
+    roundLabels = roundLabels.filter((_, index) => index !== roundIndex);
+    roundPairings = roundPairings.filter((_, index) => index !== roundIndex);
+    commit(
+      placed
+        .filter((item) => item.round !== roundIndex)
+        .map((item) => ({ ...item, round: item.round > roundIndex ? item.round - 1 : item.round }))
+    );
+  }
+
+  function setRoundLength(roundIndex: number, length: number) {
+    roundLengths = roundLengths.map((actual, index) => (index === roundIndex ? length : actual));
+  }
+
+  function renameRound(roundIndex: number, label: string) {
+    roundLabels = Array.from({ length: roundCount }, (_, index) =>
+      index === roundIndex ? label : roundLabels[index] || `Ronda ${index + 1}`
+    );
+  }
+
+  function setPairing(roundIndex: number, policy: PairingPolicy) {
+    roundPairings = Array.from({ length: roundCount }, (_, index) =>
+      index === roundIndex ? policy : roundPairings[index] || 'high_low'
+    );
+  }
+
+  function pairingOf(roundIndex: number): PairingPolicy {
+    return roundPairings[roundIndex] || 'high_low';
+  }
+
+  /** Lo que se va a jugar de verdad: una eliminatoria es siempre a un partido. */
+  function seriesOf(roundIndex: number): number {
+    return playoffFormat === 'single_elimination' ? 1 : roundLengths[roundIndex];
+  }
+
+  /** Cruces que el motor calculó para una ronda, si ya respondió. */
+  function crossesAt(roundIndex: number): Array<{ high: string; low: string }> {
+    if (!bracket?.drawn) return [];
+    return bracket.rounds.find((ronda) => ronda.round === roundIndex + 1)?.series ?? [];
+  }
 
   function nuevaClave(): string {
     let indice = divisions.length + 1;
     while (divisions.some((d) => d.key === `d${indice}`)) indice += 1;
     return `d${indice}`;
-  }
-
-  /** Ruta con la que clasifica un puesto de una división, si clasifica. */
-  function routeOf(divisionKey: string | null, position: number): 'direct' | 'wildcard' | null {
-    const gate = gates.find(
-      (g) => g.division === divisionKey && g.positions.includes(position)
-    );
-    return gate ? gate.route : null;
-  }
-
-  /** Pulsar un puesto cicla su ruta: nada → directo → repechaje → nada. */
-  function cycleRoute(divisionKey: string | null, position: number) {
-    const actual = routeOf(divisionKey, position);
-    const siguiente = actual === null ? 'direct' : actual === 'direct' ? 'wildcard' : null;
-    quitarPuesto(divisionKey, position);
-    if (siguiente) añadirPuesto(divisionKey, position, siguiente);
-  }
-
-  function setRoute(
-    divisionKey: string | null,
-    position: number,
-    route: 'direct' | 'wildcard' | null
-  ) {
-    quitarPuesto(divisionKey, position);
-    if (route) añadirPuesto(divisionKey, position, route);
-    dragging = null;
-  }
-
-  function dropOnRoute(route: 'direct' | 'wildcard' | null) {
-    if (!dragging) return;
-    setRoute(dragging.division, dragging.position, route);
-    dropTarget = null;
   }
 
   function matchupColor(rival: string, clubGroup: string, value: number): string {
@@ -184,32 +378,47 @@
     return `color-mix(in srgb, ${base} ${Math.round(18 + (value / maximum) * 62)}%, var(--panel))`;
   }
 
-  function quitarPuesto(divisionKey: string | null, position: number) {
-    gates = gates
-      .map((g) =>
-        g.division === divisionKey
-          ? { ...g, positions: g.positions.filter((p) => p !== position) }
-          : g
-      )
-      .filter((g) => g.positions.length > 0);
+  /**
+   * Cuánta gente juega una ronda y cuánta sobrevive.
+   *
+   * Es la cuenta que decide si el camino se puede jugar: los que entran por
+   * una puerta más los ganadores de la ronda anterior tienen que ser pares y
+   * al menos dos. La hace el editor al instante para que el usuario vea el
+   * desajuste mientras arrastra; la autoridad sigue siendo el motor, que
+   * responde con sus problemas en `issues`.
+   */
+  function roundFlow(roundIndex: number): {
+    entrants: number;
+    arriving: number;
+    participants: number;
+    survivors: number;
+    valid: boolean;
+  } {
+    let survivors = 0;
+    for (let index = 0; index <= roundIndex; index += 1) {
+      const entrants = entrantsAt(index).length;
+      const arriving = index === 0 ? 0 : survivors;
+      const participants = arriving + entrants;
+      survivors = Math.floor(participants / 2);
+      if (index === roundIndex) {
+        return {
+          entrants,
+          arriving,
+          participants,
+          survivors,
+          valid: participants >= 2 && participants % 2 === 0
+        };
+      }
+    }
+    return { entrants: 0, arriving: 0, participants: 0, survivors: 0, valid: false };
   }
 
-  function añadirPuesto(
-    divisionKey: string | null,
-    position: number,
-    route: 'direct' | 'wildcard'
-  ) {
-    const existente = gates.find((g) => g.division === divisionKey && g.route === route);
-    if (existente) {
-      gates = gates.map((g) =>
-        g === existente
-          ? { ...g, positions: [...g.positions, position].sort((a, b) => a - b) }
-          : g
-      );
-    } else {
-      gates = [...gates, { division: divisionKey, positions: [position], route }];
-    }
-  }
+  const pathIsValid = $derived.by(() => {
+    if (roundCount === 0 || clasificados < 2) return false;
+    return Array.from({ length: roundCount }, (_, index) => roundFlow(index)).every(
+      (estado, index) => estado.valid && (index < roundCount - 1 || estado.survivors === 1)
+    );
+  });
 
   function añadirDivision() {
     const clave = nuevaClave();
@@ -232,6 +441,25 @@
     if (divisions.length === 2) {
       divisions = divisions.map((d) => ({ ...d, inter_cycles: Math.max(1, d.inter_cycles) }));
     }
+  }
+
+  /**
+   * Reparte las plazas en partes iguales. Con ocho divisiones y 32 equipos eso
+   * son 24 pulsaciones de flecha, y es una cuenta, no una decisión.
+   *
+   * Si el reparto no es exacto, las primeras divisiones se quedan con la plaza
+   * de más: sigue siendo una estructura asimétrica legítima y el editor la
+   * enseña como tal.
+   */
+  function repartirPorIgual() {
+    const cuantas = divisions.length;
+    if (!cuantas) return;
+    const base = Math.floor(clubCount / cuantas);
+    const resto = clubCount % cuantas;
+    divisions = divisions.map((division, indice) => ({
+      ...division,
+      slots: base + (indice < resto ? 1 : 0)
+    }));
   }
 
   function quitarDivision(key: string) {
@@ -280,27 +508,6 @@
     divisions = divisions.map((d) => (d.key === key ? { ...d, label } : d));
   }
 
-  /** Plazas de repechaje que salen de la tabla general. */
-  const repechajeGeneral = $derived(
-    gates.find((g) => g.division === null && g.route === 'wildcard')?.positions.length ?? 0
-  );
-
-  function cambiarRepechaje(delta: number) {
-    const cuantos = Math.max(0, Math.min(16, repechajeGeneral + delta));
-    gates = gates.filter((g) => !(g.division === null && g.route === 'wildcard'));
-    if (cuantos > 0) {
-      gates = [
-        ...gates,
-        {
-          division: null,
-          positions: Array.from({ length: cuantos }, (_, i) => i + 1),
-          route: 'wildcard',
-          label: 'Repechaje'
-        }
-      ];
-    }
-  }
-
   function toggleRestDay(day: number) {
     restDays = restDays.includes(day) ? restDays.filter((value) => value !== day) : [...restDays, day];
   }
@@ -311,25 +518,24 @@
       : [...tiebreakers, value];
   }
 
-  function setRoundLength(roundIndex: number, length: number) {
-    const lengths = Array.from(
-      { length: expectedRounds },
-      (_, index) => parsedRoundLengths[index] ?? (index === expectedRounds - 1 ? 5 : 3)
-    );
-    lengths[roundIndex] = length;
-    roundLengths = lengths.join(',');
-  }
-
-  // Una nueva plaza abre una ronda nueva con una serie válida, sin pedir que
-  // el usuario edite una lista de números oculta.
+  // Si una división se encoge, sus plazas de más dejan de existir y salen del
+  // cuadro; si se quita una ronda por otro camino, las entradas que apuntaban
+  // más allá se recogen en la última. El tablero nunca guarda una entrada que
+  // no se pueda jugar.
   $effect(() => {
-    if (playoffFormat !== 'best_of_series' || expectedRounds === 0) return;
-    const normalised = Array.from(
-      { length: expectedRounds },
-      (_, index) => parsedRoundLengths[index] ?? (index === expectedRounds - 1 ? 5 : 3)
+    const vivas = placed.filter(
+      (item) =>
+        item.division === null ||
+        item.position <= (divisions.find((d) => d.key === item.division)?.slots ?? 0)
     );
-    const next = normalised.join(',');
-    if (next !== roundLengths) roundLengths = next;
+    const dentro = vivas.map((item) => ({
+      ...item,
+      round: Math.min(item.round, Math.max(0, roundCount - 1))
+    }));
+    const cambia =
+      dentro.length !== placed.length ||
+      dentro.some((item, index) => item.round !== placed[index]?.round);
+    if (cambia) commit(dentro);
   });
 </script>
 
@@ -338,7 +544,7 @@
     <div class="workbench-title">
       <span class="eyebrow">PASO 6 · FORMATO DE LIGA</span>
       <strong>Laboratorio de competición</strong>
-      <span class="small muted">Arrastra plazas, conecta destinos y observa el resultado en vivo.</span>
+      <span class="small muted">Reparte las plazas, dibuja las rondas y observa el resultado en vivo.</span>
     </div>
     <div class="live-metrics" aria-label="Resumen de la estructura">
       <span><strong>{totalSlots}</strong> equipos</span>
@@ -382,13 +588,31 @@
       <div class="view-heading">
         <div>
           <strong>Tablas de temporada regular</strong>
-          <span class="small muted">Mueve una fila entre tablas o suéltala en una puerta de clasificación.</span>
+          <span class="small muted">
+            Mueve una plaza de una tabla a otra, ajusta las vueltas, y
+            <strong>pulsa la insignia</strong> de un puesto para que clasifique.
+          </span>
         </div>
-        <button type="button" class="button" onclick={añadirDivision}>+ División</button>
+        <div class="row">
+          {#if divisions.length > 1}
+            <button
+              type="button"
+              class="button ghost"
+              onclick={repartirPorIgual}
+              title="Reparte las plazas en partes iguales entre las divisiones"
+            >Igualar</button>
+          {/if}
+          <button type="button" class="button" onclick={añadirDivision}>+ División</button>
+        </div>
       </div>
 
       <div class="structure-canvas">
-      <div class="tablero">
+      <!--
+        Las columnas las dice cuántas divisiones hay, no un número fijo: con
+        una, ocupa el lienzo; con ocho, se reparten en dos filas de cuatro en
+        vez de esconderse tras un desplazamiento lateral.
+      -->
+      <div class="tablero" style={`--columnas:${columnasDeTablero}`}>
     {#each divisions as division (division.key)}
       <section
         class="division"
@@ -428,7 +652,7 @@
 
         <ol class="plazas">
           {#each Array.from({ length: division.slots }, (_, i) => i + 1) as puesto (puesto)}
-            {@const ruta = routeOf(division.key, puesto)}
+            {@const ronda = roundOf(division.key, puesto)}
             <li
               class="plaza"
               animate:flip={{ duration: 180 }}
@@ -443,18 +667,24 @@
             >
               <span class="asa" aria-hidden="true">⠿</span>
               <span class="puesto mono">{puesto}.º</span>
+              <!--
+                Marcar que un puesto clasifica se puede hacer aquí, que es
+                donde se está mirando la tabla. No son dos modelos: pulsar
+                aquí lo mete en la **primera** ronda, y en qué ronda empieza
+                se dibuja en el tablero de postemporada.
+              -->
               <button
                 type="button"
                 class="insignia"
-                class:directo={ruta === 'direct'}
-                class:repechaje={ruta === 'wildcard'}
-                class:ninguna={ruta === null}
-                onclick={() => cycleRoute(division.key, puesto)}
-                aria-label={`Clasificación del puesto ${puesto} de ${division.label}: ${
-                  ruta === 'direct' ? 'pase directo' : ruta === 'wildcard' ? 'repechaje' : 'no clasifica'
-                }. Pulsa para cambiar`}
+                class:clasifica={ronda !== null}
+                class:ninguna={ronda === null}
+                onclick={() => toggleEntry(division.key, puesto)}
+                aria-pressed={ronda !== null}
+                title={ronda === null
+                  ? `El ${puesto}.º de ${division.label} no clasifica. Pulsa para meterlo en ${roundLabels[0] || 'la primera ronda'}.`
+                  : `El ${puesto}.º de ${division.label} entra en ${roundLabels[ronda] || `la ronda ${ronda + 1}`}. Pulsa para quitarlo del cuadro.`}
               >
-                {ruta === 'direct' ? 'directo' : ruta === 'wildcard' ? 'repechaje' : '—'}
+                {ronda === null ? '—' : roundLabels[ronda] || `R${ronda + 1}`}
               </button>
               <span class="flechas">
                 <button
@@ -541,74 +771,16 @@
     {/each}
       </div>
 
-      <aside class="route-dock" aria-label="Destinos de clasificación">
-        <div class="route-dock-title"><span>PUERTAS</span><strong>Arrastra aquí</strong></div>
-        <button
-          type="button"
-          class="route-drop direct-route"
-          ondragover={(event) => event.preventDefault()}
-          ondrop={(event) => { event.preventDefault(); dropOnRoute('direct'); }}
-        >
-          <span class="route-icon">↗</span><strong>Clasifica</strong><small>{directos} plazas</small>
-        </button>
-        <button
-          type="button"
-          class="route-drop wildcard-route"
-          ondragover={(event) => event.preventDefault()}
-          ondrop={(event) => { event.preventDefault(); dropOnRoute('wildcard'); }}
-        >
-          <span class="route-icon">⇢</span><strong>Repechaje</strong><small>{repechajes} plazas</small>
-        </button>
-        <button
-          type="button"
-          class="route-drop closed-route"
-          ondragover={(event) => event.preventDefault()}
-          ondrop={(event) => { event.preventDefault(); dropOnRoute(null); }}
-        >
-          <span class="route-icon">×</span><strong>No clasifica</strong><small>limpiar ruta</small>
-        </button>
-      </aside>
       </div>
 
-  <div class="general">
-    <div>
-      <strong class="small">Repechaje desde la tabla general</strong>
-      <p class="small muted" style="margin:2px 0 0">
-        Plazas para los mejores de los que <strong>no</strong> clasificaron por
-        su división. Es lo que evita que una división fuerte pierda a su segundo
-        mejor equipo.
-      </p>
-    </div>
-    <div class="row">
-      <button
-        type="button"
-        class="button ghost mini"
-        onclick={() => cambiarRepechaje(-1)}
-        aria-label="Una plaza de repechaje menos"
-      >−</button>
-      <span class="puntos" aria-hidden="true">
-        {#each Array.from({ length: repechajeGeneral }) as _, i (i)}
-          <span class="punto repechaje"></span>
-        {/each}
-      </span>
-      <strong class="mono">{repechajeGeneral}</strong>
-      <button
-        type="button"
-        class="button ghost mini"
-        onclick={() => cambiarRepechaje(1)}
-        aria-label="Una plaza de repechaje más"
-      >+</button>
-    </div>
-  </div>
-
   <p class="structure-summary small muted">
-    Clasifican <strong>{clasificados}</strong>
-    {#if clasificados}
-      ({directos} por su puesto, {repechajes} por repechaje)
-    {/if}
-    de {totalSlots} equipos.
+    Clasifican <strong>{clasificados}</strong> de {totalSlots} equipos.
     {#if clasificados === 0}
-      Sin clasificados no hay postemporada: el campeón será el primero de la tabla.
+      Sin clasificados no hay postemporada: el campeón será el primero de la
+      tabla. Pulsa la insignia «—» de un puesto para meterlo en el cuadro.
+    {:else}
+      Pulsar la insignia mete o saca un puesto; <strong>en qué ronda empieza</strong>
+      se dibuja en <strong>Postemporada</strong>.
     {/if}
   </p>
     </section>
@@ -676,95 +848,322 @@
 
     {:else if activeView === 'postseason'}
 
-  <section class="view-panel flow" aria-label="Camino de las fases del campeonato">
-    <div class="flow-heading">
-      <span class="flow-step regular">1</span>
+  <section class="view-panel postseason-editor" aria-label="Tablero de la postemporada">
+    <div class="postseason-toolbar">
       <div>
-        <h4>Camino de la competición</h4>
-        <p class="small muted">Las insignias de las tablas alimentan esta fase; nada se declara dos veces.</p>
+        <span class="eyebrow">TABLERO DE ACCESO</span>
+        <h4>Dibuja el camino al título</h4>
+        <p class="small muted">
+          Arrastra cada puesto a la ronda donde empieza; los ganadores avanzan
+          solos. Nadie pasa por tener una etiqueta: pasa porque ganó o porque lo
+          colocaste ahí.
+        </p>
+      </div>
+      <div class="phase-choices" role="group" aria-label="Formato de la postemporada">
+        <button type="button" class={playoffFormat === 'best_of_series' ? 'button' : 'button ghost'} onclick={() => (playoffFormat = 'best_of_series')}>Series</button>
+        <button type="button" class={playoffFormat === 'single_elimination' ? 'button' : 'button ghost'} onclick={() => (playoffFormat = 'single_elimination')}>Partido único</button>
+        <button type="button" class={playoffFormat === 'none' ? 'button' : 'button ghost'} onclick={() => (playoffFormat = 'none')}>Campeón por tabla</button>
       </div>
     </div>
-    <div class="flow-lanes">
-      <section class="flow-stage regular-stage">
-        <span class="small muted">TEMPORADA REGULAR</span>
-        <strong>{divisions.length === 1 ? 'Tabla general' : `${divisions.length} divisiones`}</strong>
-        <span class="small muted">{totalSlots} plazas · vueltas editables arriba</span>
-      </section>
-      <div class="flow-link" aria-hidden="true"><span>clasifican</span></div>
-      <section class="flow-stage qualifiers-stage">
-        <span class="small muted">PUERTAS</span>
-        {#if qualificationCards.length && playoffFormat !== 'none'}
-          <div class="qualification-cards">
-            {#each qualificationCards as qualifier (qualifier.key)}
-              <span class="qualification" class:repechaje={qualifier.route === 'wildcard'}>{qualifier.label}</span>
-            {/each}
-          </div>
-        {:else}
-          <span class="small muted">Campeón por la tabla</span>
-        {/if}
-      </section>
-      <div class="flow-link" aria-hidden="true"><span>avanzan</span></div>
-      <section class="flow-stage playoffs-stage">
-        <span class="small muted">POSTEMPORADA</span>
-        <div class="phase-choices" role="group" aria-label="Destino de los clasificados">
-          <button
-            type="button"
-            class={playoffFormat === 'best_of_series' ? 'button' : 'button ghost'}
-            onclick={() => (playoffFormat = 'best_of_series')}
-          >Series</button>
-          <button
-            type="button"
-            class={playoffFormat === 'single_elimination' ? 'button' : 'button ghost'}
-            onclick={() => (playoffFormat = 'single_elimination')}
-          >A un partido</button>
-          <button
-            type="button"
-            class={playoffFormat === 'none' ? 'button' : 'button ghost'}
-            onclick={() => (playoffFormat = 'none')}
-          >Por tabla</button>
-        </div>
-        {#if playoffFormat !== 'none' && clasificados >= 2}
-          <span class="small muted">{clasificados} clubes · {expectedRounds} ronda{expectedRounds === 1 ? '' : 's'}</span>
-        {:else if playoffFormat !== 'none'}
-          <span class="small muted">Marca dos puestos arriba para abrir el cuadro.</span>
-        {/if}
-      </section>
-      <div class="flow-link champion-link" aria-hidden="true"><span>coronan</span></div>
-      <section class="flow-stage champion-stage">
-        <span class="small muted">CAMPEÓN</span>
-        <strong>⌂</strong>
-      </section>
-    </div>
 
-    {#if playoffFormat === 'best_of_series' && clasificados >= 2}
-      <div class="series-board" aria-label="Series de cada ronda">
-        {#each Array.from({ length: expectedRounds }) as _, roundIndex (roundIndex)}
-          <div class="round-card">
-            <span class="small muted">RONDA {roundIndex + 1}</span>
-            <div class="phase-choices">
-              {#each seriesOptions as length}
+    {#if playoffFormat !== 'none'}
+      <div class="path-summary">
+        <span><strong>{clasificados}</strong> clasificados</span>
+        <span><strong>{roundCount}</strong> ronda{roundCount === 1 ? '' : 's'}</span>
+        <span><strong>{totalSlots - clasificados}</strong> se queda{totalSlots - clasificados === 1 ? '' : 'n'} fuera</span>
+        <span class:flow-ok={pathIsValid} class:flow-bad={!pathIsValid}>
+          {pathIsValid ? 'camino cerrado ✓' : 'camino incompleto'}
+        </span>
+        <button type="button" class="button ghost mini" onclick={addRound} disabled={roundCount >= 8}>+ Ronda</button>
+      </div>
+
+      <div class="kanban" aria-label="Rondas y plazas de la postemporada">
+        <!--
+          Columna del plantel: la competición entera, división por división.
+          Una plaza que no está en ninguna ronda no clasifica, y eso se ve sin
+          leer ninguna etiqueta.
+        -->
+        <section
+          class="pool-column"
+          class:drop-active={poolIsTarget}
+          aria-label="Plantel: todos los puestos de todas las divisiones"
+          ondragover={(event) => {
+            event.preventDefault();
+            poolIsTarget = true;
+          }}
+          ondragleave={() => (poolIsTarget = false)}
+          ondrop={(event) => {
+            event.preventDefault();
+            dropOnPool();
+          }}
+        >
+          <header class="pool-header">
+            <span class="eyebrow">PLANTEL</span>
+            <strong>{totalSlots} equipos</strong>
+            <span class="small muted">
+              <strong>Pulsa</strong> un puesto para meterlo en {roundLabels[0] || 'la primera ronda'},
+              o <strong>arrástralo</strong> a la ronda donde empiece. Suéltalo aquí para
+              que deje de clasificar.
+            </span>
+            <span class="small muted pool-note">
+              Son <strong>puestos</strong>, no clubes: en este paso todavía no existen. Quien
+              acabe 1.º del Norte es quien ocupe esa plaza.
+            </span>
+          </header>
+
+          <div class="pool-body">
+            {#each divisions as division (division.key)}
+              <div class="pool-group">
+                <div class="pool-group-title">{division.label}</div>
+                {#each Array.from({ length: division.slots }, (_, i) => i + 1) as puesto (puesto)}
+                  {@const ronda = roundOf(division.key, puesto)}
+                  <button
+                    type="button"
+                    class="pool-card"
+                    class:placed={ronda !== null}
+                    draggable="true"
+                    onclick={() => toggleEntry(division.key, puesto)}
+                    aria-pressed={ronda !== null}
+                    title={ronda === null
+                      ? `El ${puesto}.º de ${division.label} no clasifica. Pulsa para meterlo en ${roundLabels[0] || 'la primera ronda'}, o arrástralo a la ronda que quieras.`
+                      : `El ${puesto}.º de ${division.label} entra en ${roundLabels[ronda] || `la ronda ${ronda + 1}`}. Pulsa para quitarlo del cuadro.`}
+                    ondragstart={() => (draggingEntry = { division: division.key, position: puesto })}
+                    ondragend={() => {
+                      draggingEntry = null;
+                      roundDropTarget = null;
+                      poolIsTarget = false;
+                    }}
+                  >
+                    <span class="grip" aria-hidden="true">⠿</span>
+                    <span class="pool-rank mono">{puesto}.º</span>
+                    <span class="pool-state">
+                      {ronda === null ? 'fuera' : roundLabels[ronda] || `R${ronda + 1}`}
+                    </span>
+                  </button>
+                {/each}
+              </div>
+            {/each}
+
+            <!--
+              Las plazas de la tabla general son «el mejor de los que no
+              clasificaron por su división»: el repechaje de siempre, sin tener
+              que llamarlo así. Siempre hay una libre a mano.
+            -->
+            <div class="pool-group general-group">
+              <div class="pool-group-title">
+                Los restantes
+                <span class="small muted">mejores de los que no pasaron por su división</span>
+              </div>
+              {#each Array.from({ length: generalRows }, (_, i) => i + 1) as puesto (puesto)}
+                {@const ronda = roundOf(null, puesto)}
                 <button
                   type="button"
-                  class={parsedRoundLengths[roundIndex] === length ? 'button' : 'button ghost'}
-                  onclick={() => setRoundLength(roundIndex, length)}
-                  aria-pressed={parsedRoundLengths[roundIndex] === length}
-                >MD{length}</button>
+                  class="pool-card"
+                  class:placed={ronda !== null}
+                  class:spare={ronda === null}
+                  draggable="true"
+                  onclick={() => toggleEntry(null, puesto)}
+                  aria-pressed={ronda !== null}
+                  title={ronda === null
+                    ? `Plaza libre para el ${puesto}.º mejor de los que no pasaron por su división. Pulsa para meterla en ${roundLabels[0] || 'la primera ronda'}.`
+                    : `El ${puesto}.º de los restantes entra en ${roundLabels[ronda] || `la ronda ${ronda + 1}`}. Pulsa para quitarlo del cuadro.`}
+                  ondragstart={() => (draggingEntry = { division: null, position: puesto })}
+                  ondragend={() => {
+                    draggingEntry = null;
+                    roundDropTarget = null;
+                    poolIsTarget = false;
+                  }}
+                >
+                  <span class="grip" aria-hidden="true">⠿</span>
+                  <span class="pool-rank mono">{puesto}.º</span>
+                  <span class="pool-state">
+                    {ronda === null ? 'libre' : roundLabels[ronda] || `R${ronda + 1}`}
+                  </span>
+                </button>
               {/each}
             </div>
           </div>
-        {/each}
-      </div>
-    {/if}
+        </section>
 
-    {#if playoffFormat !== 'none' && clasificados >= 2}
-      <div class="bracket-live">
+        {#each Array.from({ length: roundCount }) as _, roundIndex (roundIndex)}
+          {@const flujo = roundFlow(roundIndex)}
+          {@const cruces = crossesAt(roundIndex)}
+          <section
+            class="editable-round"
+            role="group"
+            aria-label={`${roundLabels[roundIndex] || `Ronda ${roundIndex + 1}`}: ${flujo.participants} participantes`}
+            class:drop-active={roundDropTarget === roundIndex}
+            class:invalid={!flujo.valid}
+            ondragover={(event) => {
+              event.preventDefault();
+              roundDropTarget = roundIndex;
+            }}
+            ondragleave={() => {
+              if (roundDropTarget === roundIndex) roundDropTarget = null;
+            }}
+            ondrop={(event) => {
+              event.preventDefault();
+              dropOnRound(roundIndex);
+            }}
+          >
+            <header class="round-editor-header">
+              <span class="round-number mono">{String(roundIndex + 1).padStart(2, '0')}</span>
+              <input
+                class="round-name"
+                value={roundLabels[roundIndex] || `Ronda ${roundIndex + 1}`}
+                oninput={(event) => renameRound(roundIndex, event.currentTarget.value)}
+                aria-label={`Nombre de la ronda ${roundIndex + 1}`}
+              />
+              <span class="round-count" class:bad={!flujo.valid}>
+                {flujo.participants} → {flujo.survivors}
+              </span>
+              <button
+                type="button"
+                class="button ghost mini"
+                onclick={() => removeRound(roundIndex)}
+                disabled={roundCount <= 1}
+                title="Quitar esta ronda: sus plazas vuelven al plantel"
+                aria-label={`Quitar la ronda ${roundIndex + 1}`}
+              >×</button>
+            </header>
+
+            <div class="round-entries">
+              {#if roundIndex > 0 && flujo.arriving > 0}
+                <!-- Los ganadores llegan antes que las entradas nuevas: con
+                     llaves fijas, ese orden es el que forma los cruces. -->
+                <span class="winner-token">
+                  <span class="pulse-dot"></span>
+                  {flujo.arriving} ganador{flujo.arriving === 1 ? '' : 'es'} de {roundLabels[roundIndex - 1] || `la ronda ${roundIndex}`}
+                </span>
+              {/if}
+              {#each entrantsAt(roundIndex) as entrada, posicion (entryId(entrada.division, entrada.position))}
+                <article
+                  class="entry-token"
+                  class:wildcard={entrada.division === null}
+                  draggable="true"
+                  ondragstart={() => {
+                    draggingEntry = { division: entrada.division, position: entrada.position };
+                  }}
+                  ondragend={() => {
+                    draggingEntry = null;
+                    roundDropTarget = null;
+                  }}
+                >
+                  <span class="grip" aria-hidden="true">⠿</span>
+                  <span class="entry-text">{entryLabel(entrada.division, entrada.position)}</span>
+                  <span class="entry-arrows">
+                    <button
+                      type="button"
+                      disabled={posicion === 0}
+                      onclick={() => reorderEntry(entrada.division, entrada.position, -1)}
+                      aria-label={`Subir ${entryLabel(entrada.division, entrada.position)} en el orden de la ronda`}
+                    >↑</button>
+                    <button
+                      type="button"
+                      disabled={posicion === entrantsAt(roundIndex).length - 1}
+                      onclick={() => reorderEntry(entrada.division, entrada.position, 1)}
+                      aria-label={`Bajar ${entryLabel(entrada.division, entrada.position)} en el orden de la ronda`}
+                    >↓</button>
+                    <button
+                      type="button"
+                      disabled={roundIndex === 0}
+                      onclick={() => shiftRound(entrada.division, entrada.position, -1)}
+                      aria-label={`Mover ${entryLabel(entrada.division, entrada.position)} a la ronda anterior`}
+                    >←</button>
+                    <button
+                      type="button"
+                      disabled={roundIndex === roundCount - 1}
+                      onclick={() => shiftRound(entrada.division, entrada.position, 1)}
+                      aria-label={`Mover ${entryLabel(entrada.division, entrada.position)} a la ronda siguiente`}
+                    >→</button>
+                  </span>
+                </article>
+              {/each}
+              {#if flujo.entrants === 0}
+                <div class="round-drop-hint">
+                  {roundIndex === 0
+                    ? 'Suelta aquí los puestos que abren el cuadro'
+                    : 'Solo ganadores. Suelta un puesto si alguien entra aquí'}
+                </div>
+              {/if}
+            </div>
+
+            <!--
+              Los cruces los calcula el motor con la misma función que los
+              formará en el campo, así que esto no es una maqueta de la
+              política de emparejamiento: es la política.
+            -->
+            {#if cruces.length}
+              <div class="round-crosses" aria-label={`Cruces de la ronda ${roundIndex + 1}`}>
+                {#each cruces as cruce, indice (indice)}
+                  <div class="cross">
+                    <span>{cruce.high}</span>
+                    <i aria-hidden="true">vs</i>
+                    <span>{cruce.low}</span>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+
+            <footer class="round-rules">
+              <span class="small muted" title="Longitud de cada eliminatoria de la ronda">Serie</span>
+              <div class="phase-choices">
+                {#each seriesOptions as length}
+                  <button
+                    type="button"
+                    class={seriesOf(roundIndex) === length ? 'button' : 'button ghost'}
+                    onclick={() => setRoundLength(roundIndex, length)}
+                    disabled={playoffFormat === 'single_elimination'}
+                    aria-pressed={seriesOf(roundIndex) === length}
+                  >{length === 1 ? '1 juego' : `MD${length}`}</button>
+                {/each}
+              </div>
+              <span class="small muted" title="Cómo se forman los cruces de la ronda">Cruces</span>
+              <div class="phase-choices">
+                {#each PAIRING_OPTIONS as option}
+                  <button
+                    type="button"
+                    class={pairingOf(roundIndex) === option.value ? 'button' : 'button ghost'}
+                    onclick={() => setPairing(roundIndex, option.value)}
+                    title={option.help}
+                    aria-pressed={pairingOf(roundIndex) === option.value}
+                  >{option.label}</button>
+                {/each}
+              </div>
+            </footer>
+            {#if roundIndex < roundCount - 1}<div class="animated-route" aria-hidden="true"></div>{/if}
+          </section>
+        {/each}
+
+        <section class="champion-box"><span>CAMPEÓN</span><strong>⌂</strong><small>1 superviviente</small></section>
+      </div>
+
+      <!-- Los problemas los enseña la tira del taller, que está en todas las
+           pestañas: repetirlos aquí era leer dos veces lo mismo. -->
+      {#if !issues.length && bracket?.note}
+        <div class="path-note small muted">{bracket.note}</div>
+      {/if}
+      <details class="engine-preview">
+        <summary>Ver el cuadro completo calculado por el motor</summary>
         <BracketPreviewView {bracket} />
+      </details>
+    {:else}
+      <div class="empty-canvas">
+        <strong>El campeón sale de la tabla</strong>
+        <small>El tablero queda guardado si después vuelves a activar la postemporada.</small>
       </div>
     {/if}
   </section>
 
+
     {:else if activeView === 'rules'}
-  <section class="settings-grid" aria-label="Reglas integradas al formato">
+  <!-- La tercera ficha sólo existe con divisiones, así que las columnas las
+       dice cuántas fichas hay: con dos, no se queda un tercio en blanco. -->
+  <section
+    class="settings-grid"
+    style={`--fichas:${divisions.length > 1 ? 3 : 2}`}
+    aria-label="Reglas integradas al formato"
+  >
     <section class="settings-table rules-settings">
       <div class="settings-heading">
         <span class="flow-step rules">3</span>
@@ -855,15 +1254,47 @@
 </div>
 
 <style>
+  /*
+    `app.css` da a `header` y `footer` el aspecto de la cabecera y el pie de la
+    página: 18px de relleno, 24px de margen abajo, 40px de margen arriba y una
+    línea. Dentro del taller hay seis de esos elementos —la cabecera de cada
+    división, la de cada ronda, su pie, el plantel— y cada uno se estaba
+    comiendo hasta 60px de alto que les hacían falta a las fichas. Esto los
+    devuelve a cero. La clase puntúa más que la etiqueta, así que gana a
+    `app.css`; y `:where` no suma nada, así que las reglas de abajo —que
+    también valen una clase— ganan a esta por venir después.
+  */
+  .league-workbench .button.mini {
+    min-height: 0;
+    padding: 2px 6px;
+    font-size: 0.72rem;
+    line-height: 1.25;
+  }
+
+  .league-workbench :where(header, footer) {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: inherit;
+    font-size: inherit;
+  }
+
   .tablero {
-    display: flex;
+    /* Las divisiones se reparten el ancho en columnas iguales y bajan de fila
+       cuando no caben. Una tira con desplazamiento horizontal escondía la
+       mitad de las tablas y dejaba el resto del lienzo vacío. */
+    display: grid;
+    grid-template-columns: repeat(var(--columnas, 1), minmax(0, 1fr));
+    grid-auto-rows: max-content;
+    align-content: start;
     gap: 12px;
-    overflow-x: auto;
     padding-bottom: 6px;
-    align-items: flex-start;
   }
   .division {
-    min-width: 220px;
+    min-width: 0;
+    max-width: 560px;
+    display: flex;
+    flex-direction: column;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--panel-2);
@@ -894,9 +1325,13 @@
     list-style: none;
     margin: 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(186px, 1fr));
+    grid-auto-rows: max-content;
     gap: 3px;
+    min-height: 0;
+    overflow: auto;
   }
   .plaza {
     display: grid;
@@ -922,38 +1357,39 @@
     color: var(--muted);
   }
   .insignia {
-    font: inherit;
-    font-size: 0.72rem;
+    max-width: 112px;
+    overflow: hidden;
     padding: 1px 7px;
     border-radius: 999px;
     border: 1px solid var(--line);
     background: transparent;
     color: var(--muted);
-    cursor: pointer;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     justify-self: start;
   }
-  .insignia.directo {
+  .insignia.clasifica {
     color: var(--accent);
     border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
     background: color-mix(in srgb, var(--accent) 14%, transparent);
-  }
-  .insignia.repechaje {
-    color: var(--accent-2);
-    border-color: color-mix(in srgb, var(--accent-2) 55%, var(--line));
-    background: color-mix(in srgb, var(--accent-2) 14%, transparent);
   }
   .flechas {
     display: flex;
     gap: 2px;
   }
   .vacia {
+    grid-column: 1 / -1;
     border: 1px dashed var(--line);
     border-radius: 6px;
     padding: 8px;
     text-align: center;
   }
   .division footer {
-    margin-top: 8px;
+    flex: 0 0 auto;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -975,21 +1411,11 @@
   .punto.inter {
     background: var(--accent-2);
   }
-  .punto.repechaje {
-    background: var(--accent-2);
-  }
-  .flow {
-    margin-top: 20px;
-    padding-top: 18px;
-    border-top: 1px solid var(--line);
-  }
-  .flow-heading,
   .settings-heading {
     display: flex;
     align-items: flex-start;
     gap: 9px;
   }
-  .flow h4,
   .settings-heading h4 {
     margin: 0;
     font-size: 0.88rem;
@@ -997,7 +1423,6 @@
     letter-spacing: 0.5px;
     color: var(--text);
   }
-  .flow-heading p,
   .settings-heading p { margin: 3px 0 0; }
   .flow-step {
     display: inline-flex;
@@ -1015,71 +1440,6 @@
   .flow-step.rules { background: #a98bd4; }
   .flow-step.access { background: var(--accent-2); }
   .flow-step.assignment { background: #c66d93; }
-  .flow-lanes {
-    display: flex;
-    gap: 8px;
-    align-items: stretch;
-    overflow-x: auto;
-    padding: 14px 2px 6px;
-  }
-  .flow-stage {
-    min-width: 155px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 5px;
-    padding: 10px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: var(--panel-2);
-  }
-  .regular-stage { border-color: color-mix(in srgb, var(--accent) 48%, var(--line)); }
-  .playoffs-stage { min-width: 205px; }
-  .champion-stage {
-    min-width: 82px;
-    align-items: center;
-    border-color: color-mix(in srgb, var(--accent-2) 60%, var(--line));
-  }
-  .champion-stage strong { font-size: 1.35rem; color: var(--accent-2); }
-  .flow-link {
-    position: relative;
-    align-self: center;
-    min-width: 58px;
-    height: 2px;
-    background: repeating-linear-gradient(90deg, var(--accent) 0 7px, transparent 7px 12px);
-    animation: flow-dashes 900ms linear infinite;
-  }
-  .flow-link::after {
-    content: '';
-    position: absolute;
-    right: -1px;
-    top: -3px;
-    width: 8px;
-    height: 8px;
-    border-top: 2px solid var(--accent);
-    border-right: 2px solid var(--accent);
-    transform: rotate(45deg);
-  }
-  .flow-link span {
-    position: absolute;
-    top: -18px;
-    left: 0;
-    width: 100%;
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.65rem;
-  }
-  .champion-link { background-image: repeating-linear-gradient(90deg, var(--accent-2) 0 7px, transparent 7px 12px); }
-  .champion-link::after { border-color: var(--accent-2); }
-  .qualification-cards { display: grid; gap: 4px; }
-  .qualification {
-    padding: 3px 5px;
-    border-left: 2px solid var(--accent);
-    border-radius: 3px;
-    background: var(--panel);
-    font-size: 0.7rem;
-  }
-  .qualification.repechaje { border-left-color: var(--accent-2); }
   .phase-choices {
     display: flex;
     flex-wrap: wrap;
@@ -1087,19 +1447,6 @@
     margin-top: 3px;
   }
   .phase-choices button { padding: 4px 7px; font-size: 0.7rem; }
-  .series-board {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
-    gap: 8px;
-    margin-top: 8px;
-  }
-  .round-card {
-    padding: 8px;
-    border: 1px solid var(--line);
-    border-radius: 7px;
-    background: var(--panel);
-  }
-  .bracket-live { margin-top: 10px; }
   .settings-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1135,25 +1482,12 @@
   @media (prefers-reduced-motion: reduce) {
     .division,
     .plaza { transition: none; }
-    .flow-link { animation: none; }
-  }
-  .general {
-    display: flex;
-    gap: 12px;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 12px;
-    padding: 8px;
-    border-radius: var(--radius);
-    background: var(--panel-2);
-    border: 1px solid var(--line);
-    flex-wrap: wrap;
   }
   .league-workbench {
-    width: min(1480px, calc(100vw - 24px));
-    height: calc(100dvh - 190px);
-    min-height: 570px;
-    max-height: 820px;
+    width: min(1760px, calc(100vw - 24px));
+    height: auto;
+    min-height: 540px;
+    max-height: min(1020px, calc(100dvh - 165px));
     margin: 0 0 0 50%;
     transform: translateX(-50%);
     display: grid;
@@ -1232,9 +1566,10 @@
     background: var(--accent);
     box-shadow: 0 0 12px var(--accent);
   }
-  .workbench-body { position: relative; min-height: 0; overflow: hidden; }
-  .view-panel { height: 100%; min-height: 0; padding: 12px 16px; animation: view-enters 240ms ease-out both; }
+  .workbench-body { position: relative; display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow: hidden; }
+  .view-panel { flex: 1 1 auto; min-height: 0; padding: 12px 16px; animation: view-enters 240ms ease-out both; }
   .issue-strip {
+    flex: 0 0 auto;
     position: absolute;
     z-index: 5;
     right: 16px;
@@ -1245,42 +1580,12 @@
     pointer-events: none;
   }
   .issue-strip span { padding: 5px 9px; border-radius: 6px; color: var(--accent-2); background: color-mix(in srgb, var(--panel) 92%, transparent); border: 1px solid color-mix(in srgb, var(--accent-2) 45%, var(--line)); font-size: 0.7rem; }
-  .structure-view { display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 8px; }
+  .structure-view { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px; }
   .view-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
-  .view-heading > div { display: grid; }
-  .structure-canvas { display: grid; grid-template-columns: minmax(0, 1fr) 155px; gap: 10px; min-height: 0; }
-  .tablero { height: 100%; min-height: 0; padding: 2px 2px 6px; }
-  .division { min-width: min(255px, 74vw); height: max-content; max-height: 100%; overflow: auto; }
+  .view-heading > div:first-child { display: grid; }
+  .structure-canvas { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-height: 0; }
+  .tablero { min-height: 0; overflow: auto; padding: 2px 2px 6px; }
   .plaza { min-height: 28px; }
-  .route-dock { display: grid; grid-template-rows: auto repeat(3, 1fr); gap: 7px; }
-  .route-dock-title { display: grid; padding: 3px 2px; }
-  .route-dock-title span { color: var(--accent); font: 700 0.62rem var(--mono); letter-spacing: 1px; }
-  .route-drop {
-    position: relative;
-    display: grid;
-    align-content: center;
-    justify-items: center;
-    gap: 2px;
-    min-height: 70px;
-    overflow: hidden;
-    border: 1px dashed var(--line);
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--panel-2) 78%, transparent);
-    color: var(--text);
-    padding: 8px;
-    font-size: inherit;
-    transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
-  }
-  .route-drop::before { content: ''; position: absolute; inset: 0; opacity: 0; background: linear-gradient(110deg, transparent 25%, color-mix(in srgb, var(--accent) 16%, transparent) 50%, transparent 75%); transform: translateX(-100%); }
-  .route-drop:hover { transform: translateY(-2px); border-color: var(--accent); }
-  .route-drop:hover::before { opacity: 1; animation: route-sweep 900ms linear infinite; }
-  .route-drop small { color: var(--muted); }
-  .route-icon { font-size: 1.15rem; color: var(--accent); }
-  .wildcard-route .route-icon { color: var(--accent-2); }
-  .wildcard-route:hover { border-color: var(--accent-2); }
-  .closed-route { opacity: 0.72; }
-  .general { margin-top: 0; padding: 6px 8px; }
-  .general p { display: none; }
   .structure-summary { margin: 0; }
   .schedule-view { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; }
   .schedule-toolbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
@@ -1308,14 +1613,88 @@
   .empty-canvas { display: grid; place-content: center; justify-items: center; gap: 7px; color: var(--muted); }
   .empty-canvas strong { color: var(--text); }
   .loader-ring { width: 28px; height: 28px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 800ms linear infinite; }
-  .flow { margin: 0; padding: 12px 16px; border-top: 0; overflow: auto; }
-  .flow-lanes { overflow: visible; }
-  .bracket-live :global(.panel) { padding: 10px; margin: 0; }
-  .settings-grid { height: 100%; margin: 0; padding: 12px 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: auto; animation: view-enters 240ms ease-out both; }
-  .settings-table { min-height: 0; overflow: auto; }
+  .settings-grid { flex: 1 1 auto; min-height: 0; margin: 0; padding: 12px 16px; grid-template-columns: repeat(var(--fichas, 3), minmax(280px, 470px)); justify-content: center; align-content: start; overflow: auto; animation: view-enters 240ms ease-out both; }
+  .settings-table { min-height: 0; height: max-content; }
+  .postseason-editor { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto auto; gap: 9px; overflow: hidden; }
+  .postseason-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+  .postseason-toolbar h4 { margin: 2px 0; font-size: 1rem; }
+  .postseason-toolbar p { max-width: 720px; margin: 0; }
+  .path-summary { display: flex; flex-wrap: wrap; gap: 6px; }
+  .path-summary span { padding: 4px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--panel-2); font-size: 0.68rem; }
+  .path-summary strong { color: var(--text); font-family: var(--mono); }
+  .path-summary .flow-ok { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 52%, var(--line)); }
+  .path-summary .flow-bad { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 52%, var(--line)); }
+  .kanban { display: flex; align-items: stretch; gap: 20px; min-height: 0; overflow: auto; padding: 2px 18px 8px 2px; }
+  .pool-column { position: sticky; left: 0; z-index: 3; flex: 0 0 clamp(248px, 19%, 340px); display: flex; flex-direction: column; gap: 7px; padding: 10px; border: 1px dashed var(--line); border-radius: 10px; background: color-mix(in srgb, var(--panel-2) 94%, transparent); transition: border-color 150ms ease, background 150ms ease; }
+  .pool-column.drop-active { border-style: solid; border-color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 9%, var(--panel-2)); }
+  .pool-header { flex: 0 0 auto; display: grid; gap: 1px; padding-bottom: 7px; border-bottom: 1px dashed var(--line); }
+  .pool-header > strong { font-size: 0.86rem; }
+  .pool-note { margin-top: 4px; padding-top: 4px; border-top: 1px dotted color-mix(in srgb, var(--line) 70%, transparent); }
+  .pool-body { flex: 1 1 auto; min-height: 0; overflow: auto; display: grid; gap: 9px; align-content: start; }
+  .pool-group { display: grid; gap: 3px; }
+  .pool-group-title { position: sticky; top: 0; z-index: 1; display: grid; padding: 2px 0 3px; color: var(--muted); background: var(--panel-2); font: 700 0.64rem var(--mono); letter-spacing: 0.6px; }
+  .pool-group-title span { font: inherit; font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .general-group .pool-group-title { color: var(--accent-2); }
+  .pool-card { width: 100%; display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 6px; align-items: center; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; color: var(--text); background: var(--panel); font: inherit; font-size: 0.7rem; text-align: left; cursor: grab; transition: border-color 140ms ease, background 140ms ease, transform 140ms ease; }
+  .pool-card:hover { border-color: var(--accent); transform: translateX(2px); }
+  .pool-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .pool-card.placed { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--panel)); }
+  .pool-card.spare { opacity: 0.6; border-style: dashed; }
+  .pool-card .pool-rank { color: var(--muted); }
+  .pool-card.placed .pool-rank { color: var(--text); }
+  .pool-state { justify-self: end; max-width: 100%; overflow: hidden; padding: 2px 6px; border: 1px solid var(--line); border-radius: 99px; color: var(--muted); background: var(--panel-2); font: 0.62rem var(--mono); white-space: nowrap; text-overflow: ellipsis; }
+  .pool-card.placed .pool-state { color: #07120d; border-color: var(--accent); background: var(--accent); }
+  .round-crosses { flex: 0 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(208px, 1fr)); gap: 3px 12px; max-height: 92px; overflow: auto; padding-top: 5px; border-top: 1px dashed var(--line); }
+  .cross { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 5px; align-items: center; font-size: 0.64rem; }
+  .cross span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .cross span:last-child { text-align: right; }
+  .cross i { color: var(--muted); font: 0.58rem var(--mono); font-style: normal; }
+  .entry-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .path-note { padding: 4px 2px; }
+  .editable-round { position: relative; flex: 1 1 290px; min-width: 258px; max-width: 460px; display: flex; flex-direction: column; gap: 7px; padding: 10px; border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--line)); border-radius: 10px; background: linear-gradient(155deg, color-mix(in srgb, var(--accent) 6%, var(--panel-2)), var(--panel-2)); transition: border-color 150ms ease, transform 150ms ease, background 150ms ease; }
+  .editable-round.drop-active { transform: translateY(-3px); border-color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 10%, var(--panel-2)); }
+  .editable-round.invalid { border-style: dashed; border-color: color-mix(in srgb, var(--accent-2) 55%, var(--line)); }
+  .round-editor-header { flex: 0 0 auto; display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 6px; align-items: center; padding-bottom: 5px; border-bottom: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); }
+  .round-number { color: var(--accent); font-size: 0.7rem; }
+  .round-name { min-width: 0; padding: 3px 5px; border: 0; border-bottom: 1px solid transparent; border-radius: 0; color: var(--text); background: transparent; font-weight: 700; }
+  .round-name:hover, .round-name:focus { border-bottom-color: var(--accent); outline: none; }
+  .round-count { padding: 2px 5px; border-radius: 99px; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); font: 0.64rem var(--mono); }
+  .round-count.bad { color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 12%, transparent); }
+  .round-entries { flex: 1 1 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(166px, 1fr)); gap: 4px; align-content: start; min-height: 84px; overflow: auto; }
+  .round-entries > .winner-token,
+  .round-entries > .round-drop-hint { grid-column: 1 / -1; }
+  /* Una ronda a la que solo llegan ganadores no tiene fichas que
+     alinear arriba: su mensaje se queda en medio de la columna en vez
+     de dejar un vacío de media altura debajo. */
+  .round-entries:has(> .round-drop-hint) { align-content: center; }
+  .entry-token { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px; align-items: center; padding: 4px 6px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-left: 3px solid var(--accent); border-radius: 7px; background: var(--panel); font-size: 0.7rem; cursor: grab; animation: entrant-arrives 200ms ease-out both; }
+  .entry-token.wildcard { border-color: color-mix(in srgb, var(--accent-2) 42%, var(--line)); border-left-color: var(--accent-2); }
+  .grip { color: var(--muted); }
+  .entry-arrows { display: flex; gap: 1px; }
+  .entry-arrows button { width: 17px; height: 19px; padding: 0; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); background: var(--panel-2); font-size: 0.65rem; }
+  .entry-arrows button:disabled { opacity: 0.2; }
+  .round-drop-hint { display: grid; min-height: 50px; place-items: center; border: 1px dashed var(--line); border-radius: 7px; color: var(--muted); font-size: 0.68rem; }
+  .winner-token { padding: 5px 7px; border-radius: 6px; color: var(--muted); background: color-mix(in srgb, var(--accent) 7%, var(--panel)); font-size: 0.66rem; }
+  .pulse-dot { display: inline-block; width: 6px; height: 6px; margin-right: 4px; border-radius: 50%; background: var(--accent); animation: live-pulse 1.2s ease-in-out infinite; }
+  .round-rules { border-top: 1px solid var(--line); padding-top: 6px; }
+  .round-rules { flex: 0 0 auto; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 7px; align-items: center; padding-top: 6px; border-top: 1px solid var(--line); }
+  .round-rules .phase-choices { flex-wrap: wrap; justify-content: flex-end; margin: 0; }
+  .round-rules .phase-choices button { min-width: max-content; padding: 2px 5px; font-size: 0.66rem; }
+  .animated-route { position: absolute; top: 50%; right: -23px; width: 22px; height: 2px; background: repeating-linear-gradient(90deg, var(--accent) 0 5px, transparent 5px 9px); animation: flow-dashes 700ms linear infinite; }
+  .animated-route::after { content: ''; position: absolute; right: 0; top: -3px; width: 7px; height: 7px; border-top: 2px solid var(--accent); border-right: 2px solid var(--accent); transform: rotate(45deg); }
+  .champion-box { flex: 0 0 118px; display: grid; place-content: center; justify-items: center; gap: 5px; padding: 10px; border: 1px solid color-mix(in srgb, var(--accent-2) 55%, var(--line)); border-radius: 10px; background: color-mix(in srgb, var(--accent-2) 8%, var(--panel-2)); }
+  .champion-box span { color: var(--accent-2); font: 700 0.62rem var(--mono); letter-spacing: 1px; }
+  .champion-box strong { font-size: 1.5rem; }
+  .champion-box small { color: var(--muted); }
+  .engine-preview { max-height: 34px; overflow: auto; color: var(--muted); font-size: 0.7rem; }
+  .engine-preview[open] { max-height: 320px; }
+  .engine-preview summary { cursor: pointer; }
+  /* Las fichas de entrada la pedían desde que existe el tablero, pero el
+     fotograma vivía en otro componente y el CSS de Svelte va por componente,
+     así que nunca llegaba: la ficha aparecía de golpe. */
+  @keyframes entrant-arrives { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
   @keyframes view-enters { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes data-refresh { from { opacity: 0.45; } to { opacity: 1; } }
-  @keyframes route-sweep { to { transform: translateX(100%); } }
   @keyframes live-pulse { 50% { opacity: 0.45; transform: scale(0.75); } }
   @keyframes spin { to { transform: rotate(360deg); } }
   @media (max-width: 980px) {
@@ -1324,6 +1703,9 @@
     .live-metrics { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
     .schedule-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tablero { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .postseason-editor { overflow: auto; }
+    .kanban { min-height: 380px; }
   }
   @media (max-width: 680px) {
     .league-workbench { width: calc(100vw - 12px); min-height: 760px; }
@@ -1336,16 +1718,16 @@
     .view-tabs button { padding: 9px 3px; font-size: 0.68rem; }
     .view-tabs button span { display: none; }
     .structure-canvas { grid-template-columns: 1fr; }
-    .route-dock { grid-template-columns: repeat(3, 1fr); grid-template-rows: auto 76px; }
-    .route-dock-title { grid-column: 1 / -1; }
+    .tablero { grid-template-columns: minmax(0, 1fr); }
+    .pool-column { position: static; flex: 0 0 210px; }
     .schedule-toolbar,
     .schedule-data-grid,
     .settings-grid { grid-template-columns: 1fr; }
     .schedule-data-grid { overflow: auto; }
+    .postseason-toolbar { flex-direction: column; gap: 6px; }
   }
   @media (prefers-reduced-motion: reduce) {
     .live-metrics .live::before,
-    .route-drop:hover::before,
     .loader-ring,
     .view-panel,
     .settings-grid,

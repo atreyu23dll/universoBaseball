@@ -13,6 +13,7 @@
     GeoSearchResult,
     GeoStatus,
     MobilityRules,
+    PairingPolicy,
     Place,
     Preview
   } from '$lib/api/types';
@@ -129,9 +130,17 @@
   let divisions = $state<EditorDivision[]>([
     { key: 'd1', label: 'Tabla general', slots: 12, intra_cycles: 2, inter_cycles: 0 }
   ]);
-  let gates = $state<EditorGate[]>([
-    { division: 'd1', positions: [1, 2, 3, 4], route: 'direct' }
-  ]);
+  // Una puerta por plaza: así cada una lleva su ronda de entrada y su orden
+  // dentro de ella, que es el cruce que el tablero dibuja.
+  let gates = $state<EditorGate[]>(
+    [1, 2, 3, 4].map((position, index) => ({
+      division: 'd1',
+      positions: [position],
+      route: 'seed' as const,
+      target_round: 0,
+      order: index
+    }))
+  );
   let groupAssignment = $state('geographic');
   let gamesPerSeries = $state(1);
   let daysBetweenSeries = $state(0);
@@ -148,7 +157,11 @@
   let standingsPrimary = $state('win_percentage');
   let tiebreakers = $state<string[]>(['head_to_head', 'run_differential']);
   let playoffFormat = $state('best_of_series');
-  let roundLengths = $state('3,5');
+  // Las rondas las pone el usuario: su número ya no se deduce de las plazas,
+  // porque un cuadro puede incorporar clubes en cualquier ronda.
+  let roundLengths = $state<number[]>([3, 5]);
+  let roundLabels = $state<string[]>(['Semifinales', 'Final']);
+  let roundPairings = $state<PairingPolicy[]>(['high_low', 'high_low']);
   let licenceRequired = $state(false);
   let safetyCertRequired = $state(false);
   let amateurStatusRequired = $state(false);
@@ -234,12 +247,14 @@
   function dropEntity(id: string) {
     chosen = chosen.filter((e) => e.id !== id);
   }
-  /** Cuántos clasifican según las puertas que marcó el editor. */
+  /**
+   * Cuántos clasifican: las plazas que el tablero colocó en alguna ronda.
+   * No hay un selector de plazas de playoff, y por eso no puede contradecir a
+   * la estructura: es el mismo número mirado una sola vez.
+   */
   const gateQualifiers = $derived(
     gates.reduce((total, gate) => total + gate.positions.length, 0)
   );
-  /** Plazas de playoff que rigen: las fija la estructura, no un selector. */
-  const effectivePlayoffSlots = $derived(gateQualifiers);
 
   /**
    * No es una decisión adicional: el contrato todavía requiere una cifra de
@@ -295,6 +310,8 @@
               division: g.division,
               positions: g.positions,
               route: g.route,
+              ...(g.target_round !== undefined ? { target_round: g.target_round } : {}),
+              ...(g.order !== undefined ? { order: g.order } : {}),
               ...(g.label ? { label: g.label } : {})
             }))
     };
@@ -310,7 +327,15 @@
     ];
   }
 
-  /** El bloque `playoffs` del reglamento, derivado de las puertas. */
+  /**
+   * El bloque `playoffs` del reglamento, derivado del tablero.
+   *
+   * Las plazas no se declaran: son las que el tablero colocó. Las rondas
+   * tampoco se deducen de las plazas, y por eso el reglamento va con
+   * `seeding: 'staged'`: el cuadro es el dibujado, con sus nombres y su
+   * política de cruces, y el motor no infiere pases directos por potencia de
+   * dos.
+   */
   function buildPlayoffs() {
     if (playoffFormat === 'none' || gateQualifiers < 2) {
       return { slots: 0, format: 'none', round_lengths: [] };
@@ -318,7 +343,13 @@
     return {
       slots: gateQualifiers,
       format: playoffFormat,
-      round_lengths: playoffRoundLengths
+      seeding: 'staged',
+      round_lengths: playoffRoundLengths,
+      round_labels: roundLabels.slice(0, roundCount),
+      round_pairings: Array.from(
+        { length: roundCount },
+        (_, index) => roundPairings[index] || 'high_low'
+      )
     };
   }
 
@@ -352,24 +383,30 @@
     };
     divisions = ajustada;
   });
-  /** Longitudes de ronda ya parseadas: las usan el reglamento y la vista. */
-  const parsedRoundLengths = $derived(
-    roundLengths
-      .split(',')
-      .map((value) => Number(value.trim()))
-      .filter((value) => Number.isFinite(value) && value > 0)
-  );
-  /** Rondas que pide el cuadro: con plazas que no son potencia de dos, las
-   * mejores siembras esperan, pero las rondas son las del cuadro completo. */
-  const expectedRounds = $derived(
-    effectivePlayoffSlots >= 2 ? Math.ceil(Math.log2(effectivePlayoffSlots)) : 0
-  );
+  /** Rondas del cuadro: las que el usuario puso en el tablero. */
+  const roundCount = $derived(roundLengths.length);
   /** Una eliminatoria es siempre a un partido, también en el motor y la vista. */
   const playoffRoundLengths = $derived(
     playoffFormat === 'single_elimination'
-      ? Array.from({ length: expectedRounds }, () => 1)
-      : parsedRoundLengths
+      ? Array.from({ length: roundCount }, () => 1)
+      : [...roundLengths]
   );
+  // Los nombres y las políticas acompañan a las rondas una a una: el
+  // reglamento rechaza una lista que no corresponda, y con razón.
+  $effect(() => {
+    if (roundLabels.length !== roundCount) {
+      roundLabels = Array.from(
+        { length: roundCount },
+        (_, index) => roundLabels[index] || `Ronda ${index + 1}`
+      );
+    }
+    if (roundPairings.length !== roundCount) {
+      roundPairings = Array.from(
+        { length: roundCount },
+        (_, index) => roundPairings[index] || 'high_low'
+      );
+    }
+  });
   const partner = $derived(competitions.find((c) => c.id === linkPartnerId) ?? null);
   const isHierarchy = $derived(
     relationshipMode === 'dependent' && linkRelation === 'promotion_relegation'
@@ -1021,6 +1058,8 @@
     bind:restDays
     bind:playoffFormat
     bind:roundLengths
+    bind:roundLabels
+    bind:roundPairings
     bind:rosterSize
     bind:designatedHitter
     bind:extraInnings

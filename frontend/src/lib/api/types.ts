@@ -128,14 +128,29 @@ export interface EditorDivision {
   inter_cycles: number;
 }
 
-/** Una puerta de clasificación: qué puestos salen y por qué ruta. */
+/**
+ * Una puerta de clasificación: qué puesto sale, de dónde y a qué ronda entra.
+ *
+ * El editor escribe **una puerta por plaza**, porque así cada una lleva su
+ * propia ronda de entrada y su propio orden dentro de ella. La ruta es
+ * `seed`: una entrada neutra cuyo significado lo dan su procedencia y su
+ * destino, no una etiqueta deportiva. `direct` y `wildcard` siguen existiendo
+ * para los reglamentos escritos antes del cuadro dibujado.
+ */
 export interface EditorGate {
-  /** Clave de la división, o `null` para la tabla general (repechaje). */
+  /** Clave de la división, o `null` para los puestos de la tabla general. */
   division: string | null;
   positions: number[];
-  route: 'direct' | 'wildcard';
+  route: 'seed' | 'direct' | 'wildcard';
   label?: string;
+  /** Ronda del cuadro en la que entra esta plaza; 0 es la primera. */
+  target_round?: number;
+  /** Orden dentro de su ronda: es el cruce que el usuario dibujó. */
+  order?: number;
 }
+
+/** Cómo se forman los cruces de una ronda. */
+export type PairingPolicy = 'high_low' | 'adjacent' | 'fixed' | 'draw';
 
 /** Clasificado del cuadro previsto: una posición, no un club todavía. */
 export interface BracketQualifier {
@@ -143,6 +158,8 @@ export interface BracketQualifier {
   route: 'group_winner' | 'wildcard' | 'overall';
   label: string;
   group: string;
+  entry_round?: number | null;
+  order?: number | null;
 }
 
 /** El cuadro de postemporada que saldría de un reglamento. */
@@ -150,15 +167,21 @@ export interface BracketPreview {
   format: string;
   slots: number;
   bracket_size?: number;
-  /** Clasificados que se saltan la primera ronda. */
+  /** Entradas que no empiezan en la primera ronda. */
   byes?: number;
   rounds_needed?: number;
   declared_rounds?: number;
+  /** `true` cuando las rondas son las que dibujó el editor. */
+  drawn?: boolean;
   note: string;
   qualifiers: BracketQualifier[];
   rounds: Array<{
     round: number;
+    label?: string;
     best_of: number;
+    pairing?: PairingPolicy;
+    /** Plazas que se incorporan en esta ronda, ya con su nombre. */
+    entering?: string[];
     byes: string[];
     series: Array<{ high: string; low: string }>;
   }>;

@@ -99,9 +99,9 @@
         competición: el reparto lo hace el motor por cercanía o por recursos y
         deja escrito por qué cada club está donde está, el calendario juega más
         veces contra los de la propia división, la tabla trae el puesto del
-        grupo sin dejar de contar todos los partidos, y a la postemporada entran
-        los campeones de división más los repechajes de la tabla general. El
-        reparto se rehace cada temporada con los clubes que hay.
+        grupo sin dejar de contar todos los partidos, y a la postemporada entra
+        quien el tablero del paso 6 haya puesto en una ronda. El reparto se
+        rehace cada temporada con los clubes que hay.
       </li>
       <li>
         <strong>Temporadas encadenadas</strong>: cuando una edición termina, el
@@ -140,12 +140,23 @@
         <strong>La estructura se dibuja, no se rellena.</strong> El paso 6 es un
         editor: arrancas con una tabla única de tus equipos, añades divisiones y
         arrastras plazas de una a otra. Cada división lleva sus propias vueltas
-        —no tienen que parecerse entre sí—, y pulsando la insignia de un puesto
-        decides si clasifica directo o por repechaje. Debajo se dibuja en vivo lo
-        que sale: partidos, jornadas, matriz de cruces, las dos primeras semanas
-        día a día y el cuadro de postemporada con la ruta de cada clasificado. Lo
+        —no tienen que parecerse entre sí—. Debajo se dibuja en vivo lo que
+        sale: partidos, jornadas, matriz de cruces, las dos primeras semanas día
+        a día y el cuadro de postemporada con el motivo de cada clasificado. Lo
         calcula el motor, no es una maqueta, y no escribe nada hasta que
         confirmas.
+      </li>
+      <li>
+        <strong>El camino al título es un tablero.</strong> La primera columna
+        es la competición entera —todos los puestos de todas las divisiones— y
+        las demás son las rondas que tú añades y nombras. Una plaza clasifica
+        porque está puesta en una ronda: no hay pase directo ni repechaje,
+        porque esas etiquetas no decidían nada. Con eso se dibuja igual una copa
+        —los campeones de grupo a octavos y los ganadores subiendo— que una
+        postemporada de la MLB, donde los campeones de división esperan la
+        segunda ronda mientras los comodines pelean la primera. Y por ronda se
+        elige quién se cruza con quién: resembrando por la tabla, por sorteo o
+        con las llaves fijas del cuadro.
       </li>
       <li>Procedencia de cada número generado, consultable en la ficha del club.</li>
     </ul>

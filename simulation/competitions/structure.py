@@ -52,6 +52,9 @@ class GateRoute(StrEnum):
     DIRECT = "direct"
     #: Pasa por repechaje, comparándose con los de otras divisiones.
     WILDCARD = "wildcard"
+    #: Entrada neutra colocada por el editor visual. Su significado lo dan la
+    #: procedencia y la ronda de destino, no una etiqueta deportiva impuesta.
+    SEED = "seed"
 
 
 class Division(BaseModel):
@@ -85,6 +88,14 @@ class Gate(BaseModel):
     route: GateRoute = GateRoute.DIRECT
     #: Lo que el usuario llamó a esta puerta. Si está vacío, se describe sola.
     label: str = Field(default="", max_length=80)
+    #: Ronda del cuadro en la que aparece esta entrada. ``None`` conserva el
+    #: sembrado automático de los reglamentos antiguos; 0 es la primera ronda,
+    #: 1 la siguiente, etc. Esto permite dibujar un repechaje real: quienes lo
+    #: juegan entran en 0 y los pases directos esperan una ronda posterior.
+    target_round: int | None = Field(default=None, ge=0, le=7)
+    #: Orden dentro del cajón de destino. Permite emparejar por el orden que el
+    #: usuario dibujó sin convertir los futuros clubes en datos del reglamento.
+    order: int | None = Field(default=None, ge=0, le=127)
 
     @field_validator("positions")
     @classmethod
@@ -106,6 +117,10 @@ class Gate(BaseModel):
         puestos = ", ".join(str(p) for p in self.positions)
         if self.route is GateRoute.WILDCARD:
             return f"repechaje: puesto(s) {puestos}{donde}"
+        if self.route is GateRoute.SEED and self.division is None:
+            # Una entrada neutra de la tabla general no es el puesto N de la
+            # tabla: es el puesto N entre los que no pasaron por su división.
+            return f"puesto(s) {puestos} entre los que no pasaron por su división"
         return f"puesto(s) {puestos}{donde}"
 
 
@@ -287,10 +302,27 @@ def validate_sequence(stages: list[Stage], club_count: int) -> list[str]:
             continue
         llegan = stages[indice - 1].qualifiers
         if stage.format is StageFormat.BRACKET:
+            entradas = stages[indice - 1].gates
+            dibujado = any(g.target_round is not None for g in entradas)
             if llegan < 2:
                 problemas.append(
                     f"a «{stage.label}» llegan {llegan} club(es): un cuadro necesita dos"
                 )
+            elif dibujado:
+                # Cuadro dibujado: las rondas son las que puso el usuario y lo
+                # que hay que comprobar es que su camino cierre. Exigirle la
+                # potencia de dos prohibiría una escalerilla legítima.
+                if any(g.target_round is None for g in entradas):
+                    problemas.append(
+                        f"«{stage.label}» mezcla entradas colocadas a mano y entradas con "
+                        "siembra automática: coloca todas en una ronda"
+                    )
+                elif not stage.series_lengths:
+                    problemas.append(f"«{stage.label}» no tiene ninguna ronda: añade al menos una")
+                else:
+                    problemas.extend(
+                        _validate_round_entries(stage, entradas, len(stage.series_lengths))
+                    )
             else:
                 _, _, rondas = bracket_shape(llegan)
                 if len(stage.series_lengths) != rondas:
@@ -319,6 +351,46 @@ def validate_sequence(stages: list[Stage], club_count: int) -> list[str]:
                     f"una puerta de «{stage.label}» saca al puesto {max(gate.positions)} de "
                     f"{donde}, que solo tiene {tope}"
                 )
+    return problemas
+
+
+def _validate_round_entries(stage: Stage, gates: list[Gate], rounds: int) -> list[str]:
+    """Valida un cuadro al que pueden incorporarse clubes en rondas distintas."""
+    problemas: list[str] = []
+    por_ronda = [0 for _ in range(rounds)]
+    for gate in gates:
+        destino = gate.target_round
+        if destino is None:
+            continue
+        if destino >= rounds:
+            problemas.append(
+                f"una entrada de «{stage.label}» apunta a la ronda {destino + 1}, "
+                f"pero el cuadro solo tiene {rounds}"
+            )
+            continue
+        por_ronda[destino] += gate.size
+
+    ganadores = 0
+    for indice, nuevas in enumerate(por_ronda):
+        participantes = nuevas if indice == 0 else ganadores + nuevas
+        if participantes < 2:
+            problemas.append(
+                f"la ronda {indice + 1} de «{stage.label}» recibe {participantes} "
+                "club(es): necesita al menos dos"
+            )
+            ganadores = participantes
+            continue
+        if participantes % 2:
+            problemas.append(
+                f"la ronda {indice + 1} de «{stage.label}» recibe {participantes} "
+                "clubes: falta una entrada para formar todos los cruces"
+            )
+        ganadores = participantes // 2
+    if ganadores != 1:
+        problemas.append(
+            f"el camino de «{stage.label}» termina con {ganadores} posibles ganadores; "
+            "debe terminar con uno"
+        )
     return problemas
 
 

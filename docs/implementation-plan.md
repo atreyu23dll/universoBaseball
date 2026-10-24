@@ -208,7 +208,7 @@ implementado:
 |---|---|---|
 | 0 | Monorepo, FastAPI, SvelteKit, Postgres/SQLite, Alembic, tests, Docker | **Hecho** |
 | 1 | Vertical: universo → liga independiente → generación → calendario → partidos → tabla → avanzar → persistir | **Hecho** |
-| 2 | Motor declarativo de relaciones, ascenso/descenso transaccional, grupos/divisiones | **Hecha** (movilidad, divisiones y siembra por grupo); faltan byes en playoffs y repechaje interregional |
+| 2 | Motor declarativo de relaciones, ascenso/descenso transaccional, grupos/divisiones | **Hecha** (movilidad, divisiones, siembra por grupo, cuadro dibujado con sus rondas y sus cruces); falta el repechaje interregional |
 | 3 | Internacional: franquicias por ciudad, selecciones, elegibilidad por liga doméstica | No empezado |
 | 4 | Personas e IA: desarrollo por edad, scouts falibles, ledger, patrocinios, fichajes | Scouts falibles y **ledger de temporada** hechos; faltan desarrollo por edad, patrocinios como entidad y fichajes |
 | 5 | Béisbol detallado lanzamiento por lanzamiento, clima, parque 2D, replay | No empezado |
@@ -297,17 +297,30 @@ Implementado:
       nada; el paso 6 lo pinta mientras el usuario mueve los controles: resumen
       de partidos y días, barra por club con su reparto dentro y fuera de la
       división, matriz de cruces con colores por tipo de enfrentamiento, las dos
-      primeras semanas día a día y el cuadro de postemporada con la ruta de cada
-      clasificado y los pases directos.
+      primeras semanas día a día y el cuadro de postemporada con el motivo de
+      cada clasificado y la ronda en la que entra.
 
 - [x] **Estructura por fases con divisiones asimétricas y editor gráfico.** Una
       competición es una secuencia de fases; una fase de tabla tiene divisiones
       que **no tienen por qué parecerse** —otras plazas, otras vueltas, otros
       clasificados— y las **puertas** (`Gate`) dicen qué puestos pasan y por qué
       ruta. El paso 6 del asistente es un editor donde las plazas se arrastran
-      entre divisiones y la insignia de cada puesto cicla entre no clasifica,
-      pase directo y repechaje. Ver
+      entre divisiones. Ver
       `docs/adr/0010-estructura-por-fases-y-editor-grafico.md`.
+
+- [x] **El cuadro se dibuja: tablero de postemporada y cruces declarados.** La
+      pestaña de postemporada es un kanban: la primera columna es la
+      competición entera y las demás son las rondas que el usuario añade y
+      nombra. Una plaza clasifica porque está puesta en una ronda, así que las
+      etiquetas de pase directo y repechaje desaparecen —`GateRoute.SEED` es una
+      entrada neutra cuyo significado lo dan su procedencia y su destino—. Con
+      `playoffs.seeding = "staged"` las rondas son las dibujadas y no las que
+      deduciría la potencia de dos, y `round_pairings` decide por ronda si se
+      resiembra por la tabla, se sortea o el cuadro no se mueve
+      (`fixed`, el cuadro de copa). Eso cubre tanto una copa antigua como una
+      postemporada de la MLB, donde los campeones de división esperan la segunda
+      ronda. Ver
+      `docs/adr/0011-cuadro-dibujado-y-tablero-de-postemporada.md`.
 
 Falta para cerrar la etapa:
 
