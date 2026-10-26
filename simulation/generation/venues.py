@@ -15,6 +15,7 @@ izquierdo y una barda baja produce más jonrones, y el motor de partidos lo nota
 from __future__ import annotations
 
 import random
+from dataclasses import dataclass
 
 from simulation.core.provenance import Confidence, GenerationRecord
 from simulation.core.rng import clamped_normal
@@ -28,19 +29,39 @@ from simulation.organizations.model import (
     VenueType,
 )
 
-PROCEDURE_VERSION = "venues/1.0.0"
+PROCEDURE_VERSION = "venues/1.1.0"
 
 
-#: Rango de aforo que permite cada forma de acceso al terreno. Es un **tope**,
-#: no un objetivo: un campo público compartido no tiene gradas de estadio por
-#: mucho dinero que tenga quien lo usa esa tarde, y un recinto propio puede
-#: tenerlas si hay público que las llene.
-_CAPACITY_BY_AGREEMENT = {
-    VenueAgreement.PUBLIC_SHARED: (120, 2_500),
-    VenueAgreement.SCHOOL_FACILITY: (150, 3_000),
-    VenueAgreement.ITINERANT: (80, 1_200),
-    VenueAgreement.RENTED: (200, 18_000),
-    VenueAgreement.OWNED: (250, 62_000),
+#: Aforo mínimo por forma de acceso al terreno: lo que tiene cualquier campo
+#: donde se juegue en serio, aunque casi no venga nadie.
+_CAPACITY_FLOOR = {
+    VenueAgreement.ITINERANT: 80,
+    VenueAgreement.PUBLIC_SHARED: 120,
+    VenueAgreement.SCHOOL_FACILITY: 150,
+    VenueAgreement.RENTED: 200,
+    VenueAgreement.OWNED: 250,
+}
+
+#: Tope de aforo por forma de acceso: `base + escala × infraestructura` del
+#: mercado. Es un **freno para casos absurdos**, no un objetivo ni una tabla de
+#: aforos: la cifra la decide el público del club y el tope solo corta lo
+#: imposible. Escala con la infraestructura porque un campo municipal de una
+#: ciudad bien dotada tiene gradas de verdad y el de un pueblo no.
+#:
+#: Antes eran topes fijos y pequeños (2 500 un campo público, 18 000 uno
+#: alquilado) y el resultado fue que **todos** los recintos de un universo
+#: quedaban clavados exactamente en su tope: la demanda calculada los superaba
+#: por diez o veinte veces, así que el acuerdo de sede acabó siendo la única
+#: causa del aforo —la tabla rígida que este módulo dice no tener, alcanzada
+#: por el otro lado—.
+_CAPACITY_CEILING = {
+    # Un campo sin gradas no las gana por estar en una ciudad grande: se juega
+    # donde se puede y la gente se pone de pie alrededor.
+    VenueAgreement.ITINERANT: (1_200, 0),
+    VenueAgreement.PUBLIC_SHARED: (2_000, 8_000),
+    VenueAgreement.SCHOOL_FACILITY: (2_000, 6_000),
+    VenueAgreement.RENTED: (12_000, 38_000),
+    VenueAgreement.OWNED: (18_000, 44_000),
 }
 
 #: Parte de la base social que aparece en un partido cualquiera. Las gradas se
@@ -51,16 +72,73 @@ TYPICAL_ATTENDANCE_SHARE = 0.25
 CAPACITY_HEADROOM = (1.4, 3.0)
 
 
+def _capacity_limits(agreement: VenueAgreement, market: MarketProfile) -> tuple[int, int]:
+    """Suelo y techo de aforo de una sede en este mercado."""
+    base, escala = _CAPACITY_CEILING[agreement]
+    techo = int(round(base + escala * market.infrastructure_index))
+    suelo = _CAPACITY_FLOOR[agreement]
+    return suelo, max(suelo, techo)
+
+
+@dataclass(frozen=True)
+class VenueSizing:
+    """Tamaño y clase de un recinto, con el motivo de la cifra."""
+
+    capacity: int
+    venue_type: VenueType
+    basis: str
+    #: `True` si el tope del acuerdo de sede recortó la demanda. Que pase de vez
+    #: en cuando es correcto; que pase siempre significa que el tope está mal.
+    capped: bool
+
+
+def size_venue(
+    rng: random.Random,
+    agreement: VenueAgreement,
+    market: MarketProfile,
+    follower_base: int,
+) -> VenueSizing:
+    """Cuántas gradas sostiene el público de un club, y qué clase de recinto es.
+
+    Se usa al generar el club y **también cuando cambia su acuerdo de sede**:
+    un club que pasa del campo de la escuela a un estadio alquilado no sigue
+    jugando con el aforo del patio.
+    """
+    suelo, techo = _capacity_limits(agreement, market)
+    publico_tipico = follower_base * TYPICAL_ATTENDANCE_SHARE
+    holgura = rng.uniform(*CAPACITY_HEADROOM)
+    # La cultura local mueve un poco cuánta gente se acerca de verdad.
+    demanda = int(round(publico_tipico * holgura * (0.8 + 0.4 * market.culture_index) / 50.0) * 50)
+    capacity = max(suelo, min(techo, demanda))
+    venue_type = _venue_type(agreement, capacity, rng)
+    basis = (
+        f"gradas para el público del club: {follower_base} seguidores × "
+        f"{TYPICAL_ATTENDANCE_SHARE:.0%} que acude a un partido cualquiera × "
+        f"holgura {holgura:.1f} para un día bueno, ajustado por la cultura local "
+        f"({market.culture_index:.2f}) da {demanda}"
+        + (
+            f", recortado al tope de la sede {agreement} en un mercado con "
+            f"infraestructura {market.infrastructure_index:.2f} ({techo})"
+            if demanda > techo
+            else f" (dentro del margen de la sede {agreement}: {suelo}-{techo})"
+        )
+        + ". El presupuesto del club no interviene"
+    )
+    return VenueSizing(
+        capacity=capacity, venue_type=venue_type, basis=basis, capped=demanda > techo
+    )
+
+
 def _venue_type(agreement: VenueAgreement, capacity: int, rng: random.Random) -> VenueType:
     """Qué clase de recinto es, según cómo se usa y cuánta gente cabe."""
     if agreement is VenueAgreement.ITINERANT or capacity < 1_200:
         return VenueType.NEIGHBORHOOD_FIELD
-    if capacity < 6_000:
-        return (
-            VenueType.AMATEUR_PARK
-            if agreement.is_shared or rng.random() < 0.6
-            else VenueType.PROFESSIONAL_STADIUM
-        )
+    if agreement.is_shared:
+        # Sin control del recinto no hay estadio propio: es el parque municipal
+        # o el campo del colegio, por grandes que sean sus gradas.
+        return VenueType.AMATEUR_PARK
+    if capacity < 4_000:
+        return VenueType.AMATEUR_PARK if rng.random() < 0.6 else VenueType.PROFESSIONAL_STADIUM
     if capacity >= 22_000 and rng.random() < 0.25:
         return VenueType.MULTIPURPOSE_COMPLEX
     return VenueType.PROFESSIONAL_STADIUM
@@ -92,26 +170,17 @@ def generate_venue(
     estadio». La base social sí es una causa legítima: viene del territorio y
     del arraigo del club, que son anteriores al dinero.
     """
-    low, high = _CAPACITY_BY_AGREEMENT[agreement]
-    publico_tipico = follower_base * TYPICAL_ATTENDANCE_SHARE
-    holgura = rng.uniform(*CAPACITY_HEADROOM)
-    # La cultura local mueve un poco cuánta gente se acerca de verdad.
-    capacity = int(round(publico_tipico * holgura * (0.8 + 0.4 * market.culture_index) / 50.0) * 50)
-    capacity = max(low, min(high, capacity))
+    sizing = size_venue(rng, agreement, market, follower_base)
+    capacity = sizing.capacity
+    venue_type = sizing.venue_type
     record.note(
         "venue_capacity",
         capacity,
         Confidence.FICTIONAL,
-        (
-            f"gradas para el público del club: {follower_base} seguidores × "
-            f"{TYPICAL_ATTENDANCE_SHARE:.0%} que acude a un partido cualquiera × "
-            f"holgura {holgura:.1f} para un día bueno, ajustado por la cultura local "
-            f"({market.culture_index:.2f}) y limitado por la sede {agreement} "
-            f"(entre {low} y {high}). El presupuesto del club no interviene"
-        ),
+        sizing.basis,
+        venue_type=str(venue_type),
+        capped_by_agreement=sizing.capped,
     )
-
-    venue_type = _venue_type(agreement, capacity, rng)
 
     # Dimensiones: parten de un rango realista y se deforman por lado, lo que
     # crea parques asimétricos con efecto medible en el juego.

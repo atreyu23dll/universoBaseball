@@ -39,6 +39,11 @@ KIND_RANK = {"country": 0, "region": 1, "city": 2, "district": 3}
 #: doscientas filas no desambigua nada.
 MAX_RESULTS = 25
 
+#: Cuántos puntos se siembran como máximo en una capa del globo. Por encima de
+#: esto el globo deja de ser legible y el navegador deja de ir fluido; lo que
+#: no entra se alcanza por búsqueda, no se oculta en silencio.
+MAX_GLOBE_POINTS = 180
+
 
 class GeographyUnresolved(TypedValidationFailure):
     def __init__(self, message: str, suggestions: list[str] | None = None) -> None:
@@ -111,9 +116,16 @@ def search(
     limit: int = 10,
     country: str | None = None,
     kind: str | None = None,
+    admin_level: int | None = None,
+    region_id: str | None = None,
     min_population: int = 0,
 ) -> dict[str, Any]:
-    """Busca un lugar por nombre o variante y devuelve candidatos desambiguados."""
+    """Busca un lugar por nombre o variante y devuelve candidatos desambiguados.
+
+    ``admin_level=1`` limita las regiones a estados/provincias. ``region_id``
+    limita una búsqueda de localidades a la división de primer nivel elegida,
+    para que el selector municipal no mezcle ciudades de otros estados.
+    """
     texto = normalize(query.strip())
     if len(texto) < 2:
         raise GeographyUnresolved(
@@ -132,17 +144,46 @@ def search(
             ],
         )
 
+    # Las primeras importaciones guardaron ``search_text`` para localidades,
+    # pero algunas filas administrativas antiguas quedaron sin ese índice.
+    # ``ascii_name`` es parte de la fuente y mantiene países/provincias
+    # buscables sin exigir reimportar todo el gazetteer.
+    ascii_name = func.lower(m.GazetteerEntity.ascii_name)
     condiciones = [
         or_(
             m.GazetteerEntity.search_text.like(f"{texto}%"),
             m.GazetteerEntity.search_text.like(f"%|{texto}%"),
             m.GazetteerEntity.search_text.like(f"% {texto}%"),
+            ascii_name.like(f"{texto}%"),
+            ascii_name.like(f"% {texto}%"),
         )
     ]
     if country:
         condiciones.append(m.GazetteerEntity.country_iso2 == country.strip().upper())
     if kind:
         condiciones.append(m.GazetteerEntity.kind == kind.strip().lower())
+    if admin_level is not None:
+        if admin_level not in {1, 2}:
+            raise GeographyUnresolved(
+                "el nivel administrativo debe ser 1 (estado/provincia) o 2",
+            )
+        condiciones.append(m.GazetteerEntity.feature_code == f"ADM{admin_level}")
+    if region_id:
+        region = get_entity(session, region_id)
+        if region.kind != "region" or region.feature_code != "ADM1" or not region.admin1_code:
+            raise GeographyUnresolved(
+                "la región elegida no es un estado o provincia de primer nivel",
+            )
+        if country and country.strip().upper() != region.country_iso2:
+            raise GeographyUnresolved(
+                "la región elegida no pertenece al país indicado",
+            )
+        condiciones.extend(
+            [
+                m.GazetteerEntity.country_iso2 == region.country_iso2,
+                m.GazetteerEntity.admin1_code == region.admin1_code,
+            ]
+        )
     if min_population:
         condiciones.append(m.GazetteerEntity.population >= min_population)
 
@@ -156,12 +197,30 @@ def search(
     # Reordenación: primero lo que coincide por nombre exacto, después por tipo
     # de entidad y población. Así «Kampala» devuelve la capital de Uganda y no
     # un barrio homónimo de otro continente.
+    #
+    # Antes de eso va un desempate menos obvio. Desde que países y divisiones
+    # administrativas son buscables, una consulta como «juarez» compite entre
+    # una ciudad de millón y medio de habitantes y una veintena de municipios
+    # ADM2 llamados «Juárez» que el volcado trae sin población. Esos municipios
+    # son contenedores: coinciden mejor por texto, pero sin cifra no hay con
+    # qué ordenarlos entre sí ni forma de decir que uno es más relevante. Un
+    # lugar con población tiene una respuesta mejor que ofrecer, así que va
+    # delante; para llegar a una división está el filtro por tipo y nivel, que
+    # es lo que usa el navegador territorial en su paso de provincia.
     def rango(fila: m.GazetteerEntity) -> tuple:
         nombre = normalize(fila.name)
         exacto = 0 if nombre == texto else (1 if nombre.startswith(texto) else 2)
-        return (exacto, KIND_RANK.get(fila.kind, 9), -fila.population, fila.name)
+        sin_poblacion = 0 if fila.population else 1
+        return (
+            sin_poblacion,
+            exacto,
+            KIND_RANK.get(fila.kind, 9),
+            -fila.population,
+            fila.name,
+        )
 
     ordenadas = sorted(filas, key=rango)[: min(max(1, limit), MAX_RESULTS)]
+    cache = _ancestor_cache(session, ordenadas)
     paises = _countries_by_iso(session, {f.country_iso2 for f in ordenadas})
 
     return {
@@ -170,7 +229,7 @@ def search(
         "status": "candidates" if ordenadas else "unresolved",
         "total": len(ordenadas),
         "items": [
-            _entity_brief(session, fila, paises.get(fila.country_iso2)) for fila in ordenadas
+            _entity_brief(session, fila, paises.get(fila.country_iso2), cache) for fila in ordenadas
         ],
         "attribution": ATTRIBUTION,
         "note": (
@@ -188,6 +247,167 @@ def get_entity(session: Session, entity_id: str) -> m.GazetteerEntity:
     if fila is None:
         raise NotFoundError(f"no existe la entidad geográfica {entity_id}")
     return fila
+
+
+def aggregated_population(session: Session, entidad: m.GazetteerEntity) -> tuple[int, int]:
+    """Población de una división administrativa, a partir de sus localidades.
+
+    GeoNames no publica población para las divisiones administrativas: el
+    importador las guarda con `population=0` y deja dicho en sus notas que «se
+    usan los de sus localidades». Esta función es ese paso que faltaba.
+
+    Importa porque sin ella una región entraba al universo **sin perfil**, y un
+    lugar sin perfil heredaba el de su ancestro: cada estado mexicano acababa
+    simulado con los 131,9 millones de habitantes de México.
+
+    No es una suma simple, porque sumarlo todo cuenta a la misma gente dos
+    veces. La fuente trae tres clases de registro mezcladas:
+
+    - localidades situadas en un municipio, que no se solapan entre sí;
+    - secciones de una localidad —colonias, delegaciones marcadas `PPLX`, que el
+      importador guarda como `district`—, que ya están dentro de la anterior;
+    - y a veces la capital contada entera y colgada del estado sin municipio,
+      como «Mexico City» con 12,3 millones.
+
+    Sumarlo todo daba 21,9 millones para la Ciudad de México. La regla es el
+    mayor de dos cálculos: la suma de las **localidades con municipio**,
+    excluidas las secciones; y la **mayor entrada sin municipio**, que suele ser
+    justamente esa capital entera.
+
+    Es una heurística declarada y parcial —solo cuenta lo que se importó, según
+    el `--min-population` que se usara, y tiende a quedarse corta— y así se
+    escribe en las fuentes del perfil que la usa.
+
+    Devuelve `(población, localidades contadas)`; `(0, 0)` si no hay ninguna.
+    """
+    if entidad.kind != "region" or not entidad.admin1_code:
+        return 0, 0
+    condiciones = [
+        m.GazetteerEntity.country_iso2 == entidad.country_iso2,
+        m.GazetteerEntity.admin1_code == entidad.admin1_code,
+        m.GazetteerEntity.population > 0,
+    ]
+    if entidad.feature_code == "ADM2" and entidad.admin2_code:
+        condiciones.append(m.GazetteerEntity.admin2_code == entidad.admin2_code)
+
+    con_municipio = session.execute(
+        select(func.coalesce(func.sum(m.GazetteerEntity.population), 0), func.count()).where(
+            *condiciones,
+            m.GazetteerEntity.kind == "city",
+            m.GazetteerEntity.admin2_code.is_not(None),
+        )
+    ).one()
+    sin_municipio = session.execute(
+        select(func.coalesce(func.max(m.GazetteerEntity.population), 0), func.count()).where(
+            *condiciones,
+            m.GazetteerEntity.kind.in_(["city", "district"]),
+            m.GazetteerEntity.admin2_code.is_(None),
+        )
+    ).one()
+
+    poblacion = max(int(con_municipio[0]), int(sin_municipio[0]))
+    contadas = int(con_municipio[1]) + int(sin_municipio[1])
+    return poblacion, contadas
+
+
+def country_by_iso(session: Session, country_iso2: str) -> dict[str, Any]:
+    """Devuelve un país por su ISO 3166-1 alpha-2, sin búsqueda textual.
+
+    El globo selecciona polígonos cuya identidad estable es el código ISO. Esta
+    ruta evita convertir un clic territorial en una búsqueda por nombre que
+    podría ser ambigua o depender del idioma de la interfaz.
+    """
+    iso2 = country_iso2.strip().upper()
+    fila = session.scalars(
+        select(m.GazetteerEntity).where(
+            m.GazetteerEntity.kind == "country",
+            m.GazetteerEntity.country_iso2 == iso2,
+        )
+    ).first()
+    if fila is None:
+        raise NotFoundError(f"no existe un país del gazetteer con ISO {iso2}")
+    pais = session.get(m.GazetteerCountry, iso2)
+    return _entity_brief(session, fila, pais)
+
+
+def regions_by_country(session: Session, country_iso2: str) -> list[dict[str, Any]]:
+    """Puntos de las divisiones ADM1 de un país para la capa del globo.
+
+    Son entidades de GeoNames, no contornos aproximados. Cuando no existe un
+    polígono de una provincia, su marcador representativo sigue siendo
+    seleccionable sin fingir que conocemos su frontera.
+    """
+    iso2 = country_iso2.strip().upper()
+    pais = session.get(m.GazetteerCountry, iso2)
+    if pais is None:
+        raise NotFoundError(f"no existe un país del gazetteer con ISO {iso2}")
+    filas = session.scalars(
+        select(m.GazetteerEntity)
+        .where(
+            m.GazetteerEntity.country_iso2 == iso2,
+            m.GazetteerEntity.kind == "region",
+            m.GazetteerEntity.feature_code == "ADM1",
+        )
+        .order_by(m.GazetteerEntity.name)
+    ).all()
+    lote = list(filas)
+    cache = _ancestor_cache(session, lote)
+    anchors = _admin1_anchors(session, iso2, lote)
+    return [_entity_brief(session, fila, pais, cache, anchors) for fila in lote]
+
+
+def localities_by_region(
+    session: Session, region_id: str, limit: int = MAX_GLOBE_POINTS
+) -> dict[str, Any]:
+    """Localidades de una división ADM1, para el último nivel del globo.
+
+    Una provincia puede tener miles de localidades y el globo no puede
+    mostrarlas todas: se devuelven las más pobladas y se dice cuántas quedaron
+    fuera, en vez de insinuar que la lista es completa. Para una localidad
+    pequeña está la búsqueda por nombre, que no tiene este tope.
+    """
+    region = get_entity(session, region_id)
+    if region.kind != "region" or region.feature_code != "ADM1" or not region.admin1_code:
+        raise GeographyUnresolved(
+            "solo un estado o provincia de primer nivel contiene localidades "
+            "seleccionables en el globo",
+        )
+    tope = min(max(1, limit), MAX_GLOBE_POINTS)
+    condiciones = (
+        m.GazetteerEntity.country_iso2 == region.country_iso2,
+        m.GazetteerEntity.admin1_code == region.admin1_code,
+        m.GazetteerEntity.kind.in_(["city", "district"]),
+    )
+    total = (
+        session.scalar(select(func.count()).select_from(m.GazetteerEntity).where(*condiciones)) or 0
+    )
+    filas = session.scalars(
+        select(m.GazetteerEntity)
+        .where(*condiciones)
+        .order_by(m.GazetteerEntity.population.desc(), m.GazetteerEntity.name)
+        .limit(tope)
+    ).all()
+    cache = _ancestor_cache(session, list(filas))
+    pais = session.get(m.GazetteerCountry, region.country_iso2)
+    return {
+        "region_id": region.id,
+        "region_name": region.name,
+        "country_iso2": region.country_iso2,
+        "total": total,
+        "shown": len(filas),
+        "items": [_entity_brief(session, fila, pais, cache) for fila in filas],
+        "attribution": ATTRIBUTION,
+        "note": (
+            f"{region.name} no tiene localidades en el gazetteer importado."
+            if not filas
+            else (
+                f"Se muestran las {len(filas)} localidades más pobladas de "
+                f"{total}. Busca por nombre si la que quieres no está en el globo."
+                if total > len(filas)
+                else f"Las {len(filas)} localidades de {region.name} que hay en el gazetteer."
+            )
+        ),
+    }
 
 
 def entity_detail(session: Session, entity_id: str) -> dict[str, Any]:
@@ -413,21 +633,66 @@ def _countries_by_iso(session: Session, codes: set[str]) -> dict[str, m.Gazettee
     }
 
 
-def _ancestors(session: Session, fila: m.GazetteerEntity) -> list[m.GazetteerEntity]:
+def _ancestor_cache(
+    session: Session, filas: list[m.GazetteerEntity]
+) -> dict[str, m.GazetteerEntity]:
+    """Jerarquía de un lote entero, por niveles y en pocas consultas.
+
+    ``_ancestors`` sube por ``parent_id`` fila a fila, y con las 180 localidades
+    de una capa del globo eso eran más de trescientas consultas —un segundo
+    largo— para reconstruir el mismo puñado de municipios, provincias y países.
+    No basta con dejarlos cargados en la sesión: su mapa de identidad guarda
+    referencias débiles y los suelta en cuanto nadie los sostiene. Este
+    diccionario es quien los sostiene mientras se arma la respuesta.
+    """
+    cache: dict[str, m.GazetteerEntity] = {}
+    pendientes = {fila.parent_id for fila in filas if fila.parent_id}
+    while pendientes:
+        lote = {clave for clave in pendientes if clave not in cache}
+        if not lote:
+            break
+        cargadas = session.scalars(
+            select(m.GazetteerEntity).where(m.GazetteerEntity.id.in_(lote))
+        ).all()
+        for fila in cargadas:
+            cache[fila.id] = fila
+        pendientes = {fila.parent_id for fila in cargadas if fila.parent_id}
+    return cache
+
+
+def _ancestors(
+    session: Session,
+    fila: m.GazetteerEntity,
+    cache: dict[str, m.GazetteerEntity] | None = None,
+) -> list[m.GazetteerEntity]:
+    def padre(entity_id: str) -> m.GazetteerEntity | None:
+        if cache is not None and entity_id in cache:
+            return cache[entity_id]
+        return session.get(m.GazetteerEntity, entity_id)
+
     out: list[m.GazetteerEntity] = []
     visto: set[str] = {fila.id}
-    actual = session.get(m.GazetteerEntity, fila.parent_id) if fila.parent_id else None
+    actual = padre(fila.parent_id) if fila.parent_id else None
     while actual is not None and actual.id not in visto:
         visto.add(actual.id)
         out.append(actual)
-        actual = session.get(m.GazetteerEntity, actual.parent_id) if actual.parent_id else None
+        actual = padre(actual.parent_id) if actual.parent_id else None
     return out
 
 
 def _entity_brief(
-    session: Session, fila: m.GazetteerEntity, pais: m.GazetteerCountry | None
+    session: Session,
+    fila: m.GazetteerEntity,
+    pais: m.GazetteerCountry | None,
+    cache: dict[str, m.GazetteerEntity] | None = None,
+    anchors: dict[str, tuple[float, float, str]] | None = None,
 ) -> dict[str, Any]:
-    ancestros = _ancestors(session, fila)
+    """Ficha breve de una entidad. ``cache`` y ``anchors`` son lo mismo que
+    calcularía por su cuenta, pero resuelto en bloque para todo un lote."""
+    ancestros = _ancestors(session, fila, cache)
+    map_lat, map_lon, map_anchor = (
+        anchors[fila.id] if anchors and fila.id in anchors else _map_coordinates(session, fila)
+    )
     return {
         "id": fila.id,
         "name": fila.name,
@@ -437,6 +702,12 @@ def _entity_brief(
         "admin_path": " · ".join(a.name for a in reversed(ancestros)) or None,
         "lat": fila.lat,
         "lon": fila.lon,
+        # Países y divisiones administrativas del volcado no siempre traen
+        # centroide. Para el globo usamos una localidad real representativa y
+        # conservamos arriba las coordenadas originales, sin disfrazarlas.
+        "map_lat": map_lat,
+        "map_lon": map_lon,
+        "map_anchor": map_anchor,
         "elevation_m": fila.elevation_m,
         "population": fila.population or None,
         "timezone": fila.timezone,
@@ -447,6 +718,87 @@ def _entity_brief(
         "status": fila.resolution_status,
         "status_notes": list(fila.resolution_notes),
     }
+
+
+def _admin1_anchors(
+    session: Session, country_iso2: str, filas: list[m.GazetteerEntity]
+) -> dict[str, tuple[float, float, str]]:
+    """Localidad representativa de cada provincia de un país, de una vez.
+
+    Las divisiones administrativas del volcado no traen centroide, así que cada
+    una se dibuja sobre su localidad más poblada. Resolverlas una por una era
+    una consulta ordenada por población —sobre todas las ciudades del país—
+    por provincia: cincuenta y una para Estados Unidos. Aquí se saca la primera
+    de cada partición en una sola consulta.
+    """
+    objetivo = {
+        fila.admin1_code: fila
+        for fila in filas
+        if fila.feature_code == "ADM1" and fila.admin1_code and fila.lat == 0.0 and fila.lon == 0.0
+    }
+    if not objetivo:
+        return {}
+    orden = func.row_number().over(
+        partition_by=m.GazetteerEntity.admin1_code,
+        order_by=(m.GazetteerEntity.population.desc(), m.GazetteerEntity.name),
+    )
+    candidatas = (
+        select(
+            m.GazetteerEntity.admin1_code.label("admin1_code"),
+            m.GazetteerEntity.name.label("name"),
+            m.GazetteerEntity.lat.label("lat"),
+            m.GazetteerEntity.lon.label("lon"),
+            orden.label("posicion"),
+        )
+        .where(
+            m.GazetteerEntity.country_iso2 == country_iso2,
+            m.GazetteerEntity.kind.in_(["city", "district"]),
+            m.GazetteerEntity.admin1_code.in_(objetivo),
+        )
+        .subquery()
+    )
+    anclas: dict[str, tuple[float, float, str]] = {}
+    for admin1_code, nombre, lat, lon in session.execute(
+        select(
+            candidatas.c.admin1_code, candidatas.c.name, candidatas.c.lat, candidatas.c.lon
+        ).where(candidatas.c.posicion == 1)
+    ):
+        fila = objetivo.get(admin1_code)
+        if fila is not None:
+            anclas[fila.id] = (lat, lon, f"representative_locality:{nombre}")
+    # Una provincia sin ninguna localidad en el gazetteer se queda sin ancla, y
+    # `_map_coordinates` dirá que no la hay en vez de inventarle un punto.
+    return anclas
+
+
+def _map_coordinates(session: Session, fila: m.GazetteerEntity) -> tuple[float, float, str]:
+    """Punto honesto para representar una entidad en el globo interactivo."""
+    if fila.kind in {"city", "district"} or fila.lat != 0.0 or fila.lon != 0.0:
+        return fila.lat, fila.lon, "entity"
+
+    conditions = [
+        m.GazetteerEntity.country_iso2 == fila.country_iso2,
+        m.GazetteerEntity.kind.in_(["city", "district"]),
+    ]
+    if fila.feature_code == "ADM1" and fila.admin1_code:
+        conditions.append(m.GazetteerEntity.admin1_code == fila.admin1_code)
+    elif fila.feature_code == "ADM2" and fila.admin1_code and fila.admin2_code:
+        conditions.extend(
+            [
+                m.GazetteerEntity.admin1_code == fila.admin1_code,
+                m.GazetteerEntity.admin2_code == fila.admin2_code,
+            ]
+        )
+
+    anchor = session.scalars(
+        select(m.GazetteerEntity)
+        .where(*conditions)
+        .order_by(m.GazetteerEntity.population.desc(), m.GazetteerEntity.name)
+        .limit(1)
+    ).first()
+    if anchor is None:
+        return fila.lat, fila.lon, "unavailable"
+    return anchor.lat, anchor.lon, f"representative_locality:{anchor.name}"
 
 
 def _currency_info(pais: m.GazetteerCountry | None) -> dict[str, Any]:

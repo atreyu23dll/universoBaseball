@@ -22,10 +22,12 @@ from app.api.schemas import (
     RelationshipCreate,
     RelationshipUpdate,
     UniverseCreate,
+    UniversityDiscoveryRequest,
 )
 from app.application import (
     competition_service,
     draft_service,
+    education_service,
     geography_service,
     mobility_service,
     query_service,
@@ -137,12 +139,48 @@ def geography_search(
     limit: int = Query(default=10, ge=1, le=25),
     country: str | None = Query(default=None, max_length=2, description="filtro ISO 3166-1"),
     kind: str | None = Query(default=None, description="country | region | city | district"),
+    admin_level: int | None = Query(
+        default=None, ge=1, le=2, description="nivel administrativo: 1=estado/provincia"
+    ),
+    region_id: str | None = Query(
+        default=None, description="región ADM1 que contiene las localidades buscadas"
+    ),
     min_population: int = Query(default=0, ge=0),
 ) -> dict[str, Any]:
     """Búsqueda mundial por nombre y variantes, con candidatos desambiguados."""
     return geography_service.search(
-        session, q, limit=limit, country=country, kind=kind, min_population=min_population
+        session,
+        q,
+        limit=limit,
+        country=country,
+        kind=kind,
+        admin_level=admin_level,
+        region_id=region_id,
+        min_population=min_population,
     )
+
+
+@router.get("/geography/countries/{country_iso2}", tags=["geografía"])
+def geography_country(country_iso2: str, session: SessionDep) -> dict[str, Any]:
+    """Resuelve el polígono pulsado en el globo por su ISO, sin texto libre."""
+    return geography_service.country_by_iso(session, country_iso2)
+
+
+@router.get("/geography/countries/{country_iso2}/regions", tags=["geografía"])
+def geography_country_regions(country_iso2: str, session: SessionDep) -> dict[str, Any]:
+    """Divisiones de primer nivel disponibles como puntos del selector visual."""
+    items = geography_service.regions_by_country(session, country_iso2)
+    return {"country_iso2": country_iso2.upper(), "items": items}
+
+
+@router.get("/geography/regions/{region_id}/localities", tags=["geografía"])
+def geography_region_localities(
+    session: SessionDep,
+    region_id: str,
+    limit: int = Query(default=180, ge=1, le=180),
+) -> dict[str, Any]:
+    """Localidades de una provincia como puntos del último nivel del globo."""
+    return geography_service.localities_by_region(session, region_id, limit=limit)
 
 
 @router.get("/geography/entities/{entity_id}", tags=["geografía"])
@@ -167,6 +205,21 @@ def geography_resolve_custom_area(session: SessionDep, body: CustomAreaRequest) 
         limit=body.limit,
         min_population=body.min_population,
     )
+
+
+@router.get("/education/universities/status", tags=["educación"])
+def university_catalog_status(session: SessionDep) -> dict[str, Any]:
+    """Cobertura del catálogo que alimenta las ligas escolares adultas."""
+    return education_service.catalog_status(session)
+
+
+@router.post("/universes/{universe_id}/education/universities", tags=["educación"])
+def discover_universities(
+    session: SessionDep, universe_id: str, body: UniversityDiscoveryRequest
+) -> dict[str, Any]:
+    """Consulta universidades reales antes de dejar editar la estructura."""
+    universe_service.get_universe(session, universe_id)
+    return education_service.discover_universities(session, universe_id, body.scope)
 
 
 @router.get("/universes/{universe_id}/history", tags=["historia"])

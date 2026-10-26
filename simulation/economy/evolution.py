@@ -39,6 +39,11 @@ PROCEDURE_VERSION = "evolution/1.0.0"
 #: temporada no cierra un club, una racha sí.
 SEASONS_INSOLVENT_TO_FOLD = 2
 
+#: Meses de **su propio** gasto que un club necesita tener en caja para
+#: plantearse invertir en su sede. Un año: suficiente para que la decisión
+#: signifique algo y no tanto que ningún club de la historia llegue nunca.
+CASH_MONTHS_TO_INVEST = 12.0
+
 #: Caminos de formalización. Un colectivo puede constituirse en asociación; una
 #: asociación puede profesionalizarse. Lo que no pasa es que una franquicia se
 #: vuelva un grupo de amigos.
@@ -120,9 +125,17 @@ def evolve_club(
     win_percentage: float,
     seasons_insolvent: int,
     club_age_years: int,
-    reference_monthly_cost: Decimal | None,
+    monthly_operating_cost: Decimal | None,
 ) -> Evolution:
-    """Decide cómo cambia una institución tras cerrar su temporada."""
+    """Decide cómo cambia una institución tras cerrar su temporada.
+
+    `monthly_operating_cost` es lo que le cuesta a **este club** un mes de
+    actividad, no el gasto mensual de un hogar del territorio. Antes se pasaba
+    el segundo (`reference_monthly_cost`, 12 000 MXN en México) y la caja de un
+    club se medía contra la compra de una familia: un club con 18 millones en
+    caja tenía «1 563 meses de gasto», así que el umbral para invertir en la
+    sede estaba siempre abierto y la decisión no decidía nada.
+    """
     evolucion = Evolution()
 
     # --- Desaparición: solo tras una racha, y se dice por qué ---------- #
@@ -167,13 +180,13 @@ def evolve_club(
         )
 
     # --- Instalación --------------------------------------------------- #
-    if reference_monthly_cost and reference_monthly_cost > 0:
-        meses_de_caja = float(ledger.cash_end / reference_monthly_cost)
+    if monthly_operating_cost and monthly_operating_cost > 0:
+        meses_de_caja = float(ledger.cash_end / monthly_operating_cost)
         mejora = VENUE_UPGRADES.get(venue_agreement)
         if (
             mejora is not None
             and ledger.outcome is Outcome.HEALTHY
-            and meses_de_caja > 24
+            and meses_de_caja > CASH_MONTHS_TO_INVEST
             and rng.random() < 0.15 + 0.35 * ambition
         ):
             evolucion.venue_agreement = mejora
@@ -182,8 +195,8 @@ def evolve_club(
                     "venue_agreement",
                     venue_agreement,
                     mejora,
-                    f"cerró con {meses_de_caja:.0f} meses de gasto en caja y decidió "
-                    "invertir en su sede",
+                    f"cerró con {meses_de_caja:.1f} meses de su propio gasto en caja "
+                    "y decidió invertir en su sede",
                 )
             )
         elif (

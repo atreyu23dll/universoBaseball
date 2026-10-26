@@ -10,6 +10,8 @@ motor que la consuma todavía, `[P]` planificado sin código.
 | `CompetitionDefinition` | `CompetitionEdition` | la definición es estable; la edición congela reglas, calendario y participantes |
 | `Club` | `EditionEntry` | el club persiste entre temporadas y competiciones; la inscripción es anual |
 | `Person` | `RosterAssignment` | la persona es única en el universo; la pertenencia a una plantilla es un intervalo |
+| `Person` | `OrganizationRoleAssignment` | la identidad no se duplica al ocupar cargos: una persona puede estar en varias unidades y varios clubes a la vez |
+| `OrganizationUnit` | `OrganizationPosition` | la unidad aloja responsabilidades; el cargo puede estar vacante o compartido |
 | `CompetitionRelationship` | `QualificationPath` | jerarquía (ascenso/descenso) ≠ ruta de cupos a una copa |
 | `Place` | `NationalTeam` | un país es territorio; una selección es identidad federativa |
 
@@ -121,11 +123,59 @@ jurisdicción, con año y confianza. Vive en el fixture geográfico y en
 se convierte en un importe, y su ausencia se propaga como
 `insufficient_data` en vez de rellenarse con la moneda de otro país.
 
-### Person `[I]` / RosterAssignment `[I]`
-Una persona por universo. Atributos en cinco bloques (físico, bateo, pitcheo,
-defensa/corrido, cognición) más `potential` oculto y `scouted_potential`
-observado con error. La nacionalidad no otorga calidad: el contexto afecta las
-**oportunidades de formación** (`training_opportunity`), no un techo biológico.
+### Person `[I]` / PersonUniversalProfile `[I]` / RosterAssignment `[I]`
+Una persona por universo, **del territorio y no de la competición**: su clave es
+`p:<plaza>:<serial>` y no lleva dentro la edición que la trajo al mundo, de modo
+que dos ligas en la misma ciudad se reparten la misma población en vez de
+inventar dos. Quien necesita gente la busca antes de crearla
+(`person_service.available_pool`).
+
+Desde el 25/10/2026 **ninguna competición genera jugadores** (ADR 0013): la
+generación de plantillas se retiró y la mecánica que decidirá quién juega en cada
+club todavía no existe, así que un club nace sin personas y el reloj no puede
+simular partidos. `RosterAssignment` sigue siendo el vínculo persona ↔ club con
+intervalo, y hoy no hay ninguna fila.
+
+El **núcleo humano** son los 52 atributos universales de
+`PersonUniversalProfile` —21 psicológicos, 16 cognitivos, 15 sociales, en JSONB
+versionado y validado al escribir—, y los tiene toda persona materializada, juegue
+o no. Las **competencias de un oficio** son otra cosa y viven aparte: en
+`people.attributes` están los bloques de béisbol (físico, bateo, pitcheo,
+defensa/corrido) más `potential` oculto y `scouted_potential` observado con
+error. Una persona puede tener lo primero sin lo segundo: posición, lateralidad
+y valoración global son nulos en quien no practica.
+
+La nacionalidad no otorga calidad: el contexto afecta las **oportunidades de
+formación** (`training_opportunity`), no un techo biológico. Y el perfil
+universal tampoco se deduce del origen: lo único que el territorio mueve ahí son
+las capacidades generales, modestamente.
+
+`people.role` es heredado y está en retirada: un único papel por persona es lo
+que el anexo de personas prohíbe, y los papeles pasarán a ser asignaciones con
+unidad, autoridad y carga.
+
+### OrganizationUnit `[I]` / OrganizationPosition `[I]` / OrganizationRoleAssignment `[I]`
+El organigrama de un club, con las reglas de la plantilla que lo define: cinco
+familias funcionales —Gerencia, Deportivo, Finanzas, Marketing,
+Infraestructura— divisibles en subdivisiones sin límite de profundidad, y una
+**raíz técnica** por club que lleva su nombre y no pertenece a ninguna familia.
+
+La jerarquía sale del código de la unidad (`sports.staff.pitching`), así que no
+se declara dos veces. El vínculo persona ↔ unidad es **N:M**: una unidad aloja a
+varias personas y una persona ocupa cargos en varias unidades y varios clubes
+sin que su ficha se duplique. Un cargo puede quedar **vacante** —la
+responsabilidad existe y nadie la cubre— y puede ser compartido
+(`max_occupants` nulo o mayor que uno).
+
+La **autoridad** es una concesión del cargo, no un rasgo de quien lo ocupa:
+querer mandar no da permiso para gastar. Una asignación puede recortarla o
+delegarla, nunca ampliarla.
+
+Al fundarse, un club crea solo lo que necesita: su raíz, su Gerencia y el cargo
+que encabeza su gobierno —propiedad en las tres formas que tienen propietario,
+representación en las otras seis—. Los demás departamentos aparecen cuando hay
+trabajo que los justifique, y cada unidad guarda en `reason` qué necesidad la
+justificó. Ver ADR 0014.
 
 ### StructureRules `[I]` / Stage `[I]` / Division `[I]` / Gate `[I]`
 `structure` describe la competición como una **secuencia de fases**

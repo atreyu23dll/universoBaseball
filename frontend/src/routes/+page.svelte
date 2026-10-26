@@ -58,64 +58,40 @@
   onMount(load);
 </script>
 
-<div class="spread" style="margin-bottom:18px">
-  <div>
-    <h1>Universos</h1>
-    <p class="muted" style="margin:0">
-      Cada universo es una partida aislada con su propia semilla, su fecha y su geografía.
-    </p>
-  </div>
+<div class="hero">
+  <div class="kicker">Tus mundos deportivos</div>
+  <h1>El béisbol no tiene<br />un solo universo.</h1>
+  <p>Cada mundo tiene su propio calendario, geografía y legado. Entra a uno para seguir sus ligas o crea una nueva historia desde cero.</p>
 </div>
 
 <ErrorNotice {error} />
 
-<div class="grid sidebar">
-  <div class="panel">
-    <h2>Universos guardados</h2>
-    {#if loading}
-      <p class="muted">Cargando…</p>
-    {:else if universes.length === 0}
-      <p class="muted">
-        Todavía no hay ninguno. Crea el primero con el formulario de la derecha.
-      </p>
-    {:else}
-      <table>
-        <thead>
-          <tr>
-            <th>Universo</th>
-            <th>Fecha del mundo</th>
-            <th class="num">Competiciones</th>
-            <th class="num">Clubes</th>
-            <th class="num">Personas</th>
-            <th class="num">Partidos</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each universes as universe (universe.id)}
-            <tr>
-              <td>
-                <a href={`/universos/${universe.id}`}>{universe.name}</a>
-                {#if universe.busy}<span class="tag warn">simulando</span>{/if}
-                <div class="small muted mono">semilla {universe.master_seed}</div>
-              </td>
-              <td>{formatDate(universe.world_date)}</td>
-              <td class="num">{universe.competitions}</td>
-              <td class="num">{formatNumber(universe.clubs)}</td>
-              <td class="num">{formatNumber(universe.people)}</td>
-              <td class="num">{formatNumber(universe.games_played)}</td>
-              <td style="text-align:right">
-                <button class="danger small" onclick={() => remove(universe)}>Borrar</button>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    {/if}
-  </div>
+<div class="section-title">
+  <div><h2>Universos guardados</h2><p class="small">Selecciona un universo para explorar sus ligas.</p></div>
+</div>
 
-  <div class="panel">
-    <h2>Nuevo universo</h2>
+<div class="card-grid">
+    {#if loading}
+      {#each Array(3) as _}<div class="entity-card" style="opacity:.45"><div class="icon-box">◈</div><h2>Cargando…</h2></div>{/each}
+    {:else if universes.length === 0}
+      <div class="empty-state">Todavía no hay universos. Crea el primero para comenzar.</div>
+    {:else}
+      {#each universes as universe (universe.id)}
+        <a class="entity-card" href={`/universos/${universe.id}`}>
+          <div class="spread"><div class="icon-box">◈</div>{#if universe.busy}<span class="tag warn">En simulación</span>{/if}</div>
+          <h2>{universe.name}</h2>
+          <div class="small muted">Temporada en {formatDate(universe.world_date)} · semilla <span class="mono">{universe.master_seed}</span></div>
+          <div class="card-meta">
+            <div><strong>{universe.competitions}</strong><span>Ligas</span></div>
+            <div><strong>{formatNumber(universe.clubs)}</strong><span>Clubes</span></div>
+            <div><strong>{formatNumber(universe.games_played)}</strong><span>Partidos</span></div>
+          </div>
+          <button class="danger small" style="position:absolute;right:16px;bottom:16px;z-index:2" onclick={(event) => { event.preventDefault(); remove(universe); }}>Borrar</button>
+        </a>
+      {/each}
+    {/if}
+  <div class="entity-card action-card">
+    <div class="icon-box">＋</div><h2>Nuevo universo</h2>
     <form onsubmit={create}>
       <div class="field">
         <label for="nombre">Nombre</label>
@@ -132,10 +108,6 @@
       <button type="submit" disabled={creating}>
         {creating ? 'Creando…' : 'Crear universo'}
       </button>
-      <p class="small muted" style="margin-top:12px">
-        La misma semilla con las mismas reglas produce el mismo mundo. No se crea
-        ninguna liga: eso lo decides después.
-      </p>
     </form>
   </div>
 </div>

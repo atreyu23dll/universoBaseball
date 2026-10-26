@@ -16,19 +16,18 @@ from simulation.competitions.ruleset import GroupAssignment, RuleSet
 from simulation.competitions.schedule import ScheduleReport, build_schedule
 from simulation.core.events import EventType, SimulationEvent
 from simulation.core.provenance import Confidence, GenerationRecord
-from simulation.generation.clubs import assign_rosters, generate_clubs
+from simulation.generation.clubs import generate_clubs
 from simulation.generation.context import (
     CompetitionContext,
     build_context,
     resolve_effective_level,
 )
 from simulation.generation.naming import NameRegistry
-from simulation.generation.people import generate_talent_pool
 from simulation.geography.model import PlaceTree
 from simulation.organizations.model import Club
 from simulation.people.model import Person
 
-PROCEDURE_VERSION = "world/1.0.0"
+PROCEDURE_VERSION = "world/1.1.0"
 
 
 @dataclass
@@ -71,8 +70,6 @@ def generate_competition_world(
     context = build_context(tree, ruleset, currency=currency)
     registry = NameRegistry()
 
-    country_code = ruleset.scope.country_code or _dominant_country(tree, ruleset)
-
     # 1) Las instituciones primero: cada una negocia con su entorno y sus
     #    cuentas salen de lo que puede recaudar y pagar.
     generated = generate_clubs(
@@ -96,23 +93,12 @@ def generate_competition_world(
         ],
     )
 
-    # 3) Con el nivel ya resuelto se genera la población deportiva: la
-    #    competición atrae del mercado compartido según lo que puede ofrecer.
-    pool, pool_record = generate_talent_pool(
-        master_seed=seed,
-        context=context,
-        edition_key=edition_key,
-        world_date=world_date,
-        country_code=country_code,
-        registry=registry,
-        roster_size=ruleset.season.roster_size,
-        club_count=ruleset.generation.club_count,
-        eligibility=ruleset.eligibility,
-    )
-    generated.unsigned = assign_rosters(
-        seed, edition_key, generated.clubs, pool, ruleset.season.roster_size
-    )
-    people = {member.person.key: member.person for member in pool}
+    # 3) Aquí se generaba la población deportiva y se repartía entre los clubes.
+    #    Ya no: la generación de plantillas se retiró el 25/10/2026 (ADR 0013).
+    #    Un club nace sin jugadores, y el universo genera **personas** por su
+    #    cuenta (`simulation.persons`). Cómo una persona pasa a jugar en un club
+    #    será una mecánica de selección que todavía no está definida, así que
+    #    mientras no exista no hay partidos que simular.
 
     # Grupos, divisiones o conferencias. Se reparten antes del calendario
     # porque el calendario depende de ellos: dentro del grupo se juega más.
@@ -190,8 +176,8 @@ def generate_competition_world(
             entities={"edition": edition_key},
             payload={
                 "clubs": len(generated.clubs),
-                "people": len(people),
-                "free_agents": len(generated.unsigned),
+                "people": 0,
+                "free_agents": 0,
                 "modality": str(ruleset.participation_modality),
                 "effective_level": context.effective_level,
                 "resource_tier": str(context.effective_tier) if context.effective_tier else None,
@@ -225,18 +211,13 @@ def generate_competition_world(
     return GeneratedWorld(
         context=context,
         clubs=generated.clubs,
-        people=people,
-        free_agents=[m.person.key for m in generated.unsigned],
+        # Sin plantillas: ninguna persona nace de generar una competición. Los
+        # campos se conservan vacíos porque los consume la API y el día que haya
+        # mecánica de selección volverán a llenarse.
+        people={},
+        free_agents=[],
         schedule=schedule,
-        records=[context.record, pool_record, *generated.records, *extra_records],
+        records=[context.record, *generated.records, *extra_records],
         events=events,
         groups=placements,
     )
-
-
-def _dominant_country(tree: PlaceTree, ruleset: RuleSet) -> str:
-    for key in ruleset.scope.place_keys:
-        country = tree.country_of(key)
-        if country is not None:
-            return country.country_code
-    return "MX"

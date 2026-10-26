@@ -182,6 +182,49 @@ class GazetteerBoundary(Base):
     )
 
 
+class EducationalInstitution(Base):
+    """Centro educativo real que puede formar un equipo escolar adulto.
+
+    Es un catálogo de referencia mundial, no una institución creada dentro de
+    un universo. `source` y `source_id` permiten reimportarlo sin duplicados y
+    hacen que cada participante quede trazable hasta el registro público del
+    que salió.
+    """
+
+    __tablename__ = "educational_institutions"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(220), nullable=False)
+    ascii_name: Mapped[str] = mapped_column(String(220), nullable=False, default="")
+    country_iso2: Mapped[str] = mapped_column(String(2), nullable=False, index=True)
+    admin1_code: Mapped[str | None] = mapped_column(String(24))
+    admin2_code: Mapped[str | None] = mapped_column(String(48))
+    lat: Mapped[float] = mapped_column(Float, nullable=False)
+    lon: Mapped[float] = mapped_column(Float, nullable=False)
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
+    source_url: Mapped[str] = mapped_column(String(300), nullable=False, default="")
+    licence: Mapped[str] = mapped_column(String(160), nullable=False, default="")
+    #: Qué clase de institución dice ser la fuente: universidad, tecnológico,
+    #: conservatorio, academia militar… Se guarda para poder acotar una liga a
+    #: un tipo concreto sin volver a consultar nada.
+    institution_type: Mapped[str | None] = mapped_column(String(80))
+    founded_year: Mapped[int | None] = mapped_column(Integer)
+    website: Mapped[str | None] = mapped_column(String(300))
+    #: Localidad del gazetteer que sitúa el campus. No es un dato de la fuente
+    #: educativa: es la localidad real más cercana a sus coordenadas, y es lo
+    #: que permite decir «esta universidad está en esta ciudad» sin fingir una
+    #: dirección postal que no tenemos.
+    locality_name: Mapped[str | None] = mapped_column(String(200))
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    __table_args__ = (
+        UniqueConstraint("source", "source_id", name="uq_education_source_id"),
+        Index("ix_education_country_admin", "country_iso2", "admin1_code", "admin2_code"),
+    )
+
+
 class Place(Base):
     __tablename__ = "places"
 
@@ -549,24 +592,199 @@ class Person(Base):
         ForeignKey("places.id", ondelete="RESTRICT"), nullable=False
     )
     nationalities: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
-    role: Mapped[str] = mapped_column(String(24), nullable=False, default="player")
-    primary_position: Mapped[str] = mapped_column(String(4), nullable=False)
+    #: **Heredado.** Un único papel por persona es justo lo que el anexo de
+    #: personas §21 prohíbe: los papeles coexisten y viven en sus asignaciones.
+    #: Se conserva porque el motor de partidos y las fichas antiguas lo leen, y
+    #: queda vacío en quien nace sin oficio deportivo. Sin valor por omisión a
+    #: propósito: `default="player"` convertía en jugador a quien se insertaba
+    #: con `role=None`, que es exactamente a quien no lo es.
+    role: Mapped[str | None] = mapped_column(String(24))
+    #: Lo deportivo es **opcional**: una persona del universo puede no haber
+    #: tocado una pelota, y entonces no tiene posición, ni lateralidad, ni
+    #: valoración global. Antes estas columnas eran obligatorias y por eso era
+    #: imposible guardar a un tesorero (auditoría H0, hallazgo H1).
+    primary_position: Mapped[str | None] = mapped_column(String(4))
     secondary_positions: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
     pitcher_role: Mapped[str | None] = mapped_column(String(4))
-    bats: Mapped[str] = mapped_column(String(1), nullable=False)
-    throws: Mapped[str] = mapped_column(String(1), nullable=False)
-    height_cm: Mapped[int] = mapped_column(Integer, nullable=False)
-    weight_kg: Mapped[int] = mapped_column(Integer, nullable=False)
-    #: Bloques de atributos. El potencial real vive aquí; lo que los scouts
-    #: creen se guarda aparte en `development.scouted_potential`.
+    bats: Mapped[str | None] = mapped_column(String(1))
+    throws: Mapped[str | None] = mapped_column(String(1))
+    height_cm: Mapped[int | None] = mapped_column(Integer)
+    weight_kg: Mapped[int | None] = mapped_column(Integer)
+    #: Bloques de atributos **de dominio**: béisbol. El potencial real vive
+    #: aquí; lo que los scouts creen se guarda aparte en
+    #: `development.scouted_potential`. El núcleo humano **no** está aquí: vive
+    #: en `person_universal_profiles`, porque son cosas distintas y una persona
+    #: puede tener lo segundo sin lo primero.
     attributes: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
-    overall: Mapped[float] = mapped_column(Float, nullable=False)
+    overall: Mapped[float | None] = mapped_column(Float)
     state: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="active")
 
     __table_args__ = (
         UniqueConstraint("universe_id", "person_key", name="uq_people_universe_key"),
         Index("ix_people_universe_overall", "universe_id", "overall"),
+    )
+
+
+class PersonUniversalProfile(Base):
+    """Los 52 atributos universales de una persona.
+
+    Uno por persona, y la clave primaria **es** `person_id`: así es imposible
+    que alguien tenga dos perfiles o que se le quede uno huérfano al borrarse.
+
+    Va en tabla aparte de `people` y no en 52 columnas por dos razones del anexo
+    de personas (§15.1 y ADR 0012): el catálogo está previsto que crezca por
+    versión, y cada cambio costaría una migración de esquema; y el núcleo humano
+    es independiente de las competencias de un oficio, que viven en
+    `people.attributes`. El documento se valida con Pydantic **al escribir**, de
+    modo que no puede entrar un perfil parcial.
+    """
+
+    __tablename__ = "person_universal_profiles"
+
+    person_id: Mapped[str] = mapped_column(
+        ForeignKey("people.id", ondelete="CASCADE"), primary_key=True
+    )
+    universe_id: Mapped[str] = mapped_column(
+        ForeignKey("universes.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    #: Versión del catálogo con la que nació. Una actualización del código no
+    #: reinterpreta números antiguos: o se migran, o se leen con su versión.
+    profile_schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    profile_data: Mapped[dict] = mapped_column(JSONType, nullable=False, default=dict)
+    #: Flujo de semilla del que salió, para poder regenerarlo igual.
+    generated_seed: Mapped[str] = mapped_column(String(160), nullable=False, default="")
+    #: Versión de los parámetros de generación (cargas, centros, dispersiones).
+    parameter_version: Mapped[str] = mapped_column(String(40), nullable=False, default="")
+    #: `generated` si nació con la persona; `backfill` si se le dio después a
+    #: alguien que ya existía. No es un detalle: a un perfil de backfill no se
+    #: le atribuyen las decisiones que esa persona tomó antes de tenerlo.
+    origin: Mapped[str] = mapped_column(String(16), nullable=False, default="generated")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+
+class OrganizationUnit(Base):
+    """Un departamento, subdivisión o comité de un club.
+
+    Árbol de profundidad libre: `parent_unit_id` apunta a otra unidad **del
+    mismo club**, y la raíz técnica es la única con padre nulo. Que exista una
+    unidad no significa que tenga a nadie dentro, y que una familia funcional
+    no esté aquí no es un error: el organigrama crece cuando hay trabajo que lo
+    justifique, no al fundarse (ADR 0014).
+    """
+
+    __tablename__ = "organization_units"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    universe_id: Mapped[str] = mapped_column(
+        ForeignKey("universes.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    club_id: Mapped[str] = mapped_column(
+        ForeignKey("clubs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    parent_unit_id: Mapped[str | None] = mapped_column(
+        ForeignKey("organization_units.id", ondelete="CASCADE")
+    )
+    #: Código jerárquico del catálogo (`sports.staff.pitching`). La jerarquía se
+    #: deduce de él, así que no se declara dos veces.
+    code: Mapped[str] = mapped_column(String(80), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    #: `management`, `sports`, `finance`, `marketing`, `infrastructure`,
+    #: `custom`, o vacío en la raíz técnica, que no es un área.
+    functional_family: Mapped[str | None] = mapped_column(String(24))
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    #: Por qué se creó. Sin esto el organigrama vuelve a ser un dibujo.
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    formed_season: Mapped[int] = mapped_column(Integer, nullable=False)
+    closed_season: Mapped[int | None] = mapped_column(Integer)
+
+    __table_args__ = (
+        UniqueConstraint("club_id", "code", name="uq_org_unit_club_code"),
+        Index("ix_org_units_parent", "club_id", "parent_unit_id"),
+    )
+
+
+class OrganizationPosition(Base):
+    """Un cargo que una unidad necesita cubrir.
+
+    Existe con independencia de quién lo ocupe: **un cargo vacante es un estado
+    legítimo**, y `max_occupants` nulo significa que la función se puede
+    compartir entre tantas personas como haga falta.
+    """
+
+    __tablename__ = "organization_positions"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    universe_id: Mapped[str] = mapped_column(
+        ForeignKey("universes.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    club_id: Mapped[str] = mapped_column(
+        ForeignKey("clubs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    unit_id: Mapped[str] = mapped_column(
+        ForeignKey("organization_units.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    function_code: Mapped[str] = mapped_column(String(48), nullable=False)
+    title: Mapped[str] = mapped_column(String(80), nullable=False)
+    max_occupants: Mapped[int | None] = mapped_column(Integer)
+    #: Lo que el cargo autoriza a decidir. Es una concesión del puesto, no un
+    #: rasgo de quien lo ocupa: querer mandar no da permiso para gastar.
+    authority: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    commitment_hours_week: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+    __table_args__ = (
+        UniqueConstraint("club_id", "unit_id", "function_code", name="uq_org_position_unit_code"),
+    )
+
+
+class OrganizationRoleAssignment(Base):
+    """Una persona ejerciendo una responsabilidad en una unidad.
+
+    Es el vínculo **N:M** de la plantilla: una unidad puede alojar a varias
+    personas y una persona puede estar en varias unidades y varios clubes a la
+    vez, sin que su identidad se duplique. La carga horaria se guarda aquí
+    porque es de la asignación, no de la persona: así se pueden sumar los cargos
+    de alguien y ver si no le caben.
+    """
+
+    __tablename__ = "organization_role_assignments"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    universe_id: Mapped[str] = mapped_column(
+        ForeignKey("universes.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    person_id: Mapped[str] = mapped_column(
+        ForeignKey("people.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    club_id: Mapped[str] = mapped_column(
+        ForeignKey("clubs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    unit_id: Mapped[str] = mapped_column(
+        ForeignKey("organization_units.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    position_id: Mapped[str | None] = mapped_column(
+        ForeignKey("organization_positions.id", ondelete="SET NULL")
+    )
+    function_code: Mapped[str] = mapped_column(String(48), nullable=False)
+    #: Autoridad efectiva de esta persona en este cargo. Parte de la del puesto
+    #: y puede recortarse o delegarse sin tocar el puesto.
+    authority: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    commitment_hours_week: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    #: `volunteer`, `compensated`, `employee`, `institutional_mandate`…
+    arrangement: Mapped[str] = mapped_column(String(32), nullable=False, default="volunteer")
+    starts_on: Mapped[date] = mapped_column(Date, nullable=False)
+    ends_on: Mapped[date | None] = mapped_column(Date)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    reason: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+    __table_args__ = (
+        Index("ix_org_roles_person", "universe_id", "person_id", "status"),
+        Index("ix_org_roles_unit", "unit_id", "status"),
     )
 
 

@@ -124,6 +124,14 @@ class CustomAreaRequest(BaseModel):
     min_population: int = Field(default=0, ge=0)
 
 
+class UniversityDiscoveryRequest(BaseModel):
+    """Territorio ya resuelto para consultar el catálogo universitario."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scope: dict[str, Any]
+
+
 class RelationshipCreate(BaseModel):
     """Alta de relación entre dos competiciones que ya existen.
 

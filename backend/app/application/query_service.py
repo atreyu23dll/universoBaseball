@@ -13,11 +13,22 @@ from typing import Any
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
-from app.application import club_evolution_service
+from app.application import club_evolution_service, organization_service, person_service
 from app.application.errors import NotFoundError
 from app.application.universe_service import get_universe
 from app.infrastructure import models as m
 from simulation.competitions.ruleset import StructureRules as RuleSetStructure
+from simulation.persons import (
+    COGNITIVE_NAMES,
+    DIMENSION_LABEL,
+    LABEL,
+    PSYCHOLOGICAL_NAMES,
+    SOCIAL_NAMES,
+    TEMPORALITY,
+    TEMPORALITY_LABEL,
+    Dimension,
+    value_range,
+)
 
 
 def _club_brief(club: m.Club) -> dict:
@@ -69,6 +80,14 @@ def universe_dashboard(session: Session, universe_id: str) -> dict:
     competitions = session.scalars(
         select(m.CompetitionDefinition).where(m.CompetitionDefinition.universe_id == universe_id)
     ).all()
+    rule_versions = session.scalars(
+        select(m.CompetitionRuleVersion)
+        .where(m.CompetitionRuleVersion.universe_id == universe_id)
+        .order_by(m.CompetitionRuleVersion.competition_id, m.CompetitionRuleVersion.version.desc())
+    ).all()
+    current_rules: dict[str, m.CompetitionRuleVersion] = {}
+    for version in rule_versions:
+        current_rules.setdefault(version.competition_id, version)
     editions = session.scalars(
         select(m.CompetitionEdition).where(m.CompetitionEdition.universe_id == universe_id)
     ).all()
@@ -134,6 +153,13 @@ def universe_dashboard(session: Session, universe_id: str) -> dict:
                 "id": competition.id,
                 "name": competition.name,
                 "kind": competition.kind,
+                "education_track": (
+                    (current_rules.get(competition.id).rules_json.get("education") or {}).get(
+                        "track"
+                    )
+                    if current_rules.get(competition.id)
+                    else None
+                ),
                 "scope_level": competition.scope_level,
                 "relationship_mode": competition.relationship_mode,
                 "mobility": mobility.get(competition.id),
@@ -602,6 +628,10 @@ def club_detail(session: Session, club_id: str) -> dict:
         },
         # Cómo se organiza el club. Lo decidió él, no el usuario.
         "organization": club.organization or None,
+        # Su organigrama: unidades, cargos —con los vacantes marcados— y las
+        # personas que los ocupan, cada una una sola vez con todas sus
+        # responsabilidades.
+        "chart": organization_service.chart_of(session, club.id),
         "status": club.status,
         "seasons_insolvent": club.seasons_insolvent,
         # Lo que de verdad cobró y pagó cada temporada cerrada, con lo previsto
@@ -706,6 +736,25 @@ def person_detail(session: Session, person_id: str) -> dict:
     ).first()
     club = session.get(m.Club, assignment.club_id) if assignment else None
 
+    # Trayectoria completa de plantilla. Aunque hoy la simulación apenas mueve
+    # jugadores entre clubes, el contrato conserva desde ahora cada etapa para
+    # que el perfil no tenga que deducir el pasado a partir del club vigente.
+    roster_assignments = list(
+        session.scalars(
+            select(m.RosterAssignment)
+            .where(m.RosterAssignment.person_id == person_id)
+            .order_by(m.RosterAssignment.start_date.desc(), m.RosterAssignment.id)
+        ).all()
+    )
+    history_clubs = {
+        item.id: item
+        for item in session.scalars(
+            select(m.Club).where(
+                m.Club.id.in_([row.club_id for row in roster_assignments] or [""])
+            )
+        ).all()
+    }
+
     batting = session.execute(
         select(
             func.count().label("games"),
@@ -748,6 +797,13 @@ def person_detail(session: Session, person_id: str) -> dict:
     development = attributes.pop("development", {})
     return {
         "id": person.id,
+        # Los 52 atributos universales, agrupados y con su nombre legible. Se
+        # sirven desde el catálogo —no escritos a mano en la interfaz— para que
+        # no puedan separarse del contrato (ADR 0012, R5).
+        "universal_profile": _universal_profile(session, person),
+        # Sus responsabilidades, en todos los clubes. Una persona puede tener
+        # cargos en varios a la vez y no se duplica por ello.
+        "organization_roles": organization_service.assignments_of_person(session, person.id),
         "name": f"{person.given_name} {person.surnames}",
         "given_name": person.given_name,
         "surnames": person.surnames,
@@ -768,6 +824,16 @@ def person_detail(session: Session, person_id: str) -> dict:
         "height_cm": person.height_cm,
         "weight_kg": person.weight_kg,
         "club": _club_brief(club) if club else None,
+        "club_history": [
+            {
+                "club_id": row.club_id,
+                "club": history_clubs[row.club_id].name if row.club_id in history_clubs else None,
+                "start_date": row.start_date,
+                "end_date": row.end_date,
+                "status": row.status,
+            }
+            for row in roster_assignments
+        ],
         # Atributos observables. `potential` real NO se expone: la interfaz
         # muestra lo que los informes de scouting creen.
         "attributes": attributes,
@@ -780,6 +846,55 @@ def person_detail(session: Session, person_id: str) -> dict:
         },
         "batting_totals": _batting_totals(batting),
         "pitching_totals": _pitching_totals(pitching),
+    }
+
+
+def _universal_profile(session: Session, person: m.Person) -> dict | None:
+    """El núcleo humano de una persona, listo para mostrarse.
+
+    Devuelve `None` cuando todavía no lo tiene, que es el caso de los jugadores
+    de universos anteriores al catálogo: se les da perfil la primera vez que
+    alguien lo pide, y esta consulta no escribe en la base.
+
+    Lo que se muestra son **parámetros de una ficción simulada**, no un
+    diagnóstico ni una medida de nadie. Por eso cada atributo viaja con su
+    clase: un estado de hoy y un rasgo de siempre no se leen igual.
+    """
+    perfil = person_service.profile_of(session, person)
+    if perfil is None:
+        return None
+    fila = session.get(m.PersonUniversalProfile, person.id)
+    volcado = perfil.as_dict()
+    return {
+        "schema_version": volcado["profile_schema_version"],
+        "origin": fila.origin if fila else None,
+        "parameter_version": fila.parameter_version if fila else None,
+        "dimensions": [
+            {
+                "key": str(dimension),
+                "label": DIMENSION_LABEL[dimension],
+                "attributes": [
+                    {
+                        "name": nombre,
+                        "label": LABEL[nombre],
+                        "value": volcado[str(dimension)][nombre],
+                        "range": list(value_range(nombre)),
+                        "kind": str(TEMPORALITY[nombre]),
+                        "kind_label": TEMPORALITY_LABEL[TEMPORALITY[nombre]],
+                    }
+                    for nombre in nombres
+                ],
+            }
+            for dimension, nombres in (
+                (Dimension.PSYCHOLOGICAL, PSYCHOLOGICAL_NAMES),
+                (Dimension.COGNITIVE, COGNITIVE_NAMES),
+                (Dimension.SOCIAL, SOCIAL_NAMES),
+            )
+        ],
+        "note": (
+            "Son parámetros de una simulación, no una medida de nadie. Los rasgos "
+            "se mueven despacio; los estados cambian en días."
+        ),
     }
 
 
@@ -917,8 +1032,12 @@ def list_people(
         )
 
     total = session.scalar(count_statement) or 0
+    # `nullslast` explícito porque Postgres y SQLite no coinciden: en un
+    # `DESC`, Postgres pone los nulos primero y SQLite al final. Una persona del
+    # universo sin oficio deportivo no tiene valoración global, y no debe
+    # encabezar un listado ordenado por ella.
     rows = session.scalars(
-        statement.order_by(m.Person.overall.desc()).limit(limit).offset(offset)
+        statement.order_by(m.Person.overall.desc().nullslast()).limit(limit).offset(offset)
     ).all()
     return [_person_brief(session, person, universe_id) for person in rows], total
 

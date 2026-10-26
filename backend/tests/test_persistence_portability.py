@@ -9,12 +9,16 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import pytest
 from app.infrastructure import models as m
 from app.infrastructure.database import engine, session_scope
 from fastapi.testclient import TestClient
 from sqlalchemy import inspect, select
 
 from backend.tests.conftest import create_league
+
+#: Causa compartida de las pruebas que necesitan jugadores para funcionar.
+SIN_PLANTILLAS = "la generación de plantillas se retiró el 25/10/2026 (ADR 0013): un club nace sin jugadores, así que no hay partidos que simular y el avance del reloj falla con ROSTERS_MISSING. strict=True a propósito: esta prueba volverá a fallar el día en que exista la mecánica de selección, y así nadie se olvida de reactivarla"
 
 
 def test_las_migraciones_crearon_el_esquema_completo():
@@ -33,6 +37,7 @@ def test_el_dinero_se_guarda_como_decimal_no_como_float(client: TestClient, univ
         assert club.annual_budget == club.annual_budget.quantize(Decimal("0.01"))
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_las_entradas_lanzadas_se_guardan_en_outs_enteros(client: TestClient, universe: dict):
     create_league(client, universe["id"])
     client.post(

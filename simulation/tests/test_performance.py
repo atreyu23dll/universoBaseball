@@ -16,6 +16,7 @@ from simulation.baseball.engine import TeamGameInput, simulate_game
 from simulation.baseball.park import NEUTRAL_PARK
 from simulation.baseball.rates import LeagueRates
 from simulation.competitions.ruleset import SeasonRules
+from simulation.tests.factories import roster_for
 
 MIN_GAMES_PER_SECOND = 150.0
 
@@ -25,7 +26,7 @@ def test_rendimiento_de_una_temporada(municipal_world, capsys):
     clubs = municipal_world.clubs
     season = SeasonRules(games_per_club_target=44)
     rates = LeagueRates.for_level(municipal_world.context.level)
-    rosters = {c.key: {k: municipal_world.people[k] for k in c.roster} for c in clubs}
+    rosters = {c.key: roster_for(c.key, seed=hash(c.key) % 9999) for c in clubs}
 
     total = 300
     started = time.perf_counter()
@@ -65,7 +66,7 @@ def test_coste_de_guardar_los_eventos(municipal_world, capsys):
     clubs = municipal_world.clubs
     season = SeasonRules(games_per_club_target=44)
     rates = LeagueRates.for_level(0.5)
-    rosters = {c.key: {k: municipal_world.people[k] for k in c.roster} for c in clubs}
+    rosters = {c.key: roster_for(c.key, seed=hash(c.key) % 9999) for c in clubs}
 
     def medir(record_events: bool) -> float:
         started = time.perf_counter()

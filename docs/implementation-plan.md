@@ -346,11 +346,80 @@ omisión— pero su `checksum` recalculado ya no coincide con el almacenado,
 porque el volcado canónico incluye ahora el campo nuevo. Afecta solo a bases
 creadas antes de esta migración; las ediciones ya jugadas no se reescriben.
 
+## Anexo de personas y organigramas — hitos H0–H7
+
+Origen: `Baseball_Universe_Personas_Organigramas_v1_1.md` (v1.1). Define el
+motor humano que la génesis institucional y la Fase 2 necesitan: una plantilla
+de 52 atributos compartida por toda persona del universo, relaciones como
+aristas dirigidas y organigramas con unidades anidadas y asignaciones N:M.
+
+El propio anexo (§17.3, §20, §24) ordena **no relegar la deuda del FIX V2**, y
+por eso la corrección de aforos, mercados y divisor de caja del 25/10/2026 fue
+antes que H0. Lo que queda de esa deuda está anotado en
+`docs/simulation-calibration.md`.
+
+| Hito | Alcance | Estado |
+|---|---|---|
+| H0 | Auditoría, mapa de clases, riesgos y ADR | **Hecho** — `docs/personas-h0-auditoria.md`, ADR 0012 |
+| H1 | Catálogo de los 52 atributos, validación y generación con factores latentes | **Hecho** — `simulation/persons/` |
+| H2 | Personas del universo: persistencia versionada, materialización y backfill | **Hecho** — `person_universal_profiles`, `person_service` |
+| H2 bis | La generación de competiciones pide personas al universo | **Retirado** — ADR 0013: ya no se generan plantillas, así que no hay a quién pedir |
+| H3 | Generación con factores latentes y semillas por subdominio | Pendiente |
+| H4 | Organigramas, cargos con titular y génesis antes del reparto de plantillas | **Fundación hecha** — ADR 0014: raíz, Gerencia y propietarios o representantes como personas reales. El crecimiento del organigrama (crear, fusionar y cerrar departamentos) queda pendiente |
+| H5 | Relaciones, estados y envejecimiento | Pendiente |
+| H6 | Creencias por observador y política de decisión | Pendiente |
+| H7 | Vistas de organigrama, histórico y benchmark | Pendiente |
+
+Cuatro defectos medidos que estos hitos corrigen, y que la auditoría documenta
+con fichero y línea:
+
+1. **Toda persona es un jugador.** `PersonRole.PLAYER` es el único valor que el
+   generador produce; mánagers, tesoreros y scouts son cadenas de texto sin
+   titular.
+2. **De los seis números psicológicos, solo `composure` se lee** en toda la base
+   de código, y los seis se sortean independientes entre sí.
+3. **Las personas pertenecen a la edición que las creó**, así que dos ligas en
+   la misma ciudad generan poblaciones disjuntas.
+4. **Nadie envejece ni aprende:** `people.state` se escribe una vez y no vuelve
+   a tocarse.
+
+Lo que H1 y H2 dejaron hecho, y lo que deliberadamente no tocaron:
+
+- **Existe la persona del universo.** `person_service.materialize_person` crea a
+  alguien que vive en un territorio, con sus 52 atributos en la misma
+  transacción, **sin** posición de juego, valoración global ni papel. Las
+  columnas deportivas de `people` pasaron a admitir nulo: antes era imposible
+  guardar a un tesorero.
+- **La identidad ya no la pone una competición.** La clave de una persona del
+  territorio es `p:<lugar>:<cohorte>:<serial>`, y `available_people` es la
+  consulta que hay que hacer antes de materializar a nadie.
+- **Los jugadores que ya existen reciben su perfil al pedirlo**
+  (`ensure_profile`), conservando los seis números que el universo ya conocía.
+  `composure` llega intacto a `inhibitory_control`, que es lo que mantiene
+  reproducibles los partidos ya jugados.
+- **La generación de plantillas se retiró por completo** (ADR 0013). No hay
+  jugadores, no hay draft y no hay agentes libres: un club nace con su
+  identidad, su gobierno, su sede y sus cuentas, y sin una sola persona dentro.
+  La única puerta por la que entra gente al universo es
+  `person_service.materialize_person`.
+- **Los partidos están desactivados y se dice.** Avanzar el reloj falla con
+  `ROSTERS_MISSING` nombrando a los clubes sin plantilla. Crear universos,
+  elegir territorio, generar clubes, inscribirlos y calendarizar sigue
+  funcionando; jugar, no.
+- **36 pruebas en `xfail(strict=True)`** con su causa. Pasarán el día en que
+  exista la mecánica de selección, y una `xfail` estricta que pasa falla la
+  batería: es la lista de lo que hay que devolver a la vida.
+
 ## Orden recomendado para la siguiente iteración
 
-1. `QualificationPath` ejecutándose (casos C08 y C12): extracción de cupos a
+1. Que el organigrama **crezca**: crear un departamento cuando aparece el
+   trabajo que lo justifica, fusionarlo en una crisis, cerrarlo, y emitir los
+   eventos institucionales de cada cambio.
+3. La mecánica de selección: cómo una persona del universo pasa a jugar en un
+   club. Es la que devuelve a la vida las 36 pruebas en `xfail`.
+3. `QualificationPath` ejecutándose (casos C08 y C12): extracción de cupos a
    copas sin crear jerarquía, con regla de reasignación si dos vías clasifican
    al mismo club.
-2. Mover el avance a un proceso worker con cola en Postgres y añadir WebSocket.
-3. Liga internacional de clubes con franquicias por ciudad (C11) y selecciones
+3. Mover el avance a un proceso worker con cola en Postgres y añadir WebSocket.
+4. Liga internacional de clubes con franquicias por ciudad (C11) y selecciones
    nacionales con elegibilidad por liga doméstica (C09, C10).

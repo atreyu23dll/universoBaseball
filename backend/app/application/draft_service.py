@@ -232,7 +232,7 @@ def validate_intent(session: Session, universe_id: str, intent: dict) -> list[Is
 
     # El reglamento tiene que ser válido antes de mirar nada más.
     try:
-        ruleset = competition_service.validate_ruleset(intent)
+        ruleset = competition_service.validate_ruleset(intent, session, universe_id)
     except TypedValidationFailure as exc:
         return [Issue(exc.code, BLOCKING, exc.message, tuple(exc.suggestions))]
     except ValidationFailure as exc:
@@ -430,7 +430,7 @@ def create_preview(
 
     # El cálculo reutiliza el mismo camino que la creación, con `persist=False`.
     resultado = competition_service.preview_generation(session, universe_id, intent)
-    ruleset = competition_service.validate_ruleset(intent)
+    ruleset = competition_service.validate_ruleset(intent, session, universe_id)
 
     for aviso in resultado["warnings"]:
         problemas.append(Issue(_warning_code(aviso), WARNING, aviso))

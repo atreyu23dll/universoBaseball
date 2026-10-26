@@ -9,7 +9,11 @@ from __future__ import annotations
 import random
 from decimal import Decimal
 
-from simulation.economy.evolution import SEASONS_INSOLVENT_TO_FOLD, evolve_club
+from simulation.economy.evolution import (
+    CASH_MONTHS_TO_INVEST,
+    SEASONS_INSOLVENT_TO_FOLD,
+    evolve_club,
+)
 from simulation.economy.model import (
     ClubFinancialProfile,
     ComponentKind,
@@ -171,7 +175,7 @@ def test_el_club_desaparece_solo_tras_una_racha() -> None:
         "community_reach": 0.4,
         "win_percentage": 0.3,
         "club_age_years": 12,
-        "reference_monthly_cost": Decimal("8000"),
+        "monthly_operating_cost": Decimal("8000"),
     }
     primera = evolve_club(random.Random(5), libro, seasons_insolvent=0, **argumentos)
     assert not primera.folds, "la primera temporada en rojo no cierra el club"
@@ -200,7 +204,7 @@ def test_ganar_atrae_mas_de_lo_que_perder_aleja() -> None:
         "community_reach": 0.4,
         "seasons_insolvent": 0,
         "club_age_years": 4,
-        "reference_monthly_cost": Decimal("8000"),
+        "monthly_operating_cost": Decimal("8000"),
     }
     campeones = [
         evolve_club(random.Random(s), libro, win_percentage=0.8, **argumentos).fan_base_factor
@@ -236,7 +240,7 @@ def test_un_colectivo_no_se_formaliza_sin_años_ni_cuentas_sanas() -> None:
         "ambition": 0.9,
         "win_percentage": 0.5,
         "seasons_insolvent": 0,
-        "reference_monthly_cost": Decimal("8000"),
+        "monthly_operating_cost": Decimal("8000"),
     }
     recién_nacidos = [
         evolve_club(
@@ -435,3 +439,54 @@ def test_un_club_de_barrio_no_cobra_patrocinio_de_club_grande(tree) -> None:
             if c.source == "local_sponsorship"
         )
         assert "audiencia del club" in motivo, "el asiento dice qué tope mandó"
+
+
+def test_la_caja_se_mide_en_meses_del_gasto_del_propio_club() -> None:
+    """El divisor es lo que cuesta el club, no la compra de una familia.
+
+    Regresión: se pasaba el `reference_monthly_cost` del territorio —el gasto
+    mensual de un hogar, 12 000 MXN en México— como si fuera el coste mensual
+    del club. Un club con 18 millones en caja «tenía» 1 563 meses de gasto, así
+    que el umbral para invertir en su sede estaba siempre abierto y la decisión
+    no decidía nada: cualquier club sano con algo de ambición mejoraba de sede.
+    """
+    libro = close_season(
+        random.Random(11),
+        season=2042,
+        profile=_perfil(taquilla="400000"),
+        cash=Decimal("300000"),
+        debt=Decimal("0"),
+        home_games_played=10,
+        home_games_scheduled=10,
+    )
+    assert libro.outcome is Outcome.HEALTHY
+
+    argumentos = {
+        "governance": GovernanceModel.COLLECTIVE,
+        "venue_agreement": VenueAgreement.PUBLIC_SHARED,
+        "ambition": 0.95,
+        "community_reach": 0.5,
+        "win_percentage": 0.6,
+        "seasons_insolvent": 0,
+        "club_age_years": 6,
+    }
+
+    def mejoras(coste_mensual: str) -> int:
+        return sum(
+            evolve_club(
+                random.Random(s),
+                libro,
+                monthly_operating_cost=Decimal(coste_mensual),
+                **argumentos,
+            ).venue_agreement
+            is not None
+            for s in range(80)
+        )
+
+    # Con el gasto real del club, su caja da para pocos meses: no se muda.
+    apretado = Decimal(libro.cash_end) / Decimal(str(CASH_MONTHS_TO_INVEST / 2))
+    assert mejoras(str(int(apretado))) == 0, "sin caja para un año de gasto no se invierte"
+
+    # Con caja para mucho más de un año, algunos sí lo hacen: la decisión existe.
+    holgado = Decimal(libro.cash_end) / Decimal(str(CASH_MONTHS_TO_INVEST * 3))
+    assert mejoras(str(int(holgado))) > 0

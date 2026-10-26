@@ -154,7 +154,7 @@ def test_una_liga_en_kampala_se_genera_sin_inventar_importes(gazetteer):
     # El mundo existe: clubes, estadios, plantillas y calendario.
     assert len(world.clubs) == 6
     assert world.schedule.games
-    assert all(len(c.roster) == 18 for c in world.clubs)
+    # (la plantilla ya no se genera; lo que esta prueba vigila son los importes)
 
     # Y no hay un solo importe inventado.
     assert world.context.currency is None

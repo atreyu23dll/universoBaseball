@@ -66,6 +66,7 @@ export interface DashboardCompetition {
   id: string;
   name: string;
   kind: string;
+  education_track?: 'school' | 'formative' | null;
   scope_level: string;
   relationship_mode: string;
   mobility: { role: 'upper' | 'lower'; slots: number | null; with: string[] } | null;
@@ -318,6 +319,8 @@ export interface GenerationPreview {
   seed: number;
   context: {
     participation_modality: string;
+    education_track?: 'school' | 'formative' | null;
+    participants_source?: string | null;
     modality_description: string;
     compensation_rule: string;
     market_score: number;
@@ -382,6 +385,42 @@ export interface GenerationPreview {
     }>;
     assumptions: string[];
   }>;
+}
+
+/** Universidad real resuelta para una liga escolar de 18+. */
+export interface UniversityParticipant {
+  catalog_id: string;
+  source: string;
+  source_id: string;
+  name: string;
+  country_code: string;
+  admin1_code: string | null;
+  admin2_code: string | null;
+  lat: number;
+  lon: number;
+  timezone: string;
+  source_url?: string;
+  licence?: string;
+  /** Qué clase de centro es, según la fuente: universidad, tecnológico… */
+  institution_type?: string | null;
+  founded_year?: number | null;
+  website?: string | null;
+  /** Localidad del gazetteer que la sitúa; no es una dirección de la fuente. */
+  locality_name?: string | null;
+}
+
+export interface UniversityDiscovery {
+  available: boolean;
+  /** `territory_too_large`: hay más instituciones de las que caben en una liga. */
+  status: 'ready' | 'catalog_not_imported' | 'territory_too_large';
+  scope_level: string;
+  territory_mode: string;
+  /** Cuántas hay en el territorio, aunque no quepan todas en una liga. */
+  found?: number;
+  institutions: UniversityParticipant[];
+  sources: string[];
+  attribution: string;
+  note: string;
 }
 
 export interface SimStatus {
@@ -527,6 +566,9 @@ export interface GeoEntity {
   admin_path: string | null;
   lat: number;
   lon: number;
+  map_lat?: number;
+  map_lon?: number;
+  map_anchor?: string;
   elevation_m: number;
   population: number | null;
   timezone: string;
@@ -536,6 +578,24 @@ export interface GeoEntity {
   source_id: string;
   status: 'verified' | 'incomplete';
   status_notes: string[];
+}
+
+/** Capa de divisiones de primer nivel de un país, para los puntos del globo. */
+export interface GeoRegionLayer {
+  country_iso2: string;
+  items: GeoEntity[];
+}
+
+/** Capa de localidades de una provincia: las más pobladas, con su recorte. */
+export interface GeoLocalityLayer {
+  region_id: string;
+  region_name: string;
+  country_iso2: string;
+  total: number;
+  shown: number;
+  items: GeoEntity[];
+  attribution: string;
+  note: string;
 }
 
 export interface GeoSearchResult {
@@ -612,15 +672,22 @@ export interface Draft {
   updated_at: string;
 }
 
-/** Propuesta inmutable del generador. No ha escrito nada en el mundo. */
-export interface Preview {
+/** Campos que una propuesta siempre conserva, aun si se bloquea antes de generar. */
+interface PreviewBase {
   preview_id: string;
   schema_version: string;
   intent_fingerprint: string;
   ruleset_checksum: string;
   engine_version: string;
   seed: number;
-  status: 'preview_ready' | 'preview_warning' | 'preview_blocked';
+  issues: Issue[];
+  committed_competition_id: string | null;
+  note: string;
+}
+
+/** Propuesta que llegó a generar el contexto y los clubes candidatos. */
+export interface GeneratedPreview extends PreviewBase {
+  status: 'preview_ready' | 'preview_warning';
   context: GenerationPreview['context'] & {
     schedule: GenerationPreview['schedule'];
     budget_range: GenerationPreview['budget_range'];
@@ -631,10 +698,20 @@ export interface Preview {
     structure: EditionStructure | null;
   };
   proposed_clubs: GenerationPreview['clubs'];
-  issues: Issue[];
-  committed_competition_id: string | null;
-  note: string;
 }
+
+/**
+ * Un bloqueo es una respuesta correcta de validación, no una previsualización
+ * incompleta: el servidor todavía no calcula calendario, mercados ni clubes.
+ */
+export interface BlockedPreview extends PreviewBase {
+  status: 'preview_blocked';
+  context: Record<string, never>;
+  proposed_clubs: [];
+}
+
+/** Propuesta inmutable del generador. No ha escrito nada en el mundo. */
+export type Preview = GeneratedPreview | BlockedPreview;
 
 export interface ValidationResult {
   intent_fingerprint: string;

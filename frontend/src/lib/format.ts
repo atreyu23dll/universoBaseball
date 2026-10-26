@@ -56,7 +56,8 @@ export const KIND_LABEL: Record<string, string> = {
   domestic_cup: 'copa doméstica',
   continental_club_cup: 'copa continental de clubes',
   youth_league: 'liga juvenil',
-  reserve_league: 'liga filial'
+  reserve_league: 'liga filial',
+  educational_league: 'liga escolar / formativa'
 };
 
 /** Estados del borrador de competición (FIX V2 §12.1). */

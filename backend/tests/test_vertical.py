@@ -7,9 +7,13 @@ una clasificación que proviene de partidos reales, sin editar un solo club.
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.tests.conftest import MUNICIPAL_LEAGUE, create_league
+
+#: Causa compartida de las pruebas que necesitan jugadores para funcionar.
+SIN_PLANTILLAS = "la generación de plantillas se retiró el 25/10/2026 (ADR 0013): un club nace sin jugadores, así que no hay partidos que simular y el avance del reloj falla con ROSTERS_MISSING. strict=True a propósito: esta prueba volverá a fallar el día en que exista la mecánica de selección, y así nadie se olvida de reactivarla"
 
 
 def test_health_declara_que_etapas_estan_implementadas(client: TestClient):
@@ -96,12 +100,16 @@ def test_la_generacion_crea_el_mundo_entero(client: TestClient, universe: dict):
         assert float(club["annual_budget"]) > 0
         assert club["home_place"]
 
-    people = client.get(f"/api/v1/universes/{universe['id']}/people?limit=1").json()
-    assert people["total"] >= 12 * 26
+    # Generar una competición crea **a quien encabeza cada club** —propietarios
+    # donde hay propiedad, representación donde no la hay— y ningún jugador
+    # (ADR 0013 y 0014). Son personas del universo: sin posición de juego.
+    people = client.get(f"/api/v1/universes/{universe['id']}/people?limit=200").json()
+    assert people["total"] >= 12
+    assert all(p["primary_position"] is None for p in people["items"])
 
-    # Cada club tiene una plantilla jugable y su procedencia explicada.
     detail = client.get(f"/api/v1/clubs/{clubs['items'][0]['id']}").json()
-    assert len(detail["roster"]) == 26
+    assert detail["roster"] == []
+    assert detail["chart"]["people"], "el club nace con alguien al frente"
     assert detail["venue"]["dimensions"]["center_field_m"] > 100
     assert detail["provenance"], "el club no guarda de dónde salieron sus números"
     presupuesto = [
@@ -114,6 +122,7 @@ def test_la_generacion_crea_el_mundo_entero(client: TestClient, universe: dict):
     assert "partidas de gasto" in presupuesto[0]["derivation"]
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_c13_c15_avanzar_el_reloj_produce_partidos_y_clasificacion(
     client: TestClient, universe: dict
 ):
@@ -191,6 +200,7 @@ def test_c16_reintentar_un_avance_con_la_misma_clave_no_duplica_nada(
     )
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_un_partido_terminado_no_se_reejecuta(client: TestClient, universe: dict):
     """C13: sin política explícita de replay, un partido final es inmutable."""
     from app.application.errors import ConflictError
@@ -245,6 +255,7 @@ def test_c15_el_estado_sobrevive_a_recargar_todo(client: TestClient, universe: d
     assert despues["universe"]["master_seed"] == universe["master_seed"]
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_la_edicion_entera_termina_con_campeon(client: TestClient, universe: dict):
     """Temporada regular + postemporada hasta coronar a alguien."""
     league = create_league(client, universe["id"])
@@ -288,6 +299,7 @@ def test_la_edicion_entera_termina_con_campeon(client: TestClient, universe: dic
     assert 0.200 < leaders["batting_average"][0]["avg"] < 0.600
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_el_historial_solo_contiene_hechos_registrados(client: TestClient, universe: dict):
     create_league(client, universe["id"])
     client.post(

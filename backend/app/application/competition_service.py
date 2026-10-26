@@ -8,29 +8,31 @@ usuario crea la relación.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.application import geography_service
+from app.application import education_service, geography_service, organization_service
 from app.application.errors import (
     ConflictError,
     NotFoundError,
     TypedValidationFailure,
     ValidationFailure,
 )
-from app.application.mappers import person_attributes_to_json, venue_dimensions_to_json
+from app.application.mappers import venue_dimensions_to_json
 from app.application.universe_service import get_universe, record_event
 from app.infrastructure import models as m
-from app.infrastructure.database import new_id
 from simulation import SIM_VERSION
 from simulation.competitions.ruleset import RelationshipMode, RuleSet, parse_ruleset
 from simulation.core.errors import RuleValidationError, ScheduleError
 from simulation.core.events import EventType, SimulationEvent
 from simulation.core.provenance import Confidence, GenerationRecord
+from simulation.economy.model import GovernanceModel
 from simulation.generation.context import build_context
 from simulation.generation.world import generate_competition_world
 from simulation.geography.geonames import ATTRIBUTION as GEONAMES_ATTRIBUTION
@@ -152,12 +154,17 @@ def _reject_deprecated_fields(payload: dict) -> None:
     )
 
 
-def validate_ruleset(payload: dict) -> RuleSet:
+def validate_ruleset(
+    payload: dict, session: Session | None = None, universe_id: str | None = None
+) -> RuleSet:
     _reject_deprecated_fields(payload)
     try:
-        return parse_ruleset(payload)
+        ruleset = parse_ruleset(payload)
     except Exception as exc:  # pydantic ValidationError u otro
         raise ValidationFailure(f"el reglamento no es válido: {exc}") from exc
+    if session is not None and universe_id is not None:
+        return education_service.canonicalize_school_universities(session, universe_id, ruleset)
+    return ruleset
 
 
 def resolve_ruleset_territory(
@@ -197,6 +204,34 @@ def resolve_ruleset_territory(
     return ruleset, tree, avisos
 
 
+def _market_divisions(session: Session, entidad: m.GazetteerEntity) -> list[m.GazetteerEntity]:
+    """Divisiones de primer nivel de un país, que son sus mercados reales.
+
+    Elegir un país como territorio no debería plantar todos los clubes de una
+    liga nacional en una única plaza llamada «México» con 131 millones de
+    habitantes: eso daba viajes de cero kilómetros entre clubes y una sola bolsa
+    de recursos para todos. Las divisiones se traen al árbol **sin** entrar en
+    el alcance declarado por el usuario; `resolve_markets` las encuentra como
+    descendientes y las prefiere al país.
+
+    Solo se expande un país. Una región elegida a mano sigue siendo un mercado:
+    quien escoge Sonora quiere Sonora, no sus 72 municipios.
+    """
+    if entidad.kind != "country":
+        return []
+    return list(
+        session.scalars(
+            select(m.GazetteerEntity)
+            .where(
+                m.GazetteerEntity.country_iso2 == entidad.country_iso2,
+                m.GazetteerEntity.kind == "region",
+                m.GazetteerEntity.feature_code == "ADM1",
+            )
+            .order_by(m.GazetteerEntity.name)
+        ).all()
+    )
+
+
 def _graft_territory(
     session: Session,
     universe: m.Universe,
@@ -213,7 +248,80 @@ def _graft_territory(
     for entity_id in entity_ids:
         entidad = geography_service.get_entity(session, entity_id)
         claves.append(_graft_place(session, universe, tree, entidad))
+        for division in _market_divisions(session, entidad):
+            _graft_place(session, universe, tree, division)
     return claves
+
+
+def _graft_profile(
+    session: Session,
+    universe: m.Universe,
+    entidad: m.GazetteerEntity,
+    pais: m.GazetteerCountry | None,
+) -> RegionProfile | None:
+    """Perfil en memoria de una entidad del gazetteer, o `None` sin población.
+
+    Es el gemelo de `_ensure_profile` para el camino que no escribe en la base.
+    Los dos tienen que decidir lo mismo: lo que se previsualiza es lo que se
+    crea.
+    """
+    poblacion, fuente_poblacion = _population_of(session, entidad, pais)
+    if not poblacion:
+        return None
+    curado = _curated_indices(session, universe, entidad)
+    if curado is not None:
+        indices, fuentes, confianza = curado
+    else:
+        indices, fuentes, confianza = _neutral_indices()
+    return RegionProfile(
+        ref_year=2025,
+        population=int(poblacion),
+        confidence=Confidence(confianza),
+        sources=(GEONAMES_ATTRIBUTION, fuente_poblacion, *tuple(fuentes)),
+        **indices,
+    )
+
+
+def _population_of(
+    session: Session,
+    entidad: m.GazetteerEntity,
+    pais: m.GazetteerCountry | None,
+) -> tuple[int, str]:
+    """Población de una entidad y de dónde sale, para escribirlo en el perfil.
+
+    Una división administrativa llega de GeoNames sin población propia —la
+    fuente no la publica— y la suya es la de sus localidades. Sin este paso el
+    lugar se quedaba sin perfil y heredaba el del país: cada estado mexicano
+    pasaba a tener 131,9 millones de habitantes.
+    """
+    poblacion = entidad.population or (pais.population if entidad.kind == "country" and pais else 0)
+    if poblacion:
+        return int(poblacion), f"población: {entidad.source} {entidad.source_id}"
+    poblacion, localidades = geography_service.aggregated_population(session, entidad)
+    return int(poblacion), (
+        f"población: {localidades} localidades de {entidad.name} presentes en el "
+        f"gazetteer ({entidad.source}), agregadas por municipio para no contar dos "
+        "veces una ciudad y sus secciones; la fuente no publica población propia "
+        "para divisiones administrativas, así que la cifra es parcial y depende de "
+        "qué localidades se importaron"
+    )
+
+
+def _neutral_indices() -> tuple[dict[str, float], list[str], str]:
+    """Supuesto declarado para un territorio sin índices conocidos."""
+    return (
+        {
+            "economy_index": 0.5,
+            "baseball_culture_index": 0.5,
+            "cost_of_living_index": 0.5,
+            "infrastructure_index": 0.5,
+        },
+        [
+            "índices: supuesto neutral declarado, sin evidencia local de "
+            "economía, cultura beisbolística ni infraestructura deportiva"
+        ],
+        str(Confidence.SCENARIO_ASSUMPTION),
+    )
 
 
 def _graft_place(
@@ -223,7 +331,18 @@ def _graft_place(
     entidad: m.GazetteerEntity,
 ) -> str:
     clave = f"{entidad.source}:{entidad.source_id}"
-    if clave in tree.places:
+    existente = tree.places.get(clave)
+    if existente is not None:
+        if existente.profile is None:
+            # El lugar entró al universo antes de que las divisiones
+            # administrativas tuvieran población: sin perfil heredaría el del
+            # país. Se le da el suyo aquí también, o previsualizar y crear
+            # dejarían de coincidir.
+            perfil = _graft_profile(
+                session, universe, entidad, session.get(m.GazetteerCountry, entidad.country_iso2)
+            )
+            if perfil is not None:
+                tree.places[clave] = replace(existente, profile=perfil)
         return clave
 
     padre_clave: str | None = None
@@ -248,35 +367,7 @@ def _graft_place(
             sources=(GEONAMES_ATTRIBUTION, "ISO 4217", *tuple(pais.reference_cost_sources)),
         )
 
-    poblacion = entidad.population or (pais.population if entidad.kind == "country" and pais else 0)
-    perfil = None
-    if poblacion:
-        curado = _curated_indices(session, universe, entidad)
-        if curado is not None:
-            indices, fuentes, confianza = curado
-        else:
-            indices = {
-                "economy_index": 0.5,
-                "baseball_culture_index": 0.5,
-                "cost_of_living_index": 0.5,
-                "infrastructure_index": 0.5,
-            }
-            confianza = str(Confidence.SCENARIO_ASSUMPTION)
-            fuentes = [
-                "índices: supuesto neutral declarado, sin evidencia local de "
-                "economía, cultura beisbolística ni infraestructura deportiva"
-            ]
-        perfil = RegionProfile(
-            ref_year=2025,
-            population=int(poblacion),
-            confidence=Confidence(confianza),
-            sources=(
-                GEONAMES_ATTRIBUTION,
-                f"población: {entidad.source} {entidad.source_id}",
-                *tuple(fuentes),
-            ),
-            **indices,
-        )
+    perfil = _graft_profile(session, universe, entidad, pais)
 
     tree.places[clave] = Place(
         key=clave,
@@ -296,10 +387,29 @@ def _graft_place(
     return clave
 
 
+def _governance_of(club: Any) -> GovernanceModel:
+    """La forma de gobierno que el motor decidió para este club.
+
+    Sale de la organización que el club se dio al generarse, no de una elección
+    del usuario: el formulario no puede pedirla (FIX V2 §1.2).
+    """
+    organizacion = getattr(club, "organization", None)
+    if organizacion is None:
+        return GovernanceModel.COLLECTIVE
+    return GovernanceModel(str(organizacion.governance))
+
+
+def _place_ids_of(session: Session, universe_id: str) -> dict[str, str]:
+    return {
+        row.place_key: row.id
+        for row in session.scalars(select(m.Place).where(m.Place.universe_id == universe_id)).all()
+    }
+
+
 def preview_generation(session: Session, universe_id: str, payload: dict) -> dict:
     """Previsualiza sin crear nada. Se puede repetir con otra semilla."""
     universe = get_universe(session, universe_id)
-    ruleset = validate_ruleset(payload)
+    ruleset = validate_ruleset(payload, session, universe_id)
     # `persist=False`: previsualizar no escribe en el mundo (caso T01).
     ruleset, tree, territory_warnings = resolve_ruleset_territory(
         session, universe, ruleset, persist=False
@@ -361,6 +471,14 @@ def preview_generation(session: Session, universe_id: str, payload: dict) -> dic
         "seed": seed,
         "context": {
             "participation_modality": str(ruleset.participation_modality),
+            "education_track": (
+                str(ruleset.education.track) if ruleset.education is not None else None
+            ),
+            "participants_source": (
+                "universidades reales del catálogo territorial"
+                if ruleset.requires_real_universities
+                else None
+            ),
             "modality_description": ruleset.modality.description,
             "compensation_rule": str(ruleset.effective_compensation_rule),
             "market_score": round(context.market_score, 4),
@@ -506,6 +624,30 @@ def _check_territory(tree: PlaceTree, ruleset: RuleSet) -> None:
                 "o consulta /api/v1/universes/{id}/geography para ver las claves curadas",
             ],
         )
+    countries = {
+        tree.places[key].country_code for key in ruleset.scope.place_keys if key in tree.places
+    }
+    if ruleset.scope.level.value == "multinational":
+        if len(countries) < 2:
+            raise TypedValidationFailure(
+                "GEOGRAPHY_UNRESOLVED",
+                "una competición internacional de clubes necesita al menos dos países",
+                ["elige dos o más países en el globo territorial"],
+            )
+    elif len(countries) > 1:
+        # Una liga regional puede abarcar varios estados —el norte de México es
+        # un territorio deportivo real— pero sigue siendo de una jurisdicción:
+        # su moneda, su calendario y sus reglas salen de un solo país. Cruzar la
+        # frontera es otra cosa, y tiene su propio alcance.
+        raise TypedValidationFailure(
+            "GEOGRAPHY_UNRESOLVED",
+            "los territorios de esta competición están en países distintos: "
+            f"{', '.join(sorted(countries))}",
+            [
+                "elige territorios de un mismo país",
+                "si la competición cruza fronteras, su alcance es internacional",
+            ],
+        )
 
 
 def materialize_territory(
@@ -542,10 +684,18 @@ def materialize_territory(
 
     for entity_id in entity_ids:
         entidad = geography_service.get_entity(session, entity_id)
-        fila = existentes.get(entidad.id) or _ensure_place(
-            session, universe, entidad, existentes, por_clave
-        )
+        fila = existentes.get(entidad.id)
+        if fila is None:
+            fila = _ensure_place(session, universe, entidad, existentes, por_clave)
+        else:
+            _fill_missing_profile(session, universe, entidad, fila)
         claves.append(fila.place_key)
+        for division in _market_divisions(session, entidad):
+            ya = existentes.get(division.id)
+            if ya is None:
+                _ensure_place(session, universe, division, existentes, por_clave)
+            else:
+                _fill_missing_profile(session, universe, division, ya)
     session.flush()
     return claves
 
@@ -615,6 +765,33 @@ def _ensure_place(
     return fila
 
 
+def _fill_missing_profile(
+    session: Session,
+    universe: m.Universe,
+    entidad: m.GazetteerEntity,
+    fila: m.Place,
+) -> None:
+    """Da perfil a un lugar que ya estaba en el universo y no tenía ninguno.
+
+    Cura universos creados antes de que las divisiones administrativas tuvieran
+    población: sus regiones entraron sin perfil y heredaban el del país, de modo
+    que cada estado se simulaba con los habitantes de toda su jurisdicción. La
+    próxima vez que se usen como territorio quedan arregladas, sin migración y
+    sin tocar lo que ya tenía perfil propio: un mercado calibrado a mano no se
+    sobrescribe.
+    """
+    existe = session.scalars(
+        select(m.RegionProfile).where(
+            m.RegionProfile.universe_id == universe.id,
+            m.RegionProfile.place_id == fila.id,
+        )
+    ).first()
+    if existe is not None:
+        return
+    pais = session.get(m.GazetteerCountry, entidad.country_iso2)
+    _ensure_profile(session, universe, entidad, fila, pais)
+
+
 def _ensure_profile(
     session: Session,
     universe: m.Universe,
@@ -622,11 +799,16 @@ def _ensure_profile(
     fila: m.Place,
     pais: m.GazetteerCountry | None,
 ) -> None:
-    """Perfil regional del lugar: población con fuente, índices como supuesto."""
-    poblacion = entidad.population or (pais.population if entidad.kind == "country" and pais else 0)
+    """Perfil regional del lugar: población con fuente, índices como supuesto.
+
+    Comparte con `_graft_profile` cómo se resuelven población e índices, para
+    que el camino que escribe en la base y el que solo previsualiza no puedan
+    separarse. Si no hay población —ni propia ni agregada de sus localidades—,
+    el lugar queda **sin perfil** y `effective_profile` lo rechazará como
+    mercado, en vez de darle la de su país.
+    """
+    poblacion, fuente_poblacion = _population_of(session, entidad, pais)
     if not poblacion:
-        # Sin población no hay mercado que estimar, y no se inventa una cifra:
-        # el lugar queda sin perfil y hereda el de su ancestro más cercano.
         return
 
     # Si este lugar ya estaba calibrado a mano en el universo, sus índices
@@ -636,17 +818,7 @@ def _ensure_profile(
     if curado is not None:
         indices, fuentes, confianza = curado
     else:
-        indices = {
-            "economy_index": 0.5,
-            "baseball_culture_index": 0.5,
-            "cost_of_living_index": 0.5,
-            "infrastructure_index": 0.5,
-        }
-        confianza = str(Confidence.SCENARIO_ASSUMPTION)
-        fuentes = [
-            "índices: supuesto neutral declarado, sin evidencia local de "
-            "economía, cultura beisbolística ni infraestructura deportiva"
-        ]
+        indices, fuentes, confianza = _neutral_indices()
 
     session.add(
         m.RegionProfile(
@@ -655,11 +827,7 @@ def _ensure_profile(
             ref_year=2025,
             population=int(poblacion),
             confidence=confianza,
-            sources=[
-                GEONAMES_ATTRIBUTION,
-                f"población: {entidad.source} {entidad.source_id}",
-                *fuentes,
-            ],
+            sources=[GEONAMES_ATTRIBUTION, fuente_poblacion, *fuentes],
             **indices,
         )
     )
@@ -710,7 +878,7 @@ def create_competition(
     session: Session, universe_id: str, payload: dict
 ) -> m.CompetitionDefinition:
     universe = get_universe(session, universe_id)
-    ruleset = validate_ruleset(payload)
+    ruleset = validate_ruleset(payload, session, universe_id)
     ruleset, tree, _ = resolve_ruleset_territory(session, universe, ruleset, persist=True)
 
     # Una competición no puede nacer dependiente: la dependencia la crea una
@@ -886,6 +1054,8 @@ def generate_edition(
     session.add(edition)
     session.flush()
 
+    place_ids = _place_ids_of(session, universe.id)
+
     try:
         world = generate_competition_world(
             tree=tree,
@@ -898,45 +1068,14 @@ def generate_edition(
         session.rollback()
         raise ValidationFailure(exc.message, exc.suggestions) from exc
 
-    place_ids = {
-        row.place_key: row.id
-        for row in session.scalars(select(m.Place).where(m.Place.universe_id == universe.id)).all()
-    }
-
     # --- Personas -------------------------------------------------------------
-    # Los identificadores se generan aquí y no se esperan del INSERT: hacen
-    # falta para enlazar plantillas e inscripciones en la misma transacción.
-    person_ids: dict[str, str] = {}
-    person_rows: dict[str, m.Person] = {}
-    for person in world.people.values():
-        row = m.Person(
-            id=new_id(),
-            universe_id=universe.id,
-            person_key=person.key,
-            given_name=person.given_name,
-            surnames=person.surnames,
-            birth_date=person.birth_date,
-            origin_place_id=place_ids[person.origin_place_key],
-            nationalities=list(person.nationalities),
-            role=str(person.role),
-            primary_position=str(person.primary_position),
-            secondary_positions=[str(p) for p in person.secondary_positions],
-            pitcher_role=str(person.pitcher_role) if person.pitcher_role else None,
-            bats=str(person.bats),
-            throws=str(person.throws),
-            height_cm=person.height_cm,
-            weight_kg=person.weight_kg,
-            attributes=person_attributes_to_json(person),
-            overall=person.overall,
-            state={"fatigue": 0.0, "morale": 0.6, "form": 0.0, "days_until_available": 0},
-            status="free_agent",
-        )
-        session.add(row)
-        person_ids[person.key] = row.id
-        person_rows[person.key] = row
-    session.flush()
+    # Ninguna. Generar una competición ya no crea gente: la generación de
+    # plantillas se retiró el 25/10/2026 (ADR 0013) y el universo crea sus
+    # personas por su cuenta (`person_service.materialize_person`). Un club nace
+    # con su identidad, su gobierno, su sede y sus cuentas, y sin jugadores.
+    assert not world.people, "generar una competición no crea personas"
 
-    # --- Clubes, estadios, plantillas e inscripciones -------------------------
+    # --- Clubes, estadios e inscripciones -------------------------------------
     entries: list[m.EditionEntry] = []
     club_ids: dict[str, str] = {}
     for club in world.clubs:
@@ -965,6 +1104,19 @@ def generate_edition(
         session.add(club_row)
         session.flush()
         club_ids[club.key] = club_row.id
+
+        # El organigrama de fundación y las personas que lo encabezan. Lo que
+        # nace aquí es lo que el club **necesita** el primer día: su raíz, su
+        # dirección y quien lo posee o lo representa. Los demás departamentos
+        # aparecerán cuando haya trabajo que los justifique (ADR 0014).
+        organization_service.found_chart(
+            session,
+            universe,
+            club_row,
+            governance=_governance_of(club),
+            season=edition.year,
+            place=session.get(m.Place, club_row.home_place_id),
+        )
 
         venue_row = m.Venue(
             universe_id=universe.id,
@@ -996,18 +1148,6 @@ def generate_edition(
                 origin="generated",
             )
         )
-        for person_key in club.roster:
-            session.add(
-                m.RosterAssignment(
-                    universe_id=universe.id,
-                    club_id=club_row.id,
-                    person_id=person_ids[person_key],
-                    start_date=universe.world_date,
-                    status="active",
-                )
-            )
-            person_rows[person_key].status = "active"
-
         entry = m.EditionEntry(
             universe_id=universe.id,
             edition_id=edition.id,
@@ -1151,6 +1291,15 @@ def list_competitions(session: Session, universe_id: str) -> list[dict]:
                 "club_count": (
                     rule_version.rules_json["generation"]["club_count"] if rule_version else 0
                 ),
+                # El tablero de dependencias toma estas columnas del reglamento
+                # congelado; no inventa una estructura genérica para una liga
+                # ya creada.
+                "education_track": (
+                    (rule_version.rules_json.get("education") or {}).get("track")
+                    if rule_version
+                    else None
+                ),
+                "structure": _structure_summary(rule_version.rules_json if rule_version else {}),
                 "hierarchy_links": len(relationships),
                 "qualification_paths": len(paths),
                 "editions": [
@@ -1168,6 +1317,34 @@ def list_competitions(session: Session, universe_id: str) -> list[dict]:
             }
         )
     return out
+
+
+def _structure_summary(rules_json: dict) -> list[dict[str, int | str]]:
+    """Divisiones de la primera fase para representarlas en el lienzo visual."""
+    structure = rules_json.get("structure") or {}
+    stages = structure.get("stages") or []
+    if stages:
+        divisions = stages[0].get("divisions") or []
+        return [
+            {
+                "key": str(item.get("key", index)),
+                "label": str(item.get("label", "Tabla")),
+                "slots": int(item.get("slots", 0)),
+            }
+            for index, item in enumerate(divisions)
+        ]
+    groups = structure.get("groups") or []
+    if groups:
+        return [
+            {
+                "key": str(index),
+                "label": str(item.get("label", "Grupo")),
+                "slots": int(item.get("slots", 0)),
+            }
+            for index, item in enumerate(groups)
+        ]
+    count = int((rules_json.get("generation") or {}).get("club_count", 0))
+    return [{"key": "general", "label": "Tabla general", "slots": count}] if count else []
 
 
 def next_season_year(session: Session, competition_id: str) -> int:

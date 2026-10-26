@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev --host 127.0.0.1 --port 5173",
+    "dev": "vite dev --host 0.0.0.0 --port 5173",
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 5173",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
@@ -14,9 +14,17 @@
     "@sveltejs/kit": "2.70.3",
     "@sveltejs/vite-plugin-svelte": "5.1.1",
     "@types/node": "22.20.5",
+    "@types/topojson-client": "^3.1.5",
     "svelte": "5.57.2",
     "svelte-check": "4.7.7",
     "typescript": "5.9.3",
     "vite": "6.4.4"
+  },
+  "dependencies": {
+    "globe.gl": "^2.46.2",
+    "i18n-iso-countries": "^7.14.0",
+    "three": "^0.186.1",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
   }
 }

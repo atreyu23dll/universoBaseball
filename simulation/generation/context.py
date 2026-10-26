@@ -33,7 +33,7 @@ from simulation.core.provenance import Confidence, GenerationRecord
 from simulation.economy.model import ResourceTier, resource_tier
 from simulation.geography.model import Place, PlaceKind, PlaceTree
 
-PROCEDURE_VERSION = "context/1.0.0"
+PROCEDURE_VERSION = "context/1.1.0"
 
 # Peso de cada componente en el índice de profesionalización. Suman 1.
 _W_ECONOMY = 0.45
@@ -174,33 +174,79 @@ def market_for_place(tree: PlaceTree, place_key: str) -> MarketProfile:
     )
 
 
+#: Cuán fino es cada nivel territorial. Sirve para no bajar más de lo que la
+#: competición necesita: una liga nacional planta clubes en ciudades, no en
+#: barrios, aunque los barrios estén en el árbol.
+_GRANULARITY = {
+    PlaceKind.COUNTRY: 0,
+    PlaceKind.REGION: 1,
+    PlaceKind.CITY: 2,
+    PlaceKind.DISTRICT: 3,
+}
+
+
+def _markets_under(
+    tree: PlaceTree,
+    place: Place,
+    finest: PlaceKind,
+    seen: set[str],
+    discarded: list[str],
+) -> list[MarketProfile]:
+    """Mercados utilizables dentro de un lugar, al nivel más fino que sirva.
+
+    Desciende rama por rama, no por niveles completos: en un mismo país puede
+    haber un estado con sus ciudades materializadas y otro del que solo se
+    conoce el estado, y los dos tienen que poder acoger clubes.
+
+    Un lugar entra como mercado cuando no hay nada utilizable por debajo y él
+    tiene población. Si no la tiene, se descarta: la de su territorio padre no
+    es la suya.
+    """
+    if _GRANULARITY[place.kind] < _GRANULARITY[finest]:
+        finos: list[MarketProfile] = []
+        for child in tree.children(place.key):
+            if _GRANULARITY[child.kind] <= _GRANULARITY[finest]:
+                finos.extend(_markets_under(tree, child, finest, seen, discarded))
+        if finos:
+            return finos
+
+    if place.key in seen:
+        return []
+    seen.add(place.key)
+    try:
+        return [market_for_place(tree, place.key)]
+    except KeyError:
+        discarded.append(place.name)
+        return []
+
+
 def resolve_markets(tree: PlaceTree, ruleset: RuleSet) -> list[MarketProfile]:
     """Resuelve en qué mercados concretos se pueden plantar clubes.
 
-    Para una liga municipal baja a subzonas si el fixture las tiene; si no, usa
-    la ciudad. Para alcances mayores usa ciudades.
-    """
-    candidates: list[Place] = []
-    for key in ruleset.scope.place_keys:
-        place = tree.get(key)
-        if ruleset.scope.level is ScopeLevel.MUNICIPAL:
-            districts = tree.children(key, PlaceKind.DISTRICT)
-            candidates.extend(districts or [place])
-        elif place.kind == PlaceKind.CITY:
-            candidates.append(place)
-        else:
-            cities = tree.descendants(key, PlaceKind.CITY)
-            candidates.extend(cities or [place])
+    Baja al nivel más fino que de verdad sirva de cada territorio elegido:
+    subzonas en una liga municipal, ciudades en cualquier otro alcance, y el
+    propio territorio —un estado, un país— solo cuando no hay nada utilizable
+    por debajo.
 
+    Por qué ese orden: un país se usaba directamente como un único mercado en
+    cuanto sus ciudades no estaban materializadas, y entonces los cuatro clubes
+    de una liga nacional mexicana compartían la plaza «México» —el país entero
+    como si fuera una ciudad—, con distancia de viaje cero entre ellos y los
+    131 millones de habitantes repartidos entre los cuatro. Ahora el país es el
+    último recurso, no el primero.
+    """
+    finest = PlaceKind.DISTRICT if ruleset.scope.level is ScopeLevel.MUNICIPAL else PlaceKind.CITY
     seen: set[str] = set()
+    discarded: list[str] = []
     markets: list[MarketProfile] = []
-    for place in candidates:
-        if place.key in seen:
-            continue
-        seen.add(place.key)
-        markets.append(market_for_place(tree, place.key))
+    for key in ruleset.scope.place_keys:
+        markets.extend(_markets_under(tree, tree.get(key), finest, seen, discarded))
+
     if not markets:
-        raise ValueError("el territorio de la competición no contiene mercados utilizables")
+        detalle = f" (sin población utilizable: {', '.join(discarded)})" if discarded else ""
+        raise ValueError(
+            f"el territorio de la competición no contiene mercados utilizables{detalle}"
+        )
     return sorted(markets, key=lambda m: m.place_key)
 
 

@@ -7,9 +7,13 @@ tiene sus propias pruebas.
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.tests.conftest import create_league
+
+#: Causa compartida de las pruebas que necesitan jugadores para funcionar.
+SIN_PLANTILLAS = "la generación de plantillas se retiró el 25/10/2026 (ADR 0013): un club nace sin jugadores, así que no hay partidos que simular y el avance del reloj falla con ROSTERS_MISSING. strict=True a propósito: esta prueba volverá a fallar el día en que exista la mecánica de selección, y así nadie se olvida de reactivarla"
 
 SUPERIOR = {
     "name": "Liga Nacional",
@@ -81,6 +85,7 @@ def _club_state(client: TestClient, universe_id: str) -> dict:
     return state
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_c04_suben_y_bajan_exactamente_las_plazas_pactadas(client: TestClient, universe: dict):
     """Dos clubes suben, dos bajan, y ninguno pierde su identidad."""
     superior = create_league(client, universe["id"], SUPERIOR)
@@ -151,6 +156,7 @@ def test_c04_suben_y_bajan_exactamente_las_plazas_pactadas(client: TestClient, u
         assert detalle["mobility"], "la ficha del club cuenta su movimiento"
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_la_temporada_siguiente_arranca_con_los_clubes_que_ya_existen(
     client: TestClient, universe: dict
 ):
@@ -184,6 +190,7 @@ def test_la_temporada_siguiente_arranca_con_los_clubes_que_ya_existen(
         assert calendario["total"] > 0
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_la_liga_independiente_no_se_entera_de_nada(client: TestClient, universe: dict):
     """El criterio de la Etapa 2: la liga que nadie vinculó queda intacta."""
     superior = create_league(client, universe["id"], SUPERIOR)
@@ -219,6 +226,7 @@ def test_la_liga_independiente_no_se_entera_de_nada(client: TestClient, universe
     assert len(competiciones[sola["competition_id"]]["editions"]) == 2
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_c05_la_cuota_se_edita_una_vez_y_la_ven_las_dos_ligas(client: TestClient, universe: dict):
     """La relación es la autoridad única, también al cambiarla."""
     superior = create_league(client, universe["id"], SUPERIOR)
@@ -255,6 +263,7 @@ def test_c05_la_cuota_se_edita_una_vez_y_la_ven_las_dos_ligas(client: TestClient
     assert historial["items"][0]["relegations"] == 3
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_c06_cuatro_alimentadoras_y_tres_plazas_mueven_tres_clubes(
     client: TestClient, universe: dict
 ):
@@ -315,6 +324,7 @@ def test_c06_cuatro_alimentadoras_y_tres_plazas_mueven_tres_clubes(
     assert client.get(f"/api/v1/editions/{nueva_superior['id']}/standings").json()["total"] == 8
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_c07_una_filial_no_mueve_clubes_al_cerrar_la_temporada(client: TestClient, universe: dict):
     principal = create_league(client, universe["id"], SUPERIOR)
     filial = create_league(client, universe["id"], INFERIOR)
@@ -335,6 +345,7 @@ def test_c07_una_filial_no_mueve_clubes_al_cerrar_la_temporada(client: TestClien
         assert despues[club_id]["competitions"] == estado["competitions"]
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_la_transicion_no_se_aplica_dos_veces(client: TestClient, universe: dict):
     """C16 en la frontera de temporada: reintentar no mueve a nadie otra vez."""
     superior = create_league(client, universe["id"], SUPERIOR)
@@ -356,6 +367,7 @@ def test_la_transicion_no_se_aplica_dos_veces(client: TestClient, universe: dict
     assert _club_state(client, universe["id"]) == pertenencias
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_el_intercambio_espera_a_que_las_dos_ligas_cierren(client: TestClient, universe: dict):
     """La superior termina antes; nadie se mueve hasta que cierra la inferior."""
     superior = create_league(
@@ -395,6 +407,7 @@ def test_el_intercambio_espera_a_que_las_dos_ligas_cierren(client: TestClient, u
     assert client.get(f"/api/v1/universes/{universe['id']}/mobility-history").json()["total"] == 1
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_la_proyeccion_dice_quien_estaria_subiendo(client: TestClient, universe: dict):
     superior = create_league(client, universe["id"], SUPERIOR)
     inferior = create_league(client, universe["id"], INFERIOR)
@@ -435,6 +448,7 @@ def test_sin_jerarquia_no_hay_proyeccion(client: TestClient, universe: dict):
     assert proyeccion["projected"] == []
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_los_requisitos_de_ascenso_pueden_frenar_a_un_campeon(client: TestClient, universe: dict):
     """Requisito de aforo imposible: la plaza se bloquea y nadie desciende."""
     superior = create_league(client, universe["id"], SUPERIOR)
@@ -463,6 +477,7 @@ def test_los_requisitos_de_ascenso_pueden_frenar_a_un_campeon(client: TestClient
     assert any(evento["event_type"] == "promotion_blocked" for evento in historia["items"])
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_deshacer_la_relacion_devuelve_la_independencia(client: TestClient, universe: dict):
     superior = create_league(client, universe["id"], SUPERIOR)
     inferior = create_league(client, universe["id"], INFERIOR)
@@ -505,6 +520,7 @@ def test_una_competicion_no_puede_tener_dos_superiores(client: TestClient, unive
     assert "dos superiores" in conflicto.json()["message"]
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_sin_arranque_automatico_la_temporada_nueva_espera(client: TestClient, session):
     """`auto_new_season = false`: los clubes se mueven, el calendario espera.
 

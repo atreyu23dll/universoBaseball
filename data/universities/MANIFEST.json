@@ -1,0 +1,65 @@
+{
+  "source": "wikidata",
+  "attribution": "Wikidata (https://www.wikidata.org), CC0 1.0",
+  "licence": "CC0 1.0",
+  "allowed_classes": {
+    "Q3918": "universidad",
+    "Q189004": "college",
+    "Q2680291": "colegio mayor",
+    "Q1365560": "universidad de ciencias aplicadas",
+    "Q1663017": "escuela de ingeniería",
+    "Q1143635": "escuela de negocios",
+    "Q494230": "escuela de medicina",
+    "Q17072837": "medical college (India)",
+    "Q446901": "escuela de enfermería",
+    "Q845392": "escuela politécnica",
+    "Q3803834": "instituto técnico",
+    "Q7692354": "escuela técnica",
+    "Q2120173": "escuela superior pedagógica",
+    "Q184644": "conservatorio",
+    "Q383092": "academia de bellas artes",
+    "Q917182": "academia militar",
+    "Q14911880": "seminario",
+    "Q576603": "colegio bíblico",
+    "Q12513145": "sekolah tinggi",
+    "Q110296306": "junior college (Japón)",
+    "Q47531586": "Institute of National Importance (India)"
+  },
+  "allowed_exact": {
+    "Q38723": "institución educativa universitaria"
+  },
+  "soft_excluded_subtrees": {
+    "Q22713629": "escuela de mujeres",
+    "Q9842": "escuela primaria",
+    "Q9826": "high school",
+    "Q149566": "escuela media"
+  },
+  "part_like_subtrees": {
+    "Q1143635": "escuela de negocios",
+    "Q1663017": "escuela de ingeniería",
+    "Q494230": "escuela de medicina",
+    "Q446901": "escuela de enfermería",
+    "Q17072837": "medical college (India)",
+    "Q184644": "conservatorio",
+    "Q383092": "academia de bellas artes",
+    "Q2680291": "colegio mayor",
+    "Q20820271": "escuela de postgrado"
+  },
+  "excluded_subtrees": {
+    "Q180958": "facultad universitaria",
+    "Q20820271": "escuela de postgrado",
+    "Q414147": "academia de ciencias"
+  },
+  "excluded_exact": {
+    "Q162633": "academia",
+    "Q955824": "sociedad científica"
+  },
+  "resolved_classes": 446,
+  "endpoint": "https://query.wikidata.org/sparql",
+  "built_at": "2026-10-25",
+  "countries": 206,
+  "institutions": 27268,
+  "failed_countries": [],
+  "file": "universities.ndjson.gz",
+  "multinational_duplicates": 84
+}

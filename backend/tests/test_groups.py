@@ -7,11 +7,15 @@ con campeones de grupo y repechajes.
 
 from __future__ import annotations
 
+import pytest
 from app.infrastructure import models as m
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from backend.tests.conftest import create_league
+
+#: Causa compartida de las pruebas que necesitan jugadores para funcionar.
+SIN_PLANTILLAS = "la generación de plantillas se retiró el 25/10/2026 (ADR 0013): un club nace sin jugadores, así que no hay partidos que simular y el avance del reloj falla con ROSTERS_MISSING. strict=True a propósito: esta prueba volverá a fallar el día en que exista la mecánica de selección, y así nadie se olvida de reactivarla"
 
 CON_DIVISIONES = {
     "name": "Liga Nacional por Divisiones",
@@ -117,6 +121,7 @@ def test_g02_se_juega_mas_dentro_del_grupo_que_fuera(
         assert len(equipos) == len(set(equipos)), f"doble partido el {dia}"
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_g03_la_tabla_trae_el_puesto_de_cada_division(client: TestClient, universe: dict) -> None:
     """Una fila por club, con su puesto general y su puesto en el grupo."""
     liga = create_league(client, universe["id"], CON_DIVISIONES)
@@ -139,6 +144,7 @@ def test_g03_la_tabla_trae_el_puesto_de_cada_division(client: TestClient, univer
         ), "la tabla general ya viene ordenada, y el grupo la respeta"
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_g04_a_la_postemporada_entran_campeones_de_division_y_repechajes(
     client: TestClient, universe: dict, session
 ) -> None:
@@ -173,6 +179,7 @@ def test_g04_a_la_postemporada_entran_campeones_de_division_y_repechajes(
     assert edicion.champion_club_id
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_g05_la_temporada_siguiente_rehace_las_divisiones(
     client: TestClient, universe: dict, session
 ) -> None:
@@ -211,6 +218,7 @@ def test_g05_la_temporada_siguiente_rehace_las_divisiones(
     assert set(intra) == {2} and set(inter) == {1}
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_g06_una_competicion_sin_grupos_sigue_igual(
     client: TestClient, universe: dict, session
 ) -> None:
@@ -286,6 +294,7 @@ DEL_EDITOR = {
 }
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_g07_una_estructura_asimetrica_del_editor_se_juega_entera(
     client: TestClient, universe: dict, session
 ) -> None:
@@ -461,6 +470,7 @@ DIBUJADO = {
 }
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_g08_un_cuadro_dibujado_se_juega_con_las_entradas_donde_se_pusieron(
     client: TestClient, universe: dict, session
 ) -> None:

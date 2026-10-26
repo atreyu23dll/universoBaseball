@@ -94,6 +94,75 @@ amortización (25 % de la caja disponible) son del mismo tipo.
 Lo que **no** es heurística: una obligación se paga entera y lo que no se puede
 cubrir se convierte en deuda. Esa es una regla, no un parámetro.
 
+## Universidades: Wikidata, versionado y sin red
+
+Las ligas escolares de 18 años o más juegan con **instituciones reales**: si en
+el territorio hay cinco, juegan cinco. Ese catálogo sale de **Wikidata**
+(CC0 1.0, sin exigencia de atribución, que igualmente se registra) y vive en
+`data/universities/universities.ndjson.gz`, versionado con el repositorio.
+
+| | antes | ahora |
+|---|---|---|
+| Origen | `allCountries.zip` de GeoNames | Wikidata, consultado una vez al generar el fichero |
+| Qué se descargaba al arrancar | 422 MB comprimidos, 1,8 GB en disco | **nada** |
+| Instituciones en el mundo | 1 534 | **27 268** en 206 países |
+| En México | 27 | **254** |
+| Tamaño en disco | 2,1 GB en un volumen de Docker | 1 MB versionado |
+
+Dos reglas que no se rompen:
+
+1. **Nada de red en tiempo de ejecución.** Ni al consultar un territorio, ni al
+   crear la liga, ni al generar la edición. El fichero se regenera a mano con
+   `make build-university-catalog`, que es el único punto que habla con
+   Wikidata, y `make import-universities` solo lee el fichero.
+2. **El territorio lo pone el gazetteer, no la fuente educativa.** Wikidata da
+   nombre, clase y coordenadas; la provincia, el municipio y el huso horario
+   salen de la localidad real más cercana del gazetteer. Si no hay ninguna a
+   menos de 60 km, la institución se guarda sin división administrativa en vez
+   de adjudicarle una: la búsqueda por radio sigue encontrándola por sus
+   coordenadas.
+
+### Qué cuenta como institución, y qué no
+
+El árbol «institución de educación superior» de Wikidata no sirve tal cual:
+cuelgan de él casi diez mil escuelas primarias mal clasificadas, las academias
+de ciencias —que son corporaciones de académicos, no centros de enseñanza— y
+las **facultades**, que son partes de una universidad. Sin filtrar, una sola
+universidad aportaría veinte equipos a una liga.
+
+Por eso `scripts/build_university_catalog.py` lleva la lista explícita de
+clases admitidas y excluidas, con su motivo escrito al lado. Un campus **sí**
+es institución aparte —el Tec de Monterrey campus Juárez juega contra el campus
+Chihuahua—, así que la relación «parte de» no decide: decide la clase.
+
+El criterio prefiere que falte una institución rara a meter en una liga a una
+escuela primaria, y el fichero `MANIFEST.json` que acompaña al catálogo deja
+constancia de con qué criterio y qué día se generó.
+
+## El dibujo del globo no es una fuente de datos
+
+El selector territorial del creador de competiciones es un globo terráqueo, y
+los contornos de los países que dibuja salen de **Natural Earth** (dominio
+público) en la versión TopoJSON del paquete `world-atlas`, que viaja con el
+frontend y no se descarga en tiempo de ejecución. Ese atlas hace dos cosas, y
+ninguna es aportar datos al mundo simulado:
+
+1. **Dibujar.** Es geometría para pintar, no información sobre un lugar.
+2. **Resolver un clic.** Cada polígono lleva su código ISO 3166-1 numérico; el
+   clic se traduce a alfa-2 y con ese código se le pregunta al gazetteer por la
+   entidad. Lo que se fija en la competición sigue siendo el identificador de
+   GeoNames, nunca el nombre ni la forma del atlas.
+
+De ahí se siguen dos consecuencias que la interfaz no esconde:
+
+- Los tres territorios del atlas **sin código ISO** —Kosovo, Somalilandia y el
+  norte de Chipre— no son seleccionables, y al pasar por encima se dice por qué.
+  Antes que asignarles una identidad discutible, se dice que no la hay.
+- Provincias y localidades **no se dibujan como contornos**, porque no tenemos
+  sus polígonos: son puntos sobre la coordenada que el backend declara
+  representativa (`map_anchor`, normalmente su localidad más poblada). Un punto
+  no finge una frontera que no está en la fuente.
+
 ## Lo que deliberadamente no hacemos
 
 - No geocodificamos en masa contra servicios públicos ni descargamos tiles de
@@ -110,8 +179,13 @@ cubrir se convierte en deuda. Esa es una regla, no un parámetro.
 
 ## Fuentes consultadas para la forma de los datos
 
+- Wikidata, licencia CC0 1.0: https://www.wikidata.org/wiki/Wikidata:Licensing
+- Natural Earth, dominio público: https://www.naturalearthdata.com/about/terms-of-use/
+- `world-atlas` (TopoJSON de Natural Earth): https://github.com/topojson/world-atlas
 - OpenStreetMap, licencia y atribución: https://www.openstreetmap.org/copyright
 - Política de uso de tiles de OSM: https://operations.osmfoundation.org/policies/tiles/
 - Open-Meteo histórico (futuro, para perfiles estacionales): https://open-meteo.com/en/docs/historical-weather-api
 
-Ninguno de los tres se consulta en tiempo de ejecución hoy.
+Al producto llegan empaquetados el atlas de Natural Earth (con el frontend) y
+el catálogo de Wikidata (con el repositorio): ninguna de estas fuentes se
+consulta por red en tiempo de ejecución.

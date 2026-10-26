@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
+
 from simulation.competitions.ruleset import RuleSet
 from simulation.economy.model import ComponentKind
 from simulation.generation.world import generate_competition_world
@@ -218,6 +220,12 @@ def test_d07_el_reglamento_admite_una_categoria_de_edad():
     assert ruleset.eligibility.maximum_age == 12
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "la generación de plantillas se retiró el 25/10/2026 (ADR 0013): un club nace sin jugadores y la mecánica que decidirá quién juega en él todavía no existe. strict=True a propósito: esta prueba volverá a fallar el día en que haya plantillas, y así nadie se olvida de reactivarla"
+    ),
+)
 def test_d08_una_liga_infantil_genera_personas_de_su_edad(tree):
     world = _world(
         tree,
@@ -233,9 +241,12 @@ def test_d08_una_liga_infantil_genera_personas_de_su_edad(tree):
             "season": {"games_per_club_target": 20, "roster_size": 14},
         },
     )
-    edades = sorted(
-        (WORLD_DATE - person.birth_date).days // 365 for person in world.people.values()
-    )
+    # La edad se mide como la mide el reglamento: años de calendario en la fecha
+    # de corte, que con `season_start` es la del mundo. Dividir días entre 365
+    # —como hacía esta prueba— no es la edad de nadie: a quien le faltan tres
+    # días para cumplir trece le salían trece por los años bisiestos, y la
+    # prueba pasaba o fallaba según qué personas sortease la semilla.
+    edades = sorted(person.age_on(WORLD_DATE) for person in world.people.values())
     assert edades[0] >= 8 and edades[-1] <= 12, f"edades generadas: {edades[0]}-{edades[-1]}"
 
 

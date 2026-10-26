@@ -3,178 +3,42 @@
   import { page } from '$app/stores';
   import { api } from '$lib/api/client';
   import { formatDate, formatPct } from '$lib/format';
-  import ConfidenceTag from '$lib/components/ConfidenceTag.svelte';
   import ErrorNotice from '$lib/components/ErrorNotice.svelte';
 
-  const personId = $derived($page.params.id);
-  let person = $state<any>(null);
-  let error = $state<unknown>(null);
-
-  onMount(async () => {
-    try {
-      person = await api.get<any>(`/people/${personId}`);
-    } catch (err) {
-      error = err;
-    }
-  });
-
-  const GROUP_LABEL: Record<string, string> = {
-    batting: 'Bateo',
-    pitching: 'Pitcheo',
-    fielding: 'Defensa',
-    physical: 'Físico',
-    cognition: 'Cognición'
-  };
-  const ATTR_LABEL: Record<string, string> = {
-    contact: 'contacto', power: 'potencia', discipline: 'disciplina',
-    strikeout_avoidance: 'evitar el ponche', speed: 'velocidad',
-    stuff: 'calidad de lanzamientos', control: 'control', movement: 'movimiento',
-    stamina: 'resistencia', hold_runners: 'control de corredores',
-    range: 'rango', hands: 'manos', arm: 'brazo',
-    durability: 'durabilidad', recovery: 'recuperación', acceleration: 'aceleración',
-    composure: 'temple', competitiveness: 'competitividad', work_ethic: 'trabajo',
-    risk_tolerance: 'tolerancia al riesgo', sociability: 'sociabilidad', learning: 'aprendizaje'
-  };
+  const personId=$derived($page.params.id);
+  const tabs=[['general','General'],['estadisticas','Estadísticas'],['equipos','Historial de equipos'],['logros','Logros'],['perfil','Perfil'],['responsabilidades','Responsabilidades']] as const;
+  let person=$state<any>(null),error=$state<unknown>(null),tab=$state<(typeof tabs)[number][0]>('general');
+  const GROUP_LABEL:Record<string,string>={batting:'Bateo',pitching:'Pitcheo',fielding:'Defensa',physical:'Físico',cognition:'Cognición'};
+  const FUNCTION_LABEL:Record<string,string>={club_ownership:'Propiedad del club',club_representation:'Representación del club'};
+  const achievements=$derived.by(()=>{if(!person)return[];const items:any[]=[];const b=person.batting_totals,p=person.pitching_totals;if(b?.games)items.push({icon:'◆',label:'Debut competitivo',detail:`${b.games} partidos registrados`});if(b?.hits)items.push({icon:'H',label:'Hits de carrera',detail:`${b.hits} imparables`});if(b?.home_runs)items.push({icon:'HR',label:'Poder al bate',detail:`${b.home_runs} jonrones`});if(b?.stolen_bases)items.push({icon:'SB',label:'Velocidad en bases',detail:`${b.stolen_bases} bases robadas`});if(p?.wins)items.push({icon:'W',label:'Victorias como pitcher',detail:`${p.wins} juegos ganados`});if(p?.strikeouts)items.push({icon:'K',label:'Ponches de carrera',detail:`${p.strikeouts} bateadores retirados`});return items});
+  onMount(()=>{api.get<any>(`/people/${personId}`).then((data)=>person=data).catch((err)=>error=err)});
 </script>
 
-<ErrorNotice {error} />
-
+<ErrorNotice {error}/>
 {#if person}
-  <div class="spread" style="margin-bottom:16px">
-    <div>
-      <h1 style="margin-bottom:2px">{person.name}</h1>
-      <p class="muted small" style="margin:0">
-        {person.age} años · {person.primary_position}
-        {#if person.pitcher_role}({person.pitcher_role}){/if}
-        · batea {person.bats} / lanza {person.throws}
-        · {person.height_cm} cm, {person.weight_kg} kg
-        · nacido el {formatDate(person.birth_date)} en {person.origin?.name}
-        {#if person.origin}<ConfidenceTag confidence={person.origin.confidence} />{/if}
-      </p>
-    </div>
-    {#if person.club}
-      <div class="stat">
-        <div class="value" style="font-size:15px">
-          <a href={`/clubes/${person.club.id}`}>{person.club.name}</a>
-        </div>
-        <div class="label">club actual</div>
-      </div>
-    {/if}
-  </div>
+  <header class="person-head"><div class="avatar">{person.given_name?.[0]}{person.surnames?.[0]}</div><div><div class="eyebrow">{person.primary_position?`${person.primary_position}${person.pitcher_role?` · ${person.pitcher_role}`:''}`:'Persona del universo'}</div><h1>{person.name}</h1><p>{person.age} años · {person.origin?.name} {person.club?`· ${person.club.name}`:''}</p></div></header>
+  <nav class="tabs" aria-label="Secciones de la persona">{#each tabs as [value,label]}<button class:active={tab===value} onclick={()=>tab=value}>{label}</button>{/each}</nav>
 
-  <div class="grid sidebar">
-    <div>
-      {#if person.batting_totals}
-        <div class="panel">
-          <h2>Bateo</h2>
-          <table>
-            <thead>
-              <tr>
-                <th class="num">J</th><th class="num">AP</th><th class="num">VB</th>
-                <th class="num">H</th><th class="num">2B</th><th class="num">3B</th>
-                <th class="num">HR</th><th class="num">C</th><th class="num">CP</th>
-                <th class="num">BB</th><th class="num">K</th><th class="num">BR</th>
-                <th class="num">AVG</th><th class="num">OBP</th><th class="num">SLG</th><th class="num">OPS</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="num">{person.batting_totals.games}</td>
-                <td class="num">{person.batting_totals.plate_appearances}</td>
-                <td class="num">{person.batting_totals.at_bats}</td>
-                <td class="num">{person.batting_totals.hits}</td>
-                <td class="num">{person.batting_totals.doubles}</td>
-                <td class="num">{person.batting_totals.triples}</td>
-                <td class="num">{person.batting_totals.home_runs}</td>
-                <td class="num">{person.batting_totals.runs}</td>
-                <td class="num">{person.batting_totals.runs_batted_in}</td>
-                <td class="num">{person.batting_totals.walks}</td>
-                <td class="num">{person.batting_totals.strikeouts}</td>
-                <td class="num">{person.batting_totals.stolen_bases}</td>
-                <td class="num">{formatPct(person.batting_totals.avg)}</td>
-                <td class="num">{formatPct(person.batting_totals.obp)}</td>
-                <td class="num">{formatPct(person.batting_totals.slg)}</td>
-                <td class="num">{formatPct(person.batting_totals.ops)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      {/if}
+  {#if tab==='general'}
+    <div class="grid three"><div class="stat"><div class="value">{person.age}</div><div class="label">años</div></div><div class="stat"><div class="value">{person.height_cm??'—'} cm</div><div class="label">estatura</div></div><div class="stat"><div class="value">{person.weight_kg??'—'} kg</div><div class="label">peso</div></div></div>
+    <div class="grid sidebar" style="margin-top:12px"><section class="panel"><h2>Ficha</h2><div class="detail-list"><div><span>Nacimiento</span><strong>{formatDate(person.birth_date)}</strong></div><div><span>Nacionalidad</span><strong>{person.nationalities?.join(' · ')||'—'}</strong></div><div><span>Posición</span><strong>{person.primary_position??'Sin rol deportivo'}</strong></div><div><span>Posiciones secundarias</span><strong>{person.secondary_positions?.join(' · ')||'—'}</strong></div><div><span>Batea / lanza</span><strong>{person.bats??'—'} / {person.throws??'—'}</strong></div></div></section><section class="panel"><h2>Situación actual</h2>{#if person.club}<a class="current-club" href={`/clubes/${person.club.id}`}><span>Club actual</span><strong>{person.club.name}</strong><small>Ver perfil del equipo →</small></a>{:else}<div class="empty-state compact">Sin club actual</div>{/if}{#if person.scouting?.scouted_potential!=null}<div class="potential"><div class="spread"><span>Proyección de scouting</span><strong>{(person.scouting.scouted_potential*100).toFixed(0)}</strong></div><i style={`width:${person.scouting.scouted_potential*100}%`}></i></div>{/if}</section></div>
+  {:else if tab==='estadisticas'}
+    {#if person.batting_totals}<section><div class="section-title"><div><h2>Bateo de carrera</h2><p>Totales de todos sus partidos.</p></div></div><div class="stat-cards">{#each [['J',person.batting_totals.games],['H',person.batting_totals.hits],['HR',person.batting_totals.home_runs],['CP',person.batting_totals.runs_batted_in],['AVG',formatPct(person.batting_totals.avg)],['OBP',formatPct(person.batting_totals.obp)],['SLG',formatPct(person.batting_totals.slg)],['OPS',formatPct(person.batting_totals.ops)]] as stat}<div class="sport-stat"><strong>{stat[1]}</strong><span>{stat[0]}</span></div>{/each}</div></section>{/if}
+    {#if person.pitching_totals}<section><div class="section-title"><div><h2>Pitcheo de carrera</h2><p>Rendimiento acumulado desde el montículo.</p></div></div><div class="stat-cards">{#each [['J',person.pitching_totals.games],['G',person.pitching_totals.wins],['P',person.pitching_totals.losses],['SV',person.pitching_totals.saves],['IP',person.pitching_totals.innings],['K',person.pitching_totals.strikeouts],['ERA',person.pitching_totals.era],['WHIP',person.pitching_totals.whip]] as stat}<div class="sport-stat"><strong>{stat[1]}</strong><span>{stat[0]}</span></div>{/each}</div></section>{/if}
+    {#if !person.batting_totals&&!person.pitching_totals}<div class="empty-state">Todavía no tiene estadísticas de juego registradas.</div>{/if}
+  {:else if tab==='equipos'}
+    <div class="section-title"><div><h2>Historial de equipos</h2><p>Trayectoria registrada dentro del universo.</p></div></div>
+    {#if person.club_history?.length}<div class="career-line">{#each person.club_history as stage,index}<a class="career-card" href={`/clubes/${stage.club_id}`}><div class="career-marker">{index+1}</div><div><span>{stage.status==='active'?'Etapa actual':'Etapa finalizada'}</span><h2>{stage.club}</h2><p>{formatDate(stage.start_date)} — {stage.end_date?formatDate(stage.end_date):'Actualidad'}</p></div></a>{/each}</div>{:else}<div class="empty-state">No hay equipos registrados en su trayectoria.</div>{/if}
+  {:else if tab==='logros'}
+    <div class="section-title"><div><h2>Logros y marcas</h2><p>Hitos derivados de sus registros reales.</p></div></div>{#if achievements.length}<div class="achievement-grid">{#each achievements as item}<article class="achievement"><div class="medal">{item.icon}</div><div><h2>{item.label}</h2><p>{item.detail}</p></div></article>{/each}</div>{:else}<div class="empty-state">Aún no hay logros deportivos registrados.</div>{/if}
+  {:else if tab==='perfil'}
+    <div class="section-title"><div><h2>Perfil de capacidades</h2><p>Atributos observables y dimensiones personales.</p></div></div>
+    <div class="attribute-grid">{#each Object.entries(person.attributes??{}) as [group,values]}<section class="panel"><h2>{GROUP_LABEL[group]??group}</h2>{#each Object.entries(values as Record<string,number>) as [key,value]}<div class="attribute"><div><span>{key.replaceAll('_',' ')}</span><strong>{value.toFixed(2)}</strong></div><i style={`width:${Math.max(0,Math.min(value*100,100))}%`}></i></div>{/each}</section>{/each}{#each person.universal_profile?.dimensions??[] as dimension}<section class="panel"><h2>{dimension.label}</h2>{#each dimension.attributes as attr}<div class="attribute"><div><span>{attr.label}</span><strong>{attr.value.toFixed(2)}</strong></div><i style={`width:${Math.max(0,Math.min(((attr.value-attr.range[0])/(attr.range[1]-attr.range[0]))*100,100))}%`}></i></div>{/each}</section>{/each}</div>
+  {:else if tab==='responsabilidades'}
+    <div class="section-title"><div><h2>Responsabilidades institucionales</h2><p>Cargos que ha ocupado dentro de los clubes.</p></div></div>{#if person.organization_roles?.length}<div class="role-grid">{#each person.organization_roles as role}<article class="role-card"><span class="tag">{role.status==='active'?'Activo':'Finalizado'}</span><h2>{FUNCTION_LABEL[role.function_code]??role.function_code}</h2><a href={`/clubes/${role.club_id}`}>{role.club}</a><p>{role.unit} · desde {formatDate(role.since)}</p><small>{role.commitment_hours_week} horas por semana</small></article>{/each}</div>{:else}<div class="empty-state">No tiene cargos institucionales registrados.</div>{/if}
+  {/if}
+{:else if !error}<div class="empty-state">Cargando persona…</div>{/if}
 
-      {#if person.pitching_totals}
-        <div class="panel">
-          <h2>Pitcheo</h2>
-          <table>
-            <thead>
-              <tr>
-                <th class="num">J</th><th class="num">JI</th><th class="num">IP</th>
-                <th class="num">H</th><th class="num">C</th><th class="num">CL</th>
-                <th class="num">BB</th><th class="num">K</th><th class="num">HR</th>
-                <th class="num">G</th><th class="num">P</th><th class="num">SV</th>
-                <th class="num">ERA</th><th class="num">WHIP</th><th class="num">K/9</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="num">{person.pitching_totals.games}</td>
-                <td class="num">{person.pitching_totals.games_started}</td>
-                <td class="num">{person.pitching_totals.innings}</td>
-                <td class="num">{person.pitching_totals.hits_allowed}</td>
-                <td class="num">{person.pitching_totals.runs_allowed}</td>
-                <td class="num">{person.pitching_totals.earned_runs}</td>
-                <td class="num">{person.pitching_totals.walks}</td>
-                <td class="num">{person.pitching_totals.strikeouts}</td>
-                <td class="num">{person.pitching_totals.home_runs_allowed}</td>
-                <td class="num">{person.pitching_totals.wins}</td>
-                <td class="num">{person.pitching_totals.losses}</td>
-                <td class="num">{person.pitching_totals.saves}</td>
-                <td class="num">{person.pitching_totals.era}</td>
-                <td class="num">{person.pitching_totals.whip}</td>
-                <td class="num">{person.pitching_totals.k_per_9}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      {/if}
-
-      {#if !person.batting_totals && !person.pitching_totals}
-        <div class="panel">
-          <p class="muted small">
-            Todavía no ha jugado ningún partido, así que no hay estadísticas. No
-            se muestran números inventados.
-          </p>
-        </div>
-      {/if}
-    </div>
-
-    <div>
-      <div class="panel">
-        <h2>Informe de scouting</h2>
-        <div class="stat" style="margin-bottom:10px">
-          <div class="value">{person.scouting.scouted_potential?.toFixed(2)}</div>
-          <div class="label">proyección observada</div>
-        </div>
-        <p class="small muted">{person.scouting.note}</p>
-      </div>
-
-      {#each Object.entries(person.attributes) as [group, values]}
-        <div class="panel">
-          <h2>{GROUP_LABEL[group] ?? group}</h2>
-          {#each Object.entries(values as Record<string, number>) as [key, value]}
-            <div style="margin-bottom:6px">
-              <div class="spread small">
-                <span>{ATTR_LABEL[key] ?? key}</span>
-                <span class="mono">{value.toFixed(2)}</span>
-              </div>
-              <div style="height:4px;background:var(--panel-2);border-radius:2px;overflow:hidden">
-                <div style={`height:100%;width:${Math.round(value * 100)}%;background:var(--accent)`}></div>
-              </div>
-            </div>
-          {/each}
-        </div>
-      {/each}
-    </div>
-  </div>
-{:else if !error}
-  <p class="muted">Cargando persona…</p>
-{/if}
+<style>
+  .person-head{display:flex;align-items:center;gap:14px;padding:12px 0}.avatar{display:grid;place-items:center;width:54px;height:54px;border-radius:50%;background:linear-gradient(145deg,var(--accent),var(--accent-strong));font-size:18px;font-weight:800}.person-head h1{margin:2px 0}.person-head p{margin:0;color:var(--muted);font-size:12px}.detail-list{display:grid}.detail-list>div{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12px}.detail-list span{color:var(--muted)}.current-club{display:flex;flex-direction:column;padding:14px;color:var(--text);text-decoration:none;background:var(--panel-2);border:1px solid var(--line);border-radius:10px}.current-club span,.current-club small{color:var(--muted);font-size:9px;text-transform:uppercase}.current-club strong{font-size:17px;margin:3px 0}.potential{margin-top:16px}.potential i,.attribute i{display:block;height:4px;margin-top:7px;background:linear-gradient(90deg,var(--accent),var(--accent-2));border-radius:5px}.stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px}.sport-stat{padding:14px;background:var(--panel);border:1px solid var(--line);border-radius:9px}.sport-stat strong,.sport-stat span{display:block}.sport-stat strong{font:800 20px var(--mono)}.sport-stat span{margin-top:4px;color:var(--muted);font-size:9px}.career-line{display:grid;gap:8px;border-left:1px solid var(--line);margin-left:15px;padding-left:22px}.career-card{position:relative;display:flex;gap:14px;padding:14px;color:var(--text);text-decoration:none;background:var(--panel);border:1px solid var(--line);border-radius:10px}.career-marker{position:absolute;left:-38px;top:18px;display:grid;place-items:center;width:29px;height:29px;border-radius:50%;background:var(--accent-soft);border:1px solid var(--accent);font-size:10px}.career-card span{font-size:9px;color:var(--accent-2);text-transform:uppercase}.career-card h2{margin:2px 0}.career-card p{margin:0;color:var(--muted);font-size:11px}.achievement-grid,.role-grid,.attribute-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px}.achievement{display:flex;align-items:center;gap:13px;padding:16px;background:var(--panel);border:1px solid var(--line);border-radius:10px}.medal{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:rgba(198,243,107,.09);border:1px solid rgba(198,243,107,.28);color:var(--accent-2);font:800 12px var(--mono)}.achievement h2,.achievement p{margin:0}.achievement p,.role-card p,.role-card small{color:var(--muted);font-size:11px}.attribute>div{display:flex;justify-content:space-between;font-size:11px}.attribute{margin-top:11px}.role-card{padding:15px;background:var(--panel);border:1px solid var(--line);border-radius:10px}.role-card h2{margin:10px 0 2px}.compact{padding:18px}@media(max-width:650px){.detail-list>div{display:block}.detail-list strong{display:block;margin-top:2px}}
+</style>

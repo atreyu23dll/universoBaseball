@@ -1,17 +1,10 @@
-# Dos etapas: se compila con las dependencias de desarrollo y se sirve solo el
-# resultado con el adaptador de Node.
-FROM node:22-alpine AS build
+# Imagen de desarrollo: Vite sirve directamente el código montado y aplica HMR.
+# Las dependencias quedan dentro del contenedor para no mezclar node_modules
+# del host con los binarios de Alpine.
+FROM node:22-alpine
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
-RUN npm run build
-
-FROM node:22-alpine AS run
-WORKDIR /app
-ENV NODE_ENV=production
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --omit=dev --no-audit --no-fund
-COPY --from=build /app/build ./build
 EXPOSE 5173
-CMD ["node", "build"]
+CMD ["npm", "run", "dev"]

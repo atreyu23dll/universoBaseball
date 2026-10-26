@@ -4,8 +4,9 @@
   import { api } from '$lib/api/client';
   import type { Dashboard, SimStatus } from '$lib/api/types';
   import { formatDate, formatNumber, KIND_LABEL, SCOPE_LABEL } from '$lib/format';
-  import Crest from '$lib/components/Crest.svelte';
   import ErrorNotice from '$lib/components/ErrorNotice.svelte';
+  import WorldClock from '$lib/components/WorldClock.svelte';
+  import MatchTicker from '$lib/components/MatchTicker.svelte';
 
   const universeId = $derived($page.params.id);
 
@@ -13,6 +14,10 @@
   let status = $state<SimStatus | null>(null);
   let error = $state<unknown>(null);
   let advancing = $state(false);
+  let newsVisible = $state(8);
+  let resultsVisible = $state(8);
+  let newsSentinel = $state<HTMLDivElement>();
+  let resultsSentinel = $state<HTMLDivElement>();
   let poller: ReturnType<typeof setInterval> | null = null;
 
   async function loadDashboard() {
@@ -72,6 +77,16 @@
     if (status?.busy) startPolling();
   });
   onDestroy(stopPolling);
+  $effect(() => {
+    const targets = [[newsSentinel, () => newsVisible += 8], [resultsSentinel, () => resultsVisible += 8]] as const;
+    const observers = targets.flatMap(([element, more]) => {
+      if (!element) return [];
+      const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) more(); }, { rootMargin: '180px' });
+      observer.observe(element);
+      return [observer];
+    });
+    return () => observers.forEach((observer) => observer.disconnect());
+  });
 </script>
 
 {#if dashboard}
@@ -79,8 +94,7 @@
     <div>
       <h1>{dashboard.universe.name}</h1>
       <p class="muted small" style="margin:0">
-        Fecha del mundo <strong>{formatDate(dashboard.universe.world_date)}</strong>
-        · semilla <span class="mono">{dashboard.universe.master_seed}</span>
+        Semilla <span class="mono">{dashboard.universe.master_seed}</span>
         · motor <span class="mono">{dashboard.universe.sim_version}</span>
         · fixture geográfico <span class="mono">{dashboard.universe.fixture_version}</span>
       </p>
@@ -94,20 +108,9 @@
 
   <ErrorNotice {error} />
 
-  <div class="panel">
-    <div class="spread">
-      <div>
-        <h3 style="margin-bottom:6px">Reloj del mundo</h3>
-        <div class="row">
-          <button onclick={() => advance(1)} disabled={advancing}>+1 día</button>
-          <button onclick={() => advance(7)} disabled={advancing}>+1 semana</button>
-          <button onclick={() => advance(30)} disabled={advancing}>+30 días</button>
-          <button class="ghost" onclick={() => advance(1, true)} disabled={advancing}>
-            Hasta fin de temporada
-          </button>
-        </div>
-      </div>
-      <div class="row">
+  <WorldClock date={dashboard.universe.world_date} busy={advancing || status?.busy} job={status?.job} onadvance={advance} />
+
+  <div class="universe-stats">
         <div class="stat">
           <div class="value">{formatNumber(dashboard.counts.games_played)}</div>
           <div class="label">partidos jugados</div>
@@ -124,39 +127,13 @@
           <div class="value">{formatNumber(dashboard.counts.people)}</div>
           <div class="label">personas</div>
         </div>
-      </div>
-    </div>
-
-    {#if status?.job}
-      <div class="notice info" style="margin-top:14px">
-        Trabajo <span class="mono">{status.job.id.slice(0, 8)}</span>:
-        <strong>{status.job.status}</strong>
-        — {status.job.progress.days_done}/{status.job.progress.days_requested} días,
-        {status.job.progress.games_played} partidos simulados.
-        {#if status.job.progress.transitions_applied}
-          Se cerraron {status.job.progress.transitions_applied} temporada(s) con
-          {status.job.progress.club_movements} clubes cambiando de categoría.
-        {/if}
-        {#if status.job.progress.clubs_settled}
-          {status.job.progress.clubs_settled} club(es) liquidaron su temporada{#if status.job.progress.clubs_folded}
-            y {status.job.progress.clubs_folded} dejaron de existir por no poder
-            cubrir sus obligaciones{/if}.
-        {/if}
-        {#if status.job.progress.seasons_opened}
-          {status.job.progress.seasons_opened} temporada(s) nueva(s) con calendario.
-        {/if}
-        {#if status.job.error}<br /><span style="color:var(--danger)">{status.job.error}</span>{/if}
-        {#if status.job.progress.notes.length}
-          <br /><span class="muted">{status.job.progress.notes.join(' · ')}</span>
-        {/if}
-      </div>
-    {/if}
   </div>
+  <MatchTicker games={dashboard.today} label={`Partidos · ${formatDate(dashboard.universe.world_date)}`} />
 
   <div class="grid sidebar">
     <div>
       <div class="panel">
-        <h2>Competiciones</h2>
+        <div class="section-title"><div><h2>Ligas</h2><p class="small">Elige una liga y entra a su temporada activa.</p></div></div>
         {#if dashboard.competitions.length === 0}
           <p class="muted small">
             Ninguna todavía. El único acto creativo necesario es definir una
@@ -164,93 +141,21 @@
           </p>
           <a class="button" href={`/universos/${universeId}/crear-liga`}>Crear la primera</a>
         {:else}
-          <table>
-            <thead>
-              <tr>
-                <th>Competición</th>
-                <th>Tipo</th>
-                <th>Alcance</th>
-                <th>Relación</th>
-                <th>Ediciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each dashboard.competitions as competition (competition.id)}
-                <tr>
-                  <td>{competition.name}</td>
-                  <td class="small">{KIND_LABEL[competition.kind] ?? competition.kind}</td>
-                  <td class="small">{SCOPE_LABEL[competition.scope_level] ?? competition.scope_level}</td>
-                  <td>
-                    <span class={competition.relationship_mode === 'independent' ? 'tag accent' : 'tag warn'}>
-                      {competition.relationship_mode === 'independent' ? 'independiente' : 'dependiente'}
-                    </span>
-                    {#if competition.mobility}
-                      <div class="small muted">
-                        {competition.mobility.role === 'upper' ? 'desciende' : 'asciende'}
-                        {competition.mobility.slots} con {competition.mobility.with.join(', ')}
-                      </div>
-                    {/if}
-                  </td>
-                  <td class="small">
-                    {#if competition.editions.length === 0}
-                      <span class="muted">sin generar</span>
-                    {:else}
-                      {#each competition.editions as edition (edition.id)}
-                        <div>
-                          <a href={`/ediciones/${edition.id}`}>{edition.year}</a>
-                          <span class="tag">{edition.stage}</span>
-                          {#if edition.champion}
-                            <span class="tag accent">campeón: {edition.champion}</span>
-                          {/if}
-                        </div>
-                      {/each}
-                    {/if}
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        {/if}
-      </div>
-
-      <div class="panel">
-        <h2>Partidos del día {formatDate(dashboard.universe.world_date)}</h2>
-        {#if dashboard.today.length === 0}
-          <p class="muted small">No hay nada programado para hoy.</p>
-        {:else}
-          <table>
-            <tbody>
-              {#each dashboard.today as game (game.id)}
-                <tr>
-                  <td>
-                    <div class="scorebox">
-                      {#if game.away}
-                        <Crest primary={game.away.primary_color} secondary={game.away.secondary_color}
-                               shape={game.away.crest_shape} motif={game.away.crest_motif} size={20} />
-                        <span>{game.away.short_name}</span>
-                      {/if}
-                      <span class="score">{game.away_score ?? '–'}</span>
-                      <span class="muted">en</span>
-                      {#if game.home}
-                        <Crest primary={game.home.primary_color} secondary={game.home.secondary_color}
-                               shape={game.home.crest_shape} motif={game.home.crest_motif} size={20} />
-                        <span>{game.home.short_name}</span>
-                      {/if}
-                      <span class="score">{game.home_score ?? '–'}</span>
-                    </div>
-                  </td>
-                  <td class="small muted">{game.stage === 'playoffs' ? `postemporada ${game.series_key}` : ''}</td>
-                  <td style="text-align:right">
-                    {#if game.state === 'final'}
-                      <a class="small" href={`/partidos/${game.id}`}>ver resumen</a>
-                    {:else}
-                      <span class="tag">programado</span>
-                    {/if}
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
+          <div class="card-grid">
+            {#each dashboard.competitions as competition (competition.id)}
+              {@const activeEdition = competition.editions.at(-1)}
+              <a class="entity-card" href={activeEdition ? `/ediciones/${activeEdition.id}` : `/universos/${universeId}/crear-liga`}>
+                <div class="spread"><div class="icon-box">⚾</div><span class={competition.relationship_mode === 'independent' ? 'tag accent' : 'tag warn'}>{competition.relationship_mode === 'independent' ? 'Independiente' : 'Sistema de ligas'}</span></div>
+                <h2>{competition.name}</h2>
+                <p class="small muted">{KIND_LABEL[competition.kind] ?? competition.kind} · {SCOPE_LABEL[competition.scope_level] ?? competition.scope_level}</p>
+                <div class="card-meta">
+                  <div><strong>{competition.editions.length}</strong><span>Ediciones</span></div>
+                  <div><strong>{activeEdition?.year ?? '—'}</strong><span>Temporada</span></div>
+                  <div><strong>{activeEdition?.stage === 'completed' ? 'Final' : 'Activa'}</strong><span>Estado</span></div>
+                </div>
+              </a>
+            {/each}
+          </div>
         {/if}
       </div>
 
@@ -259,23 +164,23 @@
         {#if dashboard.recent_results.length === 0}
           <p class="muted small">Todavía no se ha jugado nada. Avanza el reloj.</p>
         {:else}
-          <table>
-            <tbody>
-              {#each dashboard.recent_results as game (game.id)}
-                <tr>
-                  <td class="small muted">{formatDate(game.game_date)}</td>
-                  <td>
+          <div class="feed-list">
+              {#each dashboard.recent_results.slice(0, resultsVisible) as game (game.id)}
+                <div class="game-card">
+                  <div class="small muted">{formatDate(game.game_date)}</div>
+                  <div>
                     <a href={`/partidos/${game.id}`}>
                       {game.away?.short_name} {game.away_score} – {game.home_score} {game.home?.short_name}
                     </a>
                     {#if (game.innings_played ?? 9) > 9}
                       <span class="tag">{game.innings_played} entradas</span>
                     {/if}
-                  </td>
-                </tr>
+                  </div>
+                  <span class="tag accent">Final</span>
+                </div>
               {/each}
-            </tbody>
-          </table>
+          </div>
+          <div bind:this={resultsSentinel} class="infinite-sentinel">{resultsVisible < dashboard.recent_results.length ? 'Cargando más resultados…' : 'Resultados recientes completos'}</div>
         {/if}
       </div>
     </div>
@@ -286,16 +191,15 @@
         {#if dashboard.news.length === 0}
           <p class="muted small">Sin noticias: el mundo no ha pasado nada todavía.</p>
         {:else}
-          {#each dashboard.news as item}
-            <div style="padding:8px 0; border-bottom:1px solid var(--line)">
+          <div class="news-feed">
+          {#each dashboard.news.slice(0, newsVisible) as item}
+            <article class="news-card">
               <div class="small muted mono">{formatDate(item.world_date)}</div>
               <div class="small">{item.headline}</div>
-            </div>
+            </article>
           {/each}
-          <p class="small muted" style="margin-top:10px">
-            Cada titular se deriva de un evento que el motor registró. Ninguno se
-            inventa.
-          </p>
+          </div>
+          <div bind:this={newsSentinel} class="infinite-sentinel">{newsVisible < dashboard.news.length ? 'Cargando más acontecimientos…' : 'Acontecimientos al día'}</div>
         {/if}
       </div>
       <div class="panel">
@@ -311,3 +215,7 @@
   <ErrorNotice {error} />
   {#if !error}<p class="muted">Cargando universo…</p>{/if}
 {/if}
+
+<style>
+  .universe-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 14px}.news-feed{display:grid;gap:7px}.news-card{padding:10px 11px;background:var(--panel-2);border:1px solid var(--line);border-radius:9px}.news-card div+div{margin-top:3px}@media(max-width:700px){.universe-stats{grid-template-columns:1fr 1fr}}
+</style>

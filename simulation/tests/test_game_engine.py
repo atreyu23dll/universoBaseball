@@ -22,6 +22,11 @@ from simulation.baseball.runner import play_scheduled_game
 from simulation.competitions.ruleset import RuleSet, SeasonRules
 from simulation.core.errors import InvariantViolation
 from simulation.tests.conftest import MUNICIPAL, WORLD_DATE, build_world
+from simulation.tests.factories import roster_for
+
+#: Las plantillas las construye la prueba: el mundo ya no genera jugadores
+#: (ADR 0013). El motor sigue teniendo su red de seguridad.
+ROSTERS = {"a": roster_for("club-a", seed=11), "b": roster_for("club-b", seed=22)}
 
 
 def _play(world, home_index: int, away_index: int, seed: int, season: SeasonRules | None = None):
@@ -29,8 +34,8 @@ def _play(world, home_index: int, away_index: int, seed: int, season: SeasonRule
     away = world.clubs[away_index]
     return simulate_game(
         game_key=f"g{seed}",
-        home=TeamGameInput(home, {k: world.people[k] for k in home.roster}),
-        away=TeamGameInput(away, {k: world.people[k] for k in away.roster}),
+        home=TeamGameInput(home, ROSTERS["a"]),
+        away=TeamGameInput(away, ROSTERS["b"]),
         venue=home.venue,
         season=season or SeasonRules(games_per_club_target=44),
         rates=LeagueRates.for_level(world.context.level),
@@ -182,8 +187,8 @@ def test_el_parque_influye_de_verdad_en_los_jonrones(municipal_world):
             away = municipal_world.clubs[1]
             result = simulate_game(
                 game_key=f"park{seed}",
-                home=TeamGameInput(home, {k: municipal_world.people[k] for k in home.roster}),
-                away=TeamGameInput(away, {k: municipal_world.people[k] for k in away.roster}),
+                home=TeamGameInput(home, ROSTERS["a"]),
+                away=TeamGameInput(away, ROSTERS["b"]),
                 venue=home.venue,
                 season=SeasonRules(games_per_club_target=44),
                 rates=LeagueRates.for_level(0.5),
@@ -208,7 +213,7 @@ def test_los_mejores_bateadores_rinden_mejor(municipal_world):
                 acumulado[0] += line.hits
                 acumulado[1] += line.at_bats
 
-    gente = municipal_world.people
+    gente = {**ROSTERS["a"], **ROSTERS["b"]}
     muestras = [
         (gente[key].batting.contact, hits / ab)
         for key, (hits, ab) in totales.items()
@@ -240,8 +245,8 @@ def test_el_clima_y_el_parque_reales_tambien_producen_partidos_validos(tree):
             game_date=WORLD_DATE,
             home_club=home,
             away_club=away,
-            home_roster={k: world.people[k] for k in home.roster},
-            away_roster={k: world.people[k] for k in away.roster},
+            home_roster=ROSTERS["a"],
+            away_roster=ROSTERS["b"],
             season=ruleset.season,
             professionalization=world.context.level,
         )

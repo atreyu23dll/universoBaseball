@@ -52,6 +52,18 @@ def person_attributes_to_json(person: Person) -> dict:
 
 
 def person_row_to_domain(row: m.Person, origin_place_key: str) -> Person:
+    """Reconstruye a un **jugador** desde su fila, para el motor de partidos.
+
+    Desde que una persona puede existir sin oficio deportivo, esto no vale para
+    cualquiera: alguien sin posición ni atributos de béisbol no es un jugador y
+    no puede entrar en una alineación. Se dice aquí, donde se ve la causa, en
+    vez de fallar más adentro con un `None` inesperado.
+    """
+    if row.primary_position is None or row.overall is None or not row.attributes:
+        raise ValueError(
+            f"{row.given_name} {row.surnames} no tiene perfil deportivo: es una persona "
+            "del universo, no un jugador, y no puede alinearse"
+        )
     a = row.attributes
     fielding = a["fielding"]
     return Person(

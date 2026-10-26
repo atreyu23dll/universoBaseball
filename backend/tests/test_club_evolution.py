@@ -10,12 +10,16 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import pytest
 from app.application import club_evolution_service
 from app.infrastructure import models as m
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from backend.tests.conftest import create_league
+
+#: Causa compartida de las pruebas que necesitan jugadores para funcionar.
+SIN_PLANTILLAS = "la generación de plantillas se retiró el 25/10/2026 (ADR 0013): un club nace sin jugadores, así que no hay partidos que simular y el avance del reloj falla con ROSTERS_MISSING. strict=True a propósito: esta prueba volverá a fallar el día en que exista la mecánica de selección, y así nadie se olvida de reactivarla"
 
 LIGA_CORTA = {
     "name": "Liga Corta de Juárez",
@@ -41,6 +45,7 @@ def _advance_to_season_end(client: TestClient, universe_id: str, key: str) -> di
     return status["job"]["progress"]
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_p5_01_cada_temporada_cerrada_deja_su_libro_mayor(
     client: TestClient, universe: dict
 ) -> None:
@@ -95,6 +100,7 @@ def test_p5_01_cada_temporada_cerrada_deja_su_libro_mayor(
     assert liga["edition_id"]
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_p5_02_liquidar_dos_veces_la_misma_temporada_es_imposible(
     client: TestClient, universe: dict, session
 ) -> None:
@@ -133,6 +139,7 @@ def test_p5_02_liquidar_dos_veces_la_misma_temporada_es_imposible(
     assert {f.club_id: (f.cash_end, f.debt_end) for f in despues} == saldos
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_p5_03_dos_temporadas_sin_cubrir_sus_obligaciones_cierran_un_club(
     client: TestClient, universe: dict, session
 ) -> None:
@@ -188,6 +195,7 @@ def test_p5_03_dos_temporadas_sin_cubrir_sus_obligaciones_cierran_un_club(
     assert club_id not in {e.club_id for e in inscritos}
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_p5_04_evolucionar_no_reinicia_la_identidad(client: TestClient, universe: dict) -> None:
     """La afición y la organización cambian; el club sigue siendo el mismo."""
     create_league(client, universe["id"], LIGA_CORTA)
@@ -225,6 +233,7 @@ def test_p5_04_evolucionar_no_reinicia_la_identidad(client: TestClient, universe
     )
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_p5_05_la_ficha_cuenta_la_historia_institucional(
     client: TestClient, universe: dict
 ) -> None:
@@ -247,6 +256,7 @@ def test_p5_05_la_ficha_cuenta_la_historia_institucional(
         assert cambio["before"] != cambio["after"] or cambio["field"] == "fan_base"
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_p5_07_el_presupuesto_del_año_siguiente_responde_a_lo_que_pasó(
     client: TestClient, universe: dict, session
 ) -> None:
@@ -310,6 +320,7 @@ def test_p5_07_el_presupuesto_del_año_siguiente_responde_a_lo_que_pasó(
     assert any(nota["field"] == "local_share" for nota in procedencias[0]["notes"])
 
 
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_p5_06_la_taquilla_del_cierre_sale_de_los_partidos_jugados(
     client: TestClient, universe: dict, session
 ) -> None:
@@ -339,3 +350,71 @@ def test_p5_06_la_taquilla_del_cierre_sale_de_los_partidos_jugados(
         )
         assert jugados, "si hay taquilla, hubo partidos en casa"
         assert Decimal(taquilla[0]["amount"]) > 0
+
+
+@pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
+def test_p5_08_mejorar_de_sede_rehace_el_recinto(
+    client: TestClient, universe: dict, session
+) -> None:
+    """Si el club cambia de terreno, sus gradas cambian con él.
+
+    Regresión demostrada en un universo real: tres clubes habían mejorado de
+    sede —`public_shared → rented`, `school_facility → rented`,
+    `rented → owned`, con su evento y su causa en el histórico— y seguían
+    jugando en el recinto de antes, con el aforo tope del acuerdo que ya no
+    tenían. La fila de `venues` se escribía al crear la edición y nunca se
+    volvía a tocar, así que la mejora era puramente nominal.
+    """
+    create_league(client, universe["id"], LIGA_CORTA)
+    _advance_to_season_end(client, universe["id"], "p5-08")
+
+    from app.application.competition_service import load_place_tree
+
+    from simulation.economy.model import VenueAgreement
+
+    club = session.scalars(
+        select(m.Club)
+        .where(m.Club.universe_id == universe["id"], m.Club.status == "active")
+        .order_by(m.Club.club_key)
+    ).first()
+    assert club is not None
+    venue = session.scalars(select(m.Venue).where(m.Venue.club_id == club.id)).first()
+    assert venue is not None
+    dimensiones = dict(venue.dimensions)
+
+    # Afición grande a propósito: con ella el acuerdo de sede es lo que limita
+    # las gradas, que es justo la situación en la que el defecto se veía.
+    club.fan_base = 60_000
+    session.flush()
+
+    edicion = session.scalars(
+        select(m.CompetitionEdition)
+        .where(m.CompetitionEdition.universe_id == universe["id"])
+        .order_by(m.CompetitionEdition.year)
+    ).first()
+    assert edicion is not None
+    arbol = load_place_tree(session, universe["id"])
+
+    def mudanza(sede: VenueAgreement) -> int:
+        cambio = club_evolution_service._resize_venue(
+            session, session.get(m.Universe, universe["id"]), club, edicion, arbol, sede
+        )
+        assert cambio is not None, "el recinto se recalcula cuando cambia la sede"
+        assert cambio["basis"], "el aforo nuevo viene con su causa escrita"
+        session.flush()
+        session.expire_all()
+        fila = session.scalars(select(m.Venue).where(m.Venue.club_id == club.id)).first()
+        assert fila is not None
+        assert fila.capacity == cambio["after"]["capacity"], "la fila de venues se actualiza"
+        return fila.capacity
+
+    prestado = mudanza(VenueAgreement.PUBLIC_SHARED)
+    propio = mudanza(VenueAgreement.OWNED)
+    assert propio > prestado, (
+        f"pasó a un recinto propio y las gradas no crecieron: {prestado} → {propio}"
+    )
+
+    # Las dimensiones del terreno no se tocan: cambiar de sede no redibuja un
+    # campo que ya existía en el mundo.
+    final = session.scalars(select(m.Venue).where(m.Venue.club_id == club.id)).first()
+    assert final is not None and dict(final.dimensions) == dimensiones

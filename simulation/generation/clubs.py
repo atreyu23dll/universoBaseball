@@ -27,7 +27,7 @@ from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
 
-from simulation.competitions.ruleset import RuleSet
+from simulation.competitions.ruleset import RuleSet, UniversityParticipant
 from simulation.core.provenance import Confidence, GenerationRecord
 from simulation.core.rng import clamped_normal, rng_for, weighted_choice
 from simulation.economy.club_finances import ClubEconomicContext, estimate_club_finances
@@ -45,7 +45,6 @@ from simulation.generation.organization import (
     assign_roles,
     generate_organization,
 )
-from simulation.generation.people import PoolMember, roster_plan
 from simulation.generation.venues import generate_venue
 from simulation.geography.distance import haversine_km
 from simulation.organizations.model import (
@@ -56,7 +55,6 @@ from simulation.organizations.model import (
     InstitutionalType,
     Reputation,
 )
-from simulation.people.model import Position
 
 PROCEDURE_VERSION = "clubs/1.0.0"
 
@@ -160,11 +158,40 @@ def allocate_slots(
     return assigned
 
 
+def allocate_university_slots(
+    participants: list[UniversityParticipant],
+    markets: list[MarketProfile],
+    record: GenerationRecord,
+) -> list[MarketProfile]:
+    """Asocia cada universidad real al mercado elegible más próximo.
+
+    Las instituciones no se sortean ni se duplican: vienen en el orden
+    congelado del catálogo. El mercado cercano solo aporta el contexto local
+    que el motor ya usa para instalaciones, viajes y cuentas.
+    """
+    assigned: list[MarketProfile] = []
+    for institution in participants:
+        market = min(
+            markets,
+            key=lambda candidate: haversine_km(
+                institution.lat, institution.lon, candidate.lat, candidate.lon
+            ),
+        )
+        assigned.append(market)
+        record.note(
+            f"university_market[{institution.catalog_id}]",
+            market.place_key,
+            Confidence.OBSERVED,
+            f"{institution.name} ({institution.source}:{institution.source_id}) se asocia "
+            f"al mercado elegible más cercano, {market.place_name}",
+        )
+    return assigned
+
+
 @dataclass
 class ClubGeneration:
     clubs: list[Club]
     records: list[GenerationRecord]
-    unsigned: list[PoolMember]
 
 
 def generate_clubs(
@@ -175,11 +202,12 @@ def generate_clubs(
     registry: NameRegistry,
     world_date: date,
 ) -> ClubGeneration:
-    """Crea las instituciones de la competición. No reparte jugadores todavía.
+    """Crea las instituciones de la competición.
 
-    El reparto de plantillas (`assign_rosters`) se hace después, cuando la
-    población deportiva ya existe: su calidad depende del nivel efectivo, y el
-    nivel efectivo depende de estas cuentas.
+    No reparte jugadores, y ya no existe nada que lo haga: la generación de
+    plantillas se retiró el 25/10/2026 (ADR 0013). Un club nace con su
+    identidad, su gobierno, su sede y sus cuentas; quién juega en él lo decidirá
+    la mecánica de selección cuando se defina.
     """
     allocation_record = GenerationRecord(
         entity_kind="slot_allocation",
@@ -188,8 +216,19 @@ def generate_clubs(
         procedure_version=PROCEDURE_VERSION,
         seed=master_seed,
     )
-    slots = allocate_slots(
-        master_seed, edition_key, context.eligible_markets, ruleset, allocation_record
+    university_participants = (
+        list(ruleset.education.universities)
+        if ruleset.requires_real_universities and ruleset.education is not None
+        else []
+    )
+    slots = (
+        allocate_university_slots(
+            university_participants, context.eligible_markets, allocation_record
+        )
+        if university_participants
+        else allocate_slots(
+            master_seed, edition_key, context.eligible_markets, ruleset, allocation_record
+        )
     )
 
     clubs: list[Club] = []
@@ -239,7 +278,14 @@ def generate_clubs(
     # Primera pasada: quién es cada institución. Hace falta conocer a todas
     # antes de repartir la bolsa publicitaria y los socios de cada mercado.
     preparados: list[
-        tuple[int, MarketProfile, random.Random, GenerationRecord, OrganizationProfile]
+        tuple[
+            int,
+            MarketProfile,
+            random.Random,
+            GenerationRecord,
+            OrganizationProfile,
+            UniversityParticipant | None,
+        ]
     ] = []
     for index, market in enumerate(slots):
         rng = rng_for(master_seed, "club", edition_key, index)
@@ -250,32 +296,61 @@ def generate_clubs(
             procedure_version=PROCEDURE_VERSION,
             seed=master_seed,
         )
-        organization = generate_organization(rng, ruleset, market, pools[market.place_key], record)
-        preparados.append((index, market, rng, record, organization))
+        participant = university_participants[index] if university_participants else None
+        organization = (
+            _university_organization()
+            if participant
+            else generate_organization(rng, ruleset, market, pools[market.place_key], record)
+        )
+        if participant:
+            record.note(
+                "real_institution",
+                participant.name,
+                Confidence.OBSERVED,
+                f"equipo universitario real de {participant.source}:{participant.source_id}; "
+                "esta plaza no se generó al azar",
+                catalog_id=participant.catalog_id,
+            )
+        preparados.append((index, market, rng, record, organization, participant))
 
     # Alcance total por mercado: el divisor exacto de los recursos locales.
     reach_total: dict[str, float] = {}
-    for _, market, _, _, organization in preparados:
+    for _, market, _, _, organization, _ in preparados:
         reach_total[market.place_key] = (
             reach_total.get(market.place_key, 0.0) + organization.community_reach
         )
 
     # Segunda pasada: sede, base social y cuentas de cada club.
-    for index, market, rng, record, organization in preparados:
+    for index, market, rng, record, organization, participant in preparados:
         pool = pools[market.place_key]
         total_reach = max(0.05, reach_total[market.place_key])
         sponsorship_months = pool.sponsorship_share(organization.community_reach, total_reach)
         affiliable = pool.affiliation_share(organization.community_reach, total_reach)
 
-        institutional_type = _GOVERNANCE_TO_INSTITUTION[organization.governance]
+        institutional_type = (
+            InstitutionalType.UNIVERSITY
+            if participant
+            else _GOVERNANCE_TO_INSTITUTION[organization.governance]
+        )
         record.note(
             "institutional_type",
             str(institutional_type),
-            Confidence.FICTIONAL,
-            f"lectura del modelo de gobierno {organization.governance} que el club se dio",
+            Confidence.OBSERVED if participant else Confidence.FICTIONAL,
+            (
+                f"universidad real seleccionada del catálogo: {participant.name}"
+                if participant
+                else f"lectura del modelo de gobierno {organization.governance} que el club se dio"
+            ),
         )
 
-        name, nickname, short = club_name(rng, registry, market.place_name, str(institutional_type))
+        if participant:
+            name = registry.claim(participant.name)
+            nickname = "Béisbol"
+            short = _university_short_name(participant.name)
+        else:
+            name, nickname, short = club_name(
+                rng, registry, market.place_name, str(institutional_type)
+            )
 
         # Base social: gente de la zona que sigue al club. Sale de su alcance
         # comunitario y de la cultura local, nunca del dinero. Se calcula
@@ -441,14 +516,34 @@ def generate_clubs(
                 resource_multiplier=multiplicador,
                 organization=organization,
                 history_note=(
-                    f"Fundado en {founded} en {market.place_name}. "
+                    f"Programa de béisbol de {participant.name}, institución real "
+                    f"({participant.source}:{participant.source_id}) asociada a {market.place_name}."
+                    if participant
+                    else f"Fundado en {founded} en {market.place_name}. "
                     f"{_governance_sentence(organization)}"
                 ),
             )
         )
         records.append(record)
 
-    return ClubGeneration(clubs=clubs, records=records, unsigned=[])
+    return ClubGeneration(clubs=clubs, records=records)
+
+
+def _university_organization() -> OrganizationProfile:
+    """La institución ya existe; no se sortea su forma de gobierno."""
+    return OrganizationProfile(
+        governance=GovernanceModel.SCHOOL_PROGRAM,
+        venue_agreement=VenueAgreement.SCHOOL_FACILITY,
+        ambition=0.5,
+        risk_tolerance=0.25,
+        community_reach=0.45,
+    )
+
+
+def _university_short_name(name: str) -> str:
+    words = [word for word in name.replace("-", " ").split() if word]
+    initials = "".join(word[0].upper() for word in words if word[0].isalnum())
+    return initials[:12] if len(initials) >= 2 else name[:20]
 
 
 def _governance_sentence(organization: OrganizationProfile) -> str:
@@ -496,90 +591,3 @@ def mean_trip_km(slots: list[MarketProfile]) -> float:
             total += haversine_km(a.lat, a.lon, b.lat, b.lon)
             pares += 1
     return round(total / max(1, pares), 1)
-
-
-def _pick_order(
-    master_seed: int, edition_key: str, round_index: int, clubs: list[Club]
-) -> list[Club]:
-    """Orden de elección de una ronda del draft, ponderado por recursos.
-
-    Ni estrictamente por presupuesto (entonces el club más rico gana la liga en
-    la generación y el deporte sobra) ni en serpiente pura (entonces el
-    presupuesto no significa nada). Es un muestreo sin reemplazo con peso
-    `recursos^1.6`: el club rico elige antes la mayoría de las veces, no
-    siempre.
-    """
-    rng = rng_for(master_seed, "draft_order", edition_key, round_index)
-    remaining = list(clubs)
-    order: list[Club] = []
-    while remaining:
-        weights = [(club, club.resource_multiplier**1.6) for club in remaining]
-        chosen = weighted_choice(rng, weights)
-        assert isinstance(chosen, Club)
-        remaining.remove(chosen)
-        order.append(chosen)
-    return order
-
-
-def assign_rosters(
-    master_seed: int,
-    edition_key: str,
-    clubs: list[Club],
-    pool: list[PoolMember],
-    roster_size: int,
-) -> list[PoolMember]:
-    """Reparte el pool entre clubes mediante un draft con información imperfecta.
-
-    Los clubes eligen por orden de recursos y deciden con `observed_overall`
-    —el informe de scouting— no con la habilidad real. De ahí sale que un buen
-    prospecto caiga en un club modesto: nadie ve la verdad.
-    """
-    plan = roster_plan(roster_size)
-    needs: dict[str, list[tuple[Position, object]]] = {club.key: list(plan) for club in clubs}
-    available = list(pool)
-    order = sorted(clubs, key=lambda c: -c.resource_multiplier)
-
-    for round_index in range(roster_size):
-        round_order = _pick_order(master_seed, edition_key, round_index, order)
-        for club in round_order:
-            if not needs[club.key] or not available:
-                continue
-            position, pitcher_role = needs[club.key].pop(0)
-            rng = rng_for(master_seed, "draft", edition_key, club.key, round_index)
-
-            candidates = [
-                m
-                for m in available
-                if m.person.primary_position is position
-                and (pitcher_role is None or m.person.pitcher_role == pitcher_role)
-            ]
-            if not candidates:
-                candidates = [m for m in available if m.person.primary_position is position]
-            if not candidates:
-                candidates = [m for m in available if position in m.person.secondary_positions]
-            if not candidates:
-                candidates = [
-                    m
-                    for m in available
-                    if m.person.primary_position.is_pitcher == position.is_pitcher
-                ]
-            if not candidates:
-                candidates = available
-
-            # Mira a los mejores según el informe, pero no siempre elige al
-            # primero: hay preferencia y hay error.
-            # La ventana de decisión depende de los recursos del club: una
-            # organización con scouting pagado mira menos nombres y acierta
-            # más; una modesta elige dentro de un abanico más ancho.
-            width = max(2, round(5.0 - 2.0 * club.resource_multiplier))
-            candidates.sort(key=lambda m: -m.observed_overall)
-            window = candidates[: max(1, min(width, len(candidates)))]
-            pick = window[min(len(window) - 1, int(abs(rng.gauss(0, 1.1))))]
-
-            available.remove(pick)
-            club.roster.append(pick.person.key)
-
-    for club in clubs:
-        committed = Decimal("0")
-        club.finances.payroll_committed = committed
-    return available

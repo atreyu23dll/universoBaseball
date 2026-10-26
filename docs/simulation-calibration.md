@@ -140,6 +140,20 @@ Dicho claro, porque la alternativa sería fingir que no existen:
    la Etapa 4, cuando exista libro mayor y se pueda medir si un club recién
    ascendido sobrevive.
 
+9. **La base social usa la tasa de afiliación como base de los seguidores.**
+   `AFFILIATION_RATE` (0.0004: cuatro personas de cada diez mil) mide a quien
+   **paga cuota** en un club de la zona, y `generate_clubs` la usa como base de
+   la afición multiplicándola por `3 + 12 × cultura`. Son dos poblaciones
+   distintas: un club profesional tiene espectadores que no son socios. Con
+   mercados de estado el resultado cae en rango plausible —un club de la liga
+   nacional sale con 3 000 a 44 000 seguidores y 700 a 9 700 espectadores por
+   partido—, pero con mercados de ciudad repartidos entre varios clubes se queda
+   corto: en el fixture curado, un club «profesional» de Ciudad de México sale
+   con unos 4 000 seguidores y ~900 espectadores. Queda medido y sin corregir:
+   tocar esa cadena mueve cuotas, patrocinio y taquilla a la vez, y la
+   corrección honesta es separar socios de seguidores, no retocar el
+   multiplicador.
+
 ## 6. Reajustes de calibración registrados
 
 | Fecha | Parámetro | Antes | Después | Por qué |
@@ -148,6 +162,19 @@ Dicho claro, porque la alternativa sería fingir que no existen:
 | 22/10/2026 | `LEVEL_SCALE` | — (nuevo) | 2.96 | Función de transferencia de recursos a nivel de juego. Se ancla pidiendo que una liga nacional profesional, cuyos clubes reúnen del orden de 100 meses de gasto doméstico, caiga en 0.68, que es el nivel al que el motor reproduce béisbol profesional: `log10(103)/0.68 ≈ 2.96`. |
 
 | 24/10/2026 | Coeficientes económicos y orden del cálculo | ver §7 bis | ver §7 bis | Una liga llanera municipal daba presupuestos de 11 a 51 meses de gasto doméstico. Cinco causas de modelo —aforo desde el tamaño de la ciudad, precio de entrada único, bolsa publicitaria repartida entera, respaldo privado por etiqueta de gobierno, costes de club con empleados— y una sexta al corregirlas: la liga nacía quebrada porque los ingresos se calculaban antes de saber lo que cuesta la temporada. |
+
+| 25/10/2026 | Topes de aforo, resolución de mercados y divisor de meses de caja | ver abajo | ver abajo | Un universo real tenía **todos** los aforos clavados en el tope de su acuerdo de sede (2 500 un campo público, 18 000 uno alquilado), porque la demanda calculada los superaba por diez o veinte veces. Tres causas encadenadas: una región importada de GeoNames entraba sin población y heredaba la del país —cada estado mexicano simulado con 131,9 millones de habitantes—, el país se usaba como un único mercado, y los topes eran fijos y pequeños. Con ellas, la afición de un club salía en cientos de miles y el tope era la única causa del aforo. Además, la caja del club se medía contra el gasto mensual de **un hogar**, así que el umbral para invertir en la sede estaba siempre abierto. |
+
+Detalle del cuarto: los topes pasan a escalar con la infraestructura del mercado
+(campo público 2 000 + 8 000 × infra; alquilado 12 000 + 38 000 × infra; propio
+18 000 + 44 000 × infra), la población de una división administrativa se agrega
+de sus localidades sin contar dos veces una ciudad y sus secciones, el país deja
+de ser mercado si tiene algo utilizable debajo, y el divisor de meses de caja es
+el gasto mensual del propio club con umbral de 12 meses. Medido sobre la
+geografía real del usuario: una liga nacional profesional de cinco clubes pasa de
+cuatro clubes en una plaza llamada «Mexico» con aforos 2 500/18 000/18 000/18 000
+a cinco clubes en cinco estados distintos con aforos de 1 750 a 16 700, ninguno
+en su tope.
 
 Los reajustes son consecuencia de corregir el modelo, no de perseguir un
 número: el primero reequilibra una tasa después de arreglar un error de edades,

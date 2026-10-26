@@ -23,7 +23,13 @@ from sqlalchemy.orm import Session
 
 from app.application import season_service
 from app.application.competition_service import competition_professionalization
-from app.application.errors import ConflictError, LockedError, NotFoundError, ValidationFailure
+from app.application.errors import (
+    ConflictError,
+    LockedError,
+    NotFoundError,
+    TypedValidationFailure,
+    ValidationFailure,
+)
 from app.application.mappers import club_row_to_domain, person_row_to_domain, venue_row_to_domain
 from app.application.universe_service import get_universe, record_event
 from app.config import get_settings
@@ -496,6 +502,34 @@ def _simulate_and_store(session: Session, universe: m.Universe, game: m.Game) ->
 
     home_club, home_roster, home_ids, _ = _club_bundle(session, game.home_club_id)
     away_club, away_roster, away_ids, _ = _club_bundle(session, game.away_club_id)
+
+    # Sin plantillas no hay partido, y se dice en vez de simular un encuentro
+    # entre dos conjuntos vacíos. La generación de plantillas se retiró el
+    # 25/10/2026 (ADR 0013) y la mecánica que decidirá quién juega en cada club
+    # todavía no existe: hasta entonces, un universo se puede crear, inscribir y
+    # calendarizar, pero no jugar.
+    if not home_roster or not away_roster:
+        vacios = [
+            club.name
+            for club, roster in ((home_club, home_roster), (away_club, away_roster))
+            if not roster
+        ]
+        quienes = " y ".join(vacios)
+        verbo = "no tiene" if len(vacios) == 1 else "no tienen"
+        raise TypedValidationFailure(
+            "ROSTERS_MISSING",
+            # La causa va **dentro** del mensaje y no solo en las sugerencias,
+            # porque el trabajo de avance guarda el texto de la excepción y es
+            # lo único que llega a la interfaz.
+            f"no se puede jugar: {quienes} {verbo} plantilla. La generación de "
+            "plantillas se retiró y la mecánica que decidirá quién juega en cada "
+            "club todavía no existe",
+            [
+                "los clubes, su sede, sus cuentas y el calendario sí se generan "
+                "y se pueden consultar",
+                "las personas del universo se crean aparte, no al abrir una competición",
+            ],
+        )
 
     result, _weather = play_scheduled_game(
         master_seed=edition.seed,

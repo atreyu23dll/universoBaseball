@@ -10,12 +10,12 @@
     SchedulePreview as SchedulePreviewData,
     GeoContext,
     GeoEntity,
-    GeoSearchResult,
     GeoStatus,
     MobilityRules,
     PairingPolicy,
-    Place,
-    Preview
+    Preview,
+    UniversityDiscovery,
+    UniversityParticipant
   } from '$lib/api/types';
   import {
     CONFIDENCE_LABEL,
@@ -36,9 +36,17 @@
   import ErrorNotice from '$lib/components/ErrorNotice.svelte';
   import SchedulePreview from '$lib/components/SchedulePreview.svelte';
   import StructureEditor from '$lib/components/StructureEditor.svelte';
+  import RelationshipCanvas from '$lib/components/RelationshipCanvas.svelte';
+  import TerritoryNavigator from '$lib/components/TerritoryNavigator.svelte';
 
-  /** De la lista de competiciones aquí solo hacen falta el id y el nombre. */
-  type CompetitionOption = { id: string; name: string };
+  /** Datos congelados de otras ligas para dibujar el vínculo, no un formulario. */
+  type CompetitionOption = {
+    id: string;
+    name: string;
+    club_count: number;
+    education_track?: 'school' | 'formative' | null;
+    structure?: Array<{ key: string; label: string; slots: number }>;
+  };
 
   const universeId = $derived($page.params.id);
 
@@ -53,8 +61,15 @@
     'Previsualización'
   ];
 
+  const COMPETITION_SCOPE: Record<string, 'municipal' | 'regional' | 'national' | 'multinational'> = {
+    municipal_league: 'municipal',
+    regional_league: 'regional',
+    national_league: 'national',
+    domestic_league: 'national',
+    international_club_league: 'multinational'
+  };
+
   let step = $state(1);
-  let places = $state<Place[]>([]);
   let competitions = $state<CompetitionOption[]>([]);
   let error = $state<unknown>(null);
   let working = $state(false);
@@ -77,23 +92,22 @@
   let name = $state('Liga Municipal de Ciudad Juárez');
   let kind = $state('municipal_league');
   let seed = $state('18723');
+  // Escolar y formativa son una modalidad; el rastro se guarda aparte para
+  // que una liga municipal o nacional no pierda su clase territorial.
+  // Las universitarias adultas se resuelven antes del formato.
+  let educationTrack = $state<'school' | 'formative'>('school');
+  let universityDiscovery = $state<UniversityDiscovery | null>(null);
+  let universityParticipants = $state<UniversityParticipant[]>([]);
+  let universityQuerying = $state(false);
 
   // --- Paso 2: territorio y jurisdicción ---
   // El territorio se resuelve contra el gazetteer mundial: el usuario busca un
   // lugar y elige una entidad concreta. Lo que se guarda es su identificador,
   // no el texto que escribió.
-  let scopeLevel = $state('municipal');
-  let selectedPlaces = $state<string[]>([]);
+  let scopeLevel = $state<'municipal' | 'regional' | 'national' | 'multinational'>('municipal');
   let geoStatus = $state<GeoStatus | null>(null);
-  let geoQuery = $state('');
-  let geoCountry = $state('');
-  let geoResults = $state<GeoEntity[]>([]);
-  let geoNote = $state('');
-  let geoSearching = $state(false);
   let chosen = $state<GeoEntity[]>([]);
   let chosenContext = $state<Record<string, GeoContext>>({});
-  let territoryMode = $state<'administrative_area' | 'radius'>('administrative_area');
-  let radiusKm = $state(50);
 
   // --- Paso 3: modalidad de participación ---
   // ÚNICA pregunta de naturaleza institucional del asistente. No hay —ni puede
@@ -110,6 +124,10 @@
   let keepsCategory = $state(true);
   let residencyRequired = $state(false);
   const involvesMinors = $derived(minimumAge < 18);
+  const isEducationalModality = $derived(modality === 'school_formative');
+  const requiresRealUniversities = $derived(
+    isEducationalModality && educationTrack === 'school' && minimumAge >= 18
+  );
 
   // --- Paso 5: participantes y admisión ---
   let clubCount = $state(12);
@@ -172,9 +190,11 @@
   let entryFee = $state(0);
 
   // --- Paso 7: relaciones competitivas ---
-  let relationshipMode = $state('independent');
+  let relationshipMode = $state<'independent' | 'dependent'>('independent');
   let linkPosition = $state<'below' | 'above'>('below');
-  let linkRelation = $state('promotion_relegation');
+  let linkRelation = $state<'promotion_relegation' | 'affiliate' | 'development' | 'postseason'>(
+    'promotion_relegation'
+  );
   let linkPartnerId = $state('');
   let linkSlots = $state(2);
   let linkLowerMethod = $state('top_standings');
@@ -184,54 +204,34 @@
   let linkFromSeason = $state('');
   let partnerRules = $state<MobilityRules | null>(null);
 
-  const cityPlaces = $derived(places.filter((p) => p.kind === 'city'));
-  const regionPlaces = $derived(places.filter((p) => p.kind === 'region'));
-  const countryPlaces = $derived(places.filter((p) => p.kind === 'country'));
-  const availablePlaces = $derived(
-    scopeLevel === 'municipal'
-      ? cityPlaces
-      : scopeLevel === 'regional'
-        ? regionPlaces
-        : scopeLevel === 'national'
-          ? countryPlaces
-          : [...countryPlaces, ...cityPlaces]
-  );
   /** Moneda de la jurisdicción elegida: sale del territorio, no de un ajuste. */
-  const resolvedCurrency = $derived(
-    chosen[0]?.currency ?? places.find((p) => p.key === selectedPlaces[0])?.currency ?? null
-  );
+  const resolvedCurrency = $derived(chosen[0]?.currency ?? null);
+  /** Alcances que admiten más de un territorio.
+   *
+   * Internacional son países —hacen falta dos—, y regional son estados o
+   * provincias de un mismo país: una liga del norte de México juega en
+   * Chihuahua, Sonora y Coahuila, y eso es un territorio, no tres ligas.
+   */
+  const multiTerritory = $derived(scopeLevel === 'multinational' || scopeLevel === 'regional');
   /** ¿Hay territorio suficiente para continuar? */
-  const hasTerritory = $derived(chosen.length > 0 || selectedPlaces.length > 0);
+  const hasTerritory = $derived(
+    scopeLevel === 'multinational' ? chosen.length >= 2 : chosen.length >= 1
+  );
   /** Avisos de lo que no se sabe del territorio elegido. */
   const territoryWarnings = $derived(
     chosen.flatMap((entity) => chosenContext[entity.id]?.warnings ?? [])
   );
 
-  async function searchGeography(event?: SubmitEvent) {
-    event?.preventDefault();
-    geoNote = '';
-    if (geoQuery.trim().length < 2) {
-      geoNote = 'Escribe al menos dos caracteres.';
-      return;
-    }
-    geoSearching = true;
-    try {
-      const params = new URLSearchParams({ q: geoQuery.trim(), limit: '10' });
-      if (geoCountry.trim()) params.set('country', geoCountry.trim().toUpperCase());
-      const result = await api.get<GeoSearchResult>(`/geography/search?${params}`);
-      geoResults = result.items;
-      geoNote = result.note;
-    } catch (err) {
-      geoResults = [];
-      geoNote = err instanceof Error ? err.message : 'la búsqueda falló';
-    } finally {
-      geoSearching = false;
-    }
-  }
-
   async function chooseEntity(entity: GeoEntity) {
     if (chosen.some((e) => e.id === entity.id)) return;
-    chosen = [...chosen, entity];
+    // Un territorio de otro país no se suma al anterior: lo sustituye. Una
+    // competición que cruza la frontera tiene su propio alcance, y el motor
+    // la rechaza si se cuela.
+    const mismoPais = !chosen.length || chosen[0].country_iso2 === entity.country_iso2;
+    const acumula = multiTerritory && mismoPais;
+    chosen = acumula ? [...chosen, entity] : [entity];
+    chosenContext = acumula ? { ...chosenContext } : {};
+    invalidateUniversityDiscovery();
     // Al elegir se consulta qué se sabe del territorio y qué no: es lo que
     // permite decir «aquí no hay datos económicos» antes de generar nada.
     try {
@@ -246,6 +246,84 @@
 
   function dropEntity(id: string) {
     chosen = chosen.filter((e) => e.id !== id);
+    invalidateUniversityDiscovery();
+  }
+
+  function clearTerritory() {
+    chosen = [];
+    chosenContext = {};
+    invalidateUniversityDiscovery();
+  }
+
+  function chooseScope(level: 'municipal' | 'regional' | 'national' | 'multinational') {
+    scopeLevel = level;
+    clearTerritory();
+  }
+
+  function buildScope() {
+    return {
+      level: scopeLevel,
+      entity_ids: chosen.map((entity) => entity.id),
+      mode: scopeLevel === 'multinational' ? 'territory_set' : 'administrative_area',
+      ...(scopeLevel !== 'multinational' && chosen[0]?.country_iso2
+        ? { country_code: chosen[0].country_iso2 }
+        : {})
+    };
+  }
+
+  function invalidateUniversityDiscovery() {
+    universityDiscovery = null;
+    universityParticipants = [];
+  }
+
+  function chooseCompetitionKind() {
+    const expectedScope = COMPETITION_SCOPE[kind];
+    if (expectedScope && expectedScope !== scopeLevel) chooseScope(expectedScope);
+  }
+
+  function chooseEducationTrack(track: 'school' | 'formative') {
+    educationTrack = track;
+    invalidateUniversityDiscovery();
+  }
+
+  async function discoverUniversities() {
+    if (!requiresRealUniversities) return true;
+    universityQuerying = true;
+    error = null;
+    try {
+      const result = await api.post<UniversityDiscovery>(
+        `/universes/${universeId}/education/universities`,
+        { scope: buildScope() }
+      );
+      universityDiscovery = result;
+      universityParticipants = result.institutions;
+      clubCount = result.institutions.length;
+      return result.status === 'ready' && result.institutions.length >= 2;
+    } catch (err) {
+      error = err;
+      universityDiscovery = null;
+      universityParticipants = [];
+      return false;
+    } finally {
+      universityQuerying = false;
+    }
+  }
+
+  async function universitiesReadyForStructure() {
+    if (!requiresRealUniversities) return true;
+    return discoverUniversities();
+  }
+
+  async function continueToStructure() {
+    if (!(await universitiesReadyForStructure())) return;
+    step = 6;
+  }
+
+  async function goToStep(target: number) {
+    // Los botones de la barra permiten revisar pasos, pero no saltarse la
+    // consulta que define los participantes de una liga escolar adulta.
+    if (target >= 6 && !(await universitiesReadyForStructure())) return;
+    step = target;
   }
   /**
    * Cuántos clasifican: las plazas que el tablero colocó en alguna ronda.
@@ -383,6 +461,20 @@
     };
     divisions = ajustada;
   });
+  // La consulta escolar puede cambiar el total de participantes de golpe. Las
+  // puertas que apuntaban a una plaza inexistente se retiran del tablero, en
+  // vez de dejar una postemporada de doce equipos sobre una liga de cinco.
+  $effect(() => {
+    const validGates = gates
+      .map((gate) => ({ ...gate, positions: gate.positions.filter((position) => position <= clubCount) }))
+      .filter((gate) => gate.positions.length > 0);
+    if (
+      validGates.length !== gates.length ||
+      validGates.some((gate, index) => gate.positions.length !== gates[index].positions.length)
+    ) {
+      gates = validGates;
+    }
+  });
   /** Rondas del cuadro: las que el usuario puso en el tablero. */
   const roundCount = $derived(roundLengths.length);
   /** Una eliminatoria es siempre a un partido, también en el motor y la vista. */
@@ -452,17 +544,39 @@
       // Siempre independiente en el reglamento: la dependencia la crea la
       // relación que se registra justo después de crearla.
       relationship_mode: 'independent',
-      scope: {
-        level: scopeLevel,
-        ...(chosen.length
-          ? {
-              entity_ids: chosen.map((e) => e.id),
-              mode: territoryMode,
-              ...(territoryMode === 'radius' ? { radius_km: radiusKm } : {})
+      scope: buildScope(),
+      ...(isEducationalModality
+        ? {
+            education: {
+              track: educationTrack,
+              universities: universityParticipants.map(
+                ({
+                  catalog_id,
+                  source,
+                  source_id,
+                  name: universityName,
+                  country_code,
+                  admin1_code,
+                  admin2_code,
+                  lat,
+                  lon,
+                  timezone
+                }) => ({
+                  catalog_id,
+                  source,
+                  source_id,
+                  name: universityName,
+                  country_code,
+                  admin1_code,
+                  admin2_code,
+                  lat,
+                  lon,
+                  timezone
+                })
+              )
             }
-          : { place_keys: selectedPlaces }),
-        ...(chosen[0]?.country_iso2 ? { country_code: chosen[0].country_iso2 } : {})
-      },
+          }
+        : {}),
       eligibility: {
         minimum_age: minimumAge,
         maximum_age: hasMaximumAge ? maximumAge : null,
@@ -509,6 +623,7 @@
   }
 
   function buildRelationship() {
+    if (linkRelation === 'postseason') return {};
     const body: Record<string, unknown> = { relation_kind: linkRelation };
     if (linkRelation !== 'promotion_relegation') return body;
     body.exchange_slots = linkSlots;
@@ -581,15 +696,23 @@
       );
       const competitionId = created.competition_id;
       if (relationshipMode === 'dependent' && linkPartnerId) {
-        const [upper, lower] =
-          linkPosition === 'below'
-            ? [linkPartnerId, competitionId]
-            : [competitionId, linkPartnerId];
         try {
-          await api.post(`/competitions/${upper}/relationships`, {
-            target_competition_id: lower,
-            ...buildRelationship()
-          });
+          if (linkRelation === 'postseason') {
+            await api.post(`/competitions/${linkPartnerId}/qualification-paths`, {
+              target_competition_id: competitionId,
+              slot_rule: 'top_n',
+              slots: linkSlots
+            });
+          } else {
+            const [upper, lower] =
+              linkPosition === 'below'
+                ? [linkPartnerId, competitionId]
+                : [competitionId, linkPartnerId];
+            await api.post(`/competitions/${upper}/relationships`, {
+              target_competition_id: lower,
+              ...buildRelationship()
+            });
+          }
         } catch (err) {
           linkWarning = err instanceof Error ? err.message : 'no se pudo crear el vínculo';
         }
@@ -609,19 +732,11 @@
     }
   }
 
-  function togglePlace(key: string) {
-    selectedPlaces = selectedPlaces.includes(key)
-      ? selectedPlaces.filter((k) => k !== key)
-      : [...selectedPlaces, key];
-  }
-
   onMount(async () => {
     try {
-      const [geography, existing] = await Promise.all([
-        api.get<{ items: Place[] }>(`/universes/${universeId}/geography`),
-        api.get<{ items: CompetitionOption[] }>(`/universes/${universeId}/competitions`)
-      ]);
-      places = geography.items;
+      const existing = await api.get<{ items: CompetitionOption[] }>(
+        `/universes/${universeId}/competitions`
+      );
       competitions = existing.items;
       try {
         geoStatus = await api.get<GeoStatus>('/geography/status');
@@ -652,7 +767,7 @@
   {#each STEPS as label, index}
     <button
       class={step === index + 1 ? 'tag accent' : 'tag'}
-      onclick={() => (step = index + 1)}
+      onclick={() => void goToStep(index + 1)}
       type="button"
     >{index + 1}. {label}</button>
   {/each}
@@ -667,8 +782,8 @@
         <input id="nombre" bind:value={name} />
       </div>
       <div class="field">
-        <label for="tipo">Clase</label>
-        <select id="tipo" bind:value={kind}>
+        <label for="tipo">Clase territorial</label>
+        <select id="tipo" bind:value={kind} onchange={chooseCompetitionKind}>
           <option value="municipal_league">Liga municipal</option>
           <option value="regional_league">Liga regional</option>
           <option value="national_league">Liga nacional</option>
@@ -704,74 +819,31 @@
   <div class="panel">
     <h2>Paso 2 — Territorio y jurisdicción</h2>
     <p class="small muted">
-      Busca cualquier localidad, región o país del mundo. Lo que se guarda es la
-      <strong>entidad geográfica resuelta</strong>, no el texto que escribas: así
-      el territorio tiene identidad, fuente y moneda propias.
+      El atlas adapta el recorrido al alcance de la competición: municipio,
+      estado/provincia, país o una lista de países. Lo que se guarda es una
+      <strong>entidad geográfica resuelta</strong>, nunca texto libre.
     </p>
 
     {#if geoStatus && !geoStatus.imported}
       <div class="notice">
         <strong>No hay gazetteer importado.</strong> {geoStatus.note}
-        Mientras no lo esté, solo puedes usar los lugares curados de abajo.
+        Importa GeoNames para usar el atlas mundial.
       </div>
     {/if}
 
-    <form onsubmit={searchGeography} class="buscador">
-      <div class="field grow">
-        <label for="geo-q">Buscar un lugar</label>
-        <input
-          id="geo-q"
-          bind:value={geoQuery}
-          placeholder="Kampala, Ciudad Juárez, Tokyo, Hermosillo…"
-          autocomplete="off"
-        />
-      </div>
-      <div class="field">
-        <label for="geo-pais">País (ISO, opcional)</label>
-        <input id="geo-pais" bind:value={geoCountry} maxlength="2" placeholder="MX" />
-      </div>
-      <button type="submit" disabled={geoSearching}>
-        {geoSearching ? 'Buscando…' : 'Buscar'}
-      </button>
-    </form>
-
-    {#if geoNote}<p class="small muted">{geoNote}</p>{/if}
-
-    {#if geoResults.length}
-      <table>
-        <thead>
-          <tr>
-            <th>Lugar</th><th>Tipo</th><th>Jerarquía</th>
-            <th class="num">Población</th><th>Moneda</th><th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each geoResults as entity (entity.id)}
-            <tr>
-              <td>
-                {entity.name}
-                <div class="small muted">{entity.country_name} · {entity.source}:{entity.source_id}</div>
-              </td>
-              <td class="small">{GEO_KIND_LABEL[entity.kind] ?? entity.kind}</td>
-              <td class="small muted">{entity.admin_path ?? '—'}</td>
-              <td class="num">{entity.population ? formatNumber(entity.population) : '—'}</td>
-              <td class="small">
-                {#if entity.currency}{entity.currency}{:else}<span class="muted">sin datos</span>{/if}
-              </td>
-              <td>
-                <button
-                  class="ghost small"
-                  type="button"
-                  onclick={() => chooseEntity(entity)}
-                  disabled={chosen.some((e) => e.id === entity.id)}
-                >Elegir</button>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-      {#if geoStatus}<p class="small muted">Datos de {geoStatus.attribution}.</p>{/if}
-    {/if}
+    <TerritoryNavigator
+      {scopeLevel}
+      {chosen}
+      onchoose={chooseEntity}
+      onrestart={clearTerritory}
+      onscopechange={chooseScope}
+    />
+    <p class="small muted">
+      {#if geoStatus}Datos geográficos: {geoStatus.attribution}.{/if}
+      Contornos de los países: Natural Earth (dominio público), vía world-atlas;
+      se usan para dibujar y para resolver el clic a un código ISO, no como dato
+      del mundo.
+    </p>
 
     {#if chosen.length}
       <h3 style="margin-top:18px">Territorio de la competición</h3>
@@ -811,64 +883,11 @@
           {/if}
         </div>
       {/each}
-
-      <div class="grid two" style="margin-top:12px">
-        <div class="field">
-          <label for="modo">Delimitación</label>
-          <select id="modo" bind:value={territoryMode}>
-            <option value="administrative_area">Las unidades elegidas</option>
-            <option value="radius">Radio desde la primera</option>
-          </select>
-          {#if territoryMode === 'radius'}
-            <p class="small muted" style="margin:6px 0 0">
-              Alternativa declarada cuando no hay polígono administrativo: es una
-              aproximación en línea recta, no respeta fronteras, y se dice.
-            </p>
-          {/if}
-        </div>
-        {#if territoryMode === 'radius'}
-          <div class="field">
-            <label for="radio">Radio en kilómetros</label>
-            <input id="radio" type="number" min="1" max="1500" bind:value={radiusKm} />
-          </div>
-        {/if}
-      </div>
+    {:else if scopeLevel === 'multinational'}
+      <p class="small muted">Una liga internacional de clubes necesita por lo menos dos países.</p>
     {/if}
 
-    <details style="margin-top:18px">
-      <summary class="small muted">
-        Lugares curados de este universo ({availablePlaces.length}) — índices calibrados a mano
-      </summary>
-      <div class="field">
-        <label for="alcance">Alcance territorial</label>
-        <select id="alcance" bind:value={scopeLevel} onchange={() => (selectedPlaces = [])}>
-          <option value="municipal">Municipal</option>
-          <option value="regional">Regional</option>
-          <option value="national">Nacional</option>
-          <option value="multinational">Multinacional</option>
-        </select>
-      </div>
-      {#if availablePlaces.length === 0}
-        <p class="small muted">No hay lugares curados de este tipo en el universo.</p>
-      {:else}
-        <div class="row">
-          {#each availablePlaces as place (place.key)}
-            <button
-              type="button"
-              class={selectedPlaces.includes(place.key) ? 'button' : 'button ghost'}
-              onclick={() => togglePlace(place.key)}
-            >
-              {place.name}
-              {#if place.profile}
-                <span class="small muted"> · {formatNumber(place.profile.population)} hab.</span>
-              {/if}
-            </button>
-          {/each}
-        </div>
-      {/if}
-    </details>
-
-    {#if resolvedCurrency}
+    {#if resolvedCurrency && scopeLevel !== 'multinational'}
       <p class="small muted">
         Moneda de la jurisdicción: <strong>{resolvedCurrency}</strong>. Sale del
         territorio, no de un ajuste del universo.
@@ -896,7 +915,17 @@
     </p>
     <div class="field">
       <label for="modalidad">¿Qué modalidad tendrá esta competición?</label>
-      <select id="modalidad" bind:value={modality}>
+      <select
+        id="modalidad"
+        bind:value={modality}
+        onchange={() => {
+          if (modality === 'school_formative') {
+            chooseEducationTrack('school');
+          } else {
+            invalidateUniversityDiscovery();
+          }
+        }}
+      >
         <option value="llanera">Llanera / recreativa informal</option>
         <option value="amateur_organized">Amateur organizada</option>
         <option value="school_formative">Escolar / formativa</option>
@@ -904,6 +933,33 @@
         <option value="professional">Profesional</option>
       </select>
     </div>
+
+    {#if isEducationalModality}
+      <div class="education-choice">
+        <div>
+          <p class="eyebrow">Variante de la modalidad</p>
+          <strong>Elige el rastro que tendrá esta modalidad educativa dentro del universo.</strong>
+        </div>
+        <div class="education-track-options">
+          <button
+            class:active={educationTrack === 'school'}
+            type="button"
+            onclick={() => chooseEducationTrack('school')}
+          >
+            <span>⌂</span><strong>Escolar</strong>
+            <small>En 18+, consulta universidades reales antes del formato.</small>
+          </button>
+          <button
+            class:active={educationTrack === 'formative'}
+            type="button"
+            onclick={() => chooseEducationTrack('formative')}
+          >
+            <span>↗</span><strong>Formativa</strong>
+            <small>Programa educativo y de desarrollo dentro del universo.</small>
+          </button>
+        </div>
+      </div>
+    {/if}
     <div class="notice info">{MODALITY_HELP[modality]}</div>
     <ul class="small muted">
       <li>
@@ -932,7 +988,14 @@
       <div>
         <div class="field">
           <label for="edad-min">Edad mínima</label>
-          <input id="edad-min" type="number" min="4" max="75" bind:value={minimumAge} />
+          <input
+            id="edad-min"
+            type="number"
+            min="4"
+            max="75"
+            bind:value={minimumAge}
+            oninput={invalidateUniversityDiscovery}
+          />
         </div>
         <div class="field">
           <label class="row" style="gap:8px">
@@ -1000,14 +1063,55 @@
     <h2>Paso 5 — Participantes y admisión</h2>
     <div class="grid two">
       <div>
-        <div class="field">
-          <label for="clubes">Número objetivo de clubes</label>
-          <input id="clubes" type="number" min="2" max="64" bind:value={clubCount} />
-          <p class="small muted" style="margin:6px 0 0">
-            Si el territorio no los sostiene, la previsualización lo advierte. El
-            motor no inventa instituciones a la fuerza.
-          </p>
-        </div>
+        {#if requiresRealUniversities}
+          <div class="university-discovery">
+            <p class="eyebrow">Consulta previa obligatoria</p>
+            <h3>Universidades reales del territorio</h3>
+            <p class="small muted">
+              No eliges una cifra. Antes de abrir el formato, el motor consulta el
+              catálogo territorial: si encuentra 5 universidades, juegan 5; si encuentra 7, juegan 7.
+            </p>
+            {#if universityDiscovery}
+              <div class={universityDiscovery.status === 'ready' && universityDiscovery.institutions.length >= 2 ? 'catalog-result ready' : 'catalog-result'}>
+                <strong>
+                  {universityDiscovery.found ?? universityDiscovery.institutions.length} institución(es)
+                  en el territorio
+                </strong>
+                <span>{universityDiscovery.territory_mode}</span>
+                <p>{universityDiscovery.note}</p>
+                {#if universityDiscovery.institutions.length}
+                  <ul class="university-list">
+                    {#each universityDiscovery.institutions as university (university.catalog_id)}
+                      <li>
+                        <strong>{university.name}</strong>
+                        <small>
+                          {[
+                            university.institution_type,
+                            university.locality_name,
+                            university.founded_year ? `desde ${university.founded_year}` : null
+                          ]
+                            .filter(Boolean)
+                            .join(' · ') || 'sin más datos en la fuente'}
+                        </small>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              </div>
+            {:else}
+              <div class="catalog-result"><span>La consulta se ejecutará al continuar.</span></div>
+            {/if}
+          </div>
+        {:else}
+          <div class="field">
+            <label for="clubes">Número objetivo de clubes</label>
+            <input id="clubes" type="number" min="2" max="64" bind:value={clubCount} />
+            <p class="small muted" style="margin:6px 0 0">
+              Si el territorio no los sostiene, la previsualización lo advierte. El
+              motor no inventa instituciones a la fuerza.
+            </p>
+          </div>
+        {/if}
         <div class="field">
           <label for="roster-min">Mínimo de inscritos activos por equipo</label>
           <input id="roster-min" type="number" min="6" max="40" bind:value={minimumActiveRoster} />
@@ -1039,7 +1143,13 @@
     </div>
     <div class="row">
       <button class="ghost" onclick={() => (step = 4)}>Atrás</button>
-      <button onclick={() => (step = 6)}>Continuar</button>
+      <button onclick={() => void continueToStructure()} disabled={universityQuerying}>
+        {universityQuerying
+          ? 'Consultando universidades…'
+          : requiresRealUniversities
+            ? 'Consultar y abrir estructura'
+            : 'Continuar'}
+      </button>
     </div>
   </div>
 {:else if step === 6}
@@ -1086,123 +1196,17 @@
   />
 {:else if step === 7}
   <div class="panel">
-    <h2>Paso 7 — Relaciones competitivas</h2>
-    <div class="notice info">
-      El valor por omisión es <strong>independiente</strong>. Crear esta liga
-      <strong>no</strong> genera ninguna división inferior, filial ni categoría
-      juvenil: aquí solo puedes vincularla con competiciones que ya existen.
-    </div>
-
-    <div class="row" style="margin-bottom:14px">
-      <button
-        class={relationshipMode === 'independent' ? 'button' : 'button ghost'}
-        onclick={() => (relationshipMode = 'independent')}
-      >Independiente</button>
-      <button
-        class={relationshipMode === 'dependent' ? 'button' : 'button ghost'}
-        onclick={() => (relationshipMode = 'dependent')}
-        disabled={competitions.length === 0}
-      >Vinculada a otra competición</button>
-    </div>
-
-    {#if relationshipMode === 'independent'}
-      <p class="small muted">
-        Existe por sí sola: genera sus clubes, juega su temporada y corona a su
-        campeón sin ascender ni descender con nadie. Siempre podrás vincularla
-        después desde el grafo de competiciones.
-      </p>
-    {:else if competitions.length === 0}
-      <p class="small muted">No hay ninguna otra competición con la que vincularla.</p>
-    {:else}
-      <div class="grid two">
-        <div>
-          <div class="field">
-            <label for="posicion">Esta liga queda…</label>
-            <select id="posicion" bind:value={linkPosition} onchange={() => void loadPartnerRules()}>
-              <option value="below">por debajo de otra competición</option>
-              <option value="above">por encima de otra competición</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="pareja">Competición</label>
-            <select id="pareja" bind:value={linkPartnerId} onchange={() => void loadPartnerRules()}>
-              <option value="">—</option>
-              {#each competitions as competition (competition.id)}
-                <option value={competition.id}>{competition.name}</option>
-              {/each}
-            </select>
-          </div>
-          <div class="field">
-            <label for="naturaleza">Naturaleza exacta del vínculo</label>
-            <select id="naturaleza" bind:value={linkRelation}>
-              <option value="promotion_relegation">División: ascenso y descenso de clubes</option>
-              <option value="affiliate">Filial: mueve jugadores, no clubes</option>
-              <option value="youth">Juvenil: mueve jugadores, no clubes</option>
-              <option value="development">Programa de desarrollo</option>
-            </select>
-          </div>
-        </div>
-
-        {#if isHierarchy}
-          <fieldset>
-            <legend>Plazas de movilidad</legend>
-            <div class="field">
-              <label for="plazas-mov">Plazas de intercambio (total de la superior)</label>
-              <input id="plazas-mov" type="number" min="1" max="12" bind:value={linkSlots} />
-              {#if existingQuota}
-                <p class="small muted" style="margin:6px 0 0">
-                  «{partner?.name}» ya intercambia <strong>{existingQuota}</strong> plazas
-                  en total con sus alimentadoras. Es un total que se reparte, no una
-                  cuota por rama: se adopta ese mismo número.
-                </p>
-              {/if}
-            </div>
-            <div class="field">
-              <label for="criterio-ascenso">Quién asciende de la inferior</label>
-              <select id="criterio-ascenso" bind:value={linkLowerMethod}>
-                <option value="top_standings">Los mejores de la tabla</option>
-                <option value="playoff_champion">El campeón primero, luego por tabla</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="aforo-min">Aforo mínimo para ascender (opcional)</label>
-              <input id="aforo-min" bind:value={linkMinCapacity} inputmode="numeric" placeholder="sin requisito" />
-            </div>
-            <div class="field">
-              <label for="deuda-max">Deuda máxima, en veces su presupuesto (opcional)</label>
-              <input id="deuda-max" bind:value={linkMaxDebt} inputmode="decimal" placeholder="sin requisito" />
-            </div>
-            {#if linkMinCapacity.trim() !== '' || linkMaxDebt.trim() !== ''}
-              <div class="field">
-                <label for="politica">Si el club que debería ascender no cumple</label>
-                <select id="politica" bind:value={linkFailurePolicy}>
-                  <option value="substitute">Asciende el siguiente que sí cumpla</option>
-                  <option value="block">La plaza queda vacía (y nadie baja por ella)</option>
-                  <option value="exception">Asciende por excepción, y queda registrado</option>
-                </select>
-              </div>
-            {/if}
-            <div class="field">
-              <label for="desde">En vigor desde la temporada (opcional)</label>
-              <input id="desde" bind:value={linkFromSeason} inputmode="numeric" placeholder="la próxima" />
-            </div>
-          </fieldset>
-        {/if}
-      </div>
-
-      {#if linkPartnerId}
-        <div class="notice">
-          {#if isHierarchy}
-            Al cerrar cada temporada, <strong>{linkSlots}</strong> club(es) ascenderán
-            de «{lowerName}» a «{upperName}» y otros {linkSlots} descenderán en
-            sentido contrario, conservando su identidad.
-          {:else}
-            Vínculo de desarrollo entre «{name}» y «{partner?.name}»: moverá
-            jugadores. Ningún club cambiará de categoría.
-          {/if}
-        </div>
-      {/if}
-    {/if}
+    <RelationshipCanvas
+      {competitions}
+      leagueName={name}
+      bind:relationshipMode
+      bind:linkPartnerId
+      bind:linkPosition
+      bind:linkRelation
+      bind:linkSlots
+      bind:linkLowerMethod
+      onpartnerchange={() => void loadPartnerRules()}
+    />
 
     <div class="row">
       <button class="ghost" onclick={() => (step = 6)}>Atrás</button>
@@ -1220,15 +1224,38 @@
       <h2>Paso 8 — Previsualización, viabilidad y confirmación</h2>
       <div class="row">
         <button class="ghost" onclick={() => (step = 6)}>Modificar competición</button>
-        <button class="ghost" onclick={reroll} disabled={working}>Regenerar propuesta</button>
-        <button
-          onclick={confirm}
-          disabled={working || createdEditionId !== '' || blocking.length > 0 || !previewIsCurrent}
-        >
-          {working ? 'Creando el mundo…' : 'Crear competición'}
-        </button>
+        {#if preview.status !== 'preview_blocked'}
+          <button class="ghost" onclick={reroll} disabled={working}>Regenerar propuesta</button>
+          <button
+            onclick={confirm}
+            disabled={working || createdEditionId !== '' || blocking.length > 0 || !previewIsCurrent}
+          >
+            {working ? 'Creando el mundo…' : 'Crear competición'}
+          </button>
+        {/if}
       </div>
     </div>
+
+    {#if preview.status === 'preview_blocked'}
+      <div class="notice error" role="alert">
+        <strong>No se generó la propuesta porque hay reglas incompatibles.</strong>
+        <p class="small" style="margin:6px 0 0">
+          Corrige las reglas indicadas y vuelve a previsualizar. El mundo no se ha modificado.
+        </p>
+        <ul class="small" style="margin:8px 0 0 16px">
+          {#each blocking as issue}
+            <li>
+              <span class="tag warn">{ISSUE_CODE_LABEL[issue.code] ?? issue.code}</span>
+              {issue.message}
+              {#each issue.suggestions as suggestion}
+                <div class="muted">· {suggestion}</div>
+              {/each}
+            </li>
+          {/each}
+        </ul>
+      </div>
+      <button onclick={() => (step = 6)}>Corregir reglas de la competición</button>
+    {:else}
     <p class="small muted">
       Esta propuesta está <strong>guardada pero no creada</strong>: el mundo no se
       ha tocado. Puedes validarla o regenerarla, pero no editar club por club:
@@ -1477,6 +1504,7 @@
         {/each}
       </div>
     {/each}
+    {/if}
   </div>
 {/if}
 
@@ -1495,16 +1523,6 @@
   }
   ul.desglose li {
     margin-bottom: 8px;
-  }
-  form.buscador {
-    display: flex;
-    gap: 10px;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    margin-bottom: 10px;
-  }
-  form.buscador .grow {
-    flex: 1 1 260px;
   }
   .row-block {
     padding: 10px 0;

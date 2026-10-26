@@ -35,6 +35,13 @@ from simulation.competitions.structure import (
 RULESET_SCHEMA_VERSION = "2.0.0"
 
 
+#: Tope de equipos de una competición. Vive aquí porque no es un detalle del
+#: formulario: el calendario, la tabla y el cuadro se construyen sobre él, y el
+#: descubridor de universidades lo consulta para avisar cuando un territorio
+#: tiene más instituciones de las que caben en una liga.
+MAX_CLUBS_PER_COMPETITION = 64
+
+
 class CompetitionKind(StrEnum):
     DOMESTIC_LEAGUE = "domestic_league"
     MUNICIPAL_LEAGUE = "municipal_league"
@@ -47,6 +54,10 @@ class CompetitionKind(StrEnum):
     NATIONAL_TEAMS_QUALIFIER = "national_teams_qualifier"
     YOUTH_LEAGUE = "youth_league"
     RESERVE_LEAGUE = "reserve_league"
+    #: Liga de centros educativos. El subtipo vive en `education.track` para
+    #: que «escolar» y «formativa» sean equivalentes para el motor, pero
+    #: sigan siendo visibles en el universo.
+    EDUCATIONAL_LEAGUE = "educational_league"
 
     @property
     def is_cup(self) -> bool:
@@ -75,6 +86,20 @@ class ParticipationModality(StrEnum):
     SCHOOL_FORMATIVE = "school_formative"
     SEMI_PROFESSIONAL = "semi_professional"
     PROFESSIONAL = "professional"
+
+
+class EducationTrack(StrEnum):
+    """La identidad declarada de una liga educativa.
+
+    Ambas vías comparten las reglas de participación de la modalidad
+    ``school_formative``. La distinción no es un multiplicador económico ni
+    una categoría deportiva: conserva cómo se nombra y se entiende la liga en
+    el universo. La vía escolar adulta usa el catálogo de universidades reales
+    que se haya importado para el territorio.
+    """
+
+    SCHOOL = "school"
+    FORMATIVE = "formative"
 
 
 class CompensationRule(StrEnum):
@@ -766,12 +791,67 @@ class GenerationRules(BaseModel):
 
     #: Plazas objetivo. Si el territorio no las sostiene, el motor advierte en
     #: la previsualización; nunca inventa instituciones a la fuerza.
-    club_count: int = Field(ge=2, le=64)
+    club_count: int = Field(ge=2, le=MAX_CLUBS_PER_COMPETITION)
     #: De dónde pueden salir los participantes. Es una regla de admisión, no un
     #: selector de calidad: el talento vive en un mercado compartido.
     talent_pool: TalentPoolMode = TalentPoolMode.SHARED_GEOGRAPHIC
     foreign_player_limit: int | None = Field(default=None, ge=0, le=40)
     seed: int | None = Field(default=None, ge=0)
+
+
+class UniversityParticipant(BaseModel):
+    """Una universidad real, resuelta desde el catálogo antes de estructurar.
+
+    Se congela en el reglamento que se previsualizó. Así el motor no consulta
+    la red al crear una edición ni vuelve a elegir instituciones distintas por
+    azar: el conjunto de equipos es exactamente el que el usuario vio.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    catalog_id: str = Field(min_length=1, max_length=48)
+    source: str = Field(min_length=1, max_length=32)
+    source_id: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=2, max_length=220)
+    country_code: str = Field(min_length=2, max_length=3)
+    admin1_code: str | None = Field(default=None, max_length=24)
+    admin2_code: str | None = Field(default=None, max_length=48)
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    timezone: str = Field(default="UTC", min_length=1, max_length=64)
+    #: Qué clase de centro es y en qué localidad del gazetteer cae. Son datos
+    #: de presentación —ayudan a reconocer la institución en la lista— y por
+    #: eso admiten faltar: un reglamento guardado antes de que existieran
+    #: sigue siendo válido.
+    institution_type: str | None = Field(default=None, max_length=80)
+    locality_name: str | None = Field(default=None, max_length=200)
+    founded_year: int | None = Field(default=None, ge=800, le=2200)
+
+
+class EducationRules(BaseModel):
+    """Datos propios de una competición escolar o formativa.
+
+    ``universities`` no es un selector de clubes. Para la vía escolar de 18+
+    lo rellena el descubridor territorial con **todas** las universidades
+    encontradas; el servidor compara ese conjunto con el catálogo antes de
+    generar. Una liga de cinco universidades tiene cinco participantes, no un
+    número objetivo que el generador complete con equipos ficticios.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    track: EducationTrack
+    universities: list[UniversityParticipant] = Field(default_factory=list)
+
+    @field_validator("universities")
+    @classmethod
+    def _unique_universities(
+        cls, values: list[UniversityParticipant]
+    ) -> list[UniversityParticipant]:
+        ids = [item.catalog_id for item in values]
+        if len(set(ids)) != len(ids):
+            raise ValueError("una universidad no puede participar dos veces")
+        return values
 
 
 class MarketSlot(BaseModel):
@@ -794,6 +874,11 @@ class RuleSet(BaseModel):
     kind: CompetitionKind
     #: La **única** pregunta de naturaleza institucional del formulario.
     participation_modality: ParticipationModality = ParticipationModality.AMATEUR_ORGANIZED
+    #: Se declara únicamente cuando la modalidad es `school_formative`. Guarda
+    #: el rastro escolar o formativo sin convertirlo en una segunda "clase" de
+    #: competición: una liga municipal puede ser escolar sin dejar de ser
+    #: municipal.
+    education: EducationRules | None = None
     relationship_mode: RelationshipMode = RelationshipMode.INDEPENDENT
     scope: Scope
     markets: list[MarketSlot] = Field(default_factory=list)
@@ -809,6 +894,28 @@ class RuleSet(BaseModel):
 
     @model_validator(mode="after")
     def _cross_checks(self) -> RuleSet:
+        if self.participation_modality is ParticipationModality.SCHOOL_FORMATIVE:
+            if self.education is None:
+                raise ValueError(
+                    "la modalidad escolar o formativa necesita indicar si es `school` o `formative`"
+                )
+        elif self.education is not None:
+            raise ValueError("`education` solo se declara con la modalidad `school_formative`")
+
+        if self.requires_real_universities:
+            assert self.education is not None
+            found = len(self.education.universities)
+            if found < 2:
+                raise ValueError(
+                    "una liga escolar de 18+ necesita al menos dos universidades reales "
+                    "resueltas en su territorio"
+                )
+            if self.generation.club_count != found:
+                raise ValueError(
+                    f"la consulta territorial encontró {found} universidades y la liga "
+                    f"declara {self.generation.club_count} equipos: en una liga escolar "
+                    "adulta participan exactamente las instituciones encontradas"
+                )
         if self.playoffs.slots > self.generation.club_count:
             raise ValueError(
                 f"{self.playoffs.slots} plazas de playoff con solo "
@@ -893,6 +1000,7 @@ class RuleSet(BaseModel):
                 )
         if (
             self.scope.level is ScopeLevel.MULTINATIONAL
+            and not self.scope.entity_ids
             and len({k.split("-")[0] for k in self.scope.place_keys}) < 2
         ):
             raise ValueError("un alcance multinacional necesita lugares de al menos dos países")
@@ -902,6 +1010,20 @@ class RuleSet(BaseModel):
     def modality(self) -> ModalityProfile:
         """Perfil reglamentario de la modalidad elegida."""
         return modality_profile(self.participation_modality)
+
+    @property
+    def requires_real_universities(self) -> bool:
+        """Si esta edición sustituye el generador aleatorio por universidades.
+
+        La regla es deliberadamente estrecha: la vía *escolar* de 18 años o
+        más. La vía formativa y las categorías escolares con menores conservan
+        el generador de programas deportivos que ya aplica salvaguardas.
+        """
+        return bool(
+            self.education is not None
+            and self.education.track is EducationTrack.SCHOOL
+            and self.eligibility.minimum_age >= 18
+        )
 
     @property
     def effective_compensation_rule(self) -> CompensationRule:

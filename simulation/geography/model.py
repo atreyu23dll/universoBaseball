@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from enum import StrEnum
 
@@ -144,11 +144,58 @@ class PlaceTree:
         return anchor.currency if anchor is not None else None
 
     def effective_profile(self, key: str) -> RegionProfile:
-        """Perfil del lugar o, si no tiene, el del ancestro más cercano que sí."""
+        """Perfil del lugar: los índices del ancestro, la población que es suya.
+
+        Los índices relativos —economía, cultura, infraestructura— se heredan
+        del ancestro más cercano que los tenga: son descripciones del entorno y
+        un estado se parece a su país. **La población no se hereda nunca.**
+
+        Antes sí, y era el peor error posible disfrazado de prudencia: una
+        región importada de GeoNames llega sin población propia (la fuente no la
+        trae para divisiones administrativas), se quedaba sin perfil y recibía
+        el del país entero. Resultado: cada estado mexicano se simulaba con los
+        131,9 millones de habitantes de México, las aficiones de sus clubes
+        salían en cientos de miles y todos los aforos acababan pegados a su
+        tope. Un territorio sin población propia ni descendientes con población
+        **no es un mercado**, y eso se dice en vez de rellenarlo con la cifra de
+        su país.
+        """
         node = self.get(key)
         if node.profile is not None:
             return node.profile
-        for ancestor in self.ancestors(key):
-            if ancestor.profile is not None:
-                return ancestor.profile
-        raise KeyError(f"ningún perfil disponible para {key} ni sus ancestros")
+        indices = next(
+            (a.profile for a in self.ancestors(key) if a.profile is not None),
+            None,
+        )
+        if indices is None:
+            raise KeyError(f"ningún perfil disponible para {key} ni sus ancestros")
+        poblacion = self._population_from_descendants(key)
+        if poblacion <= 0:
+            raise KeyError(
+                f"{key} no tiene población propia ni descendientes con población: no "
+                "hay mercado que estimar, y la de su territorio padre no es la suya"
+            )
+        return replace(
+            indices,
+            population=poblacion,
+            confidence=Confidence.ESTIMATED,
+            sources=(
+                *indices.sources,
+                f"población: suma de los lugares con perfil propio dentro de {key}",
+            ),
+        )
+
+    def _population_from_descendants(self, key: str) -> int:
+        """Población de un lugar según los descendientes que sí la declaran.
+
+        Se detiene en el primer nivel que tiene perfil propio para no contar dos
+        veces a la misma gente: si un estado tiene ciudades con población, suma
+        las ciudades y no vuelve a sumar sus barrios.
+        """
+        total = 0
+        for child in self.children(key):
+            if child.profile is not None:
+                total += child.profile.population
+            else:
+                total += self._population_from_descendants(child.key)
+        return total

@@ -57,10 +57,25 @@ import-geonames:  ## Descarga e importa el gazetteer mundial de GeoNames (~17 MB
 	# la registra en cada entidad. Ver data/gazetteer/README.md.
 	$(PY) scripts/import_geonames.py --download --source-dir data/gazetteer/geonames
 	$(PY) scripts/import_geonames.py --source-dir data/gazetteer/geonames
+	# Las universidades se sitúan contra el gazetteer: si este cambia, hay que
+	# volver a situarlas o se quedan sin provincia ni municipio.
+	$(PY) scripts/import_universities.py
 
 .PHONY: import-geonames-sample
 import-geonames-sample:  ## Importa solo el extracto versionado (nueve países, sin red)
 	$(PY) scripts/import_geonames.py --source-dir data/gazetteer/sample
+
+.PHONY: import-universities
+import-universities:  ## Importa el catálogo universitario versionado (sin red)
+	# Lee data/universities/universities.ndjson.gz, que viaja con el repositorio.
+	# Cada institución es de Wikidata (CC0) y su territorio se resuelve contra
+	# el gazetteer: no se descarga nada ni se consulta ningún servicio.
+	$(PY) scripts/import_universities.py
+
+.PHONY: build-university-catalog
+build-university-catalog:  ## Regenera ese catálogo desde Wikidata (tarda y usa red)
+	# Solo hace falta para actualizarlo: el fichero ya está versionado.
+	$(PY) scripts/build_university_catalog.py
 
 .PHONY: seed-demo
 seed-demo:  ## Crea un universo de demostración con una temporada simulada

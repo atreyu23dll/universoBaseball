@@ -27,7 +27,7 @@ from simulation.economy.market import LocalResourcePool
 from simulation.economy.model import GovernanceModel, VenueAgreement
 from simulation.generation.context import MarketProfile
 
-PROCEDURE_VERSION = "organization/1.0.0"
+PROCEDURE_VERSION = "organization/1.1.0"
 
 
 def _governance_weights(
@@ -63,28 +63,44 @@ def _governance_weights(
     ]
 
 
+#: Cuánto inclina la modalidad el acceso al terreno: `(compartir, controlar)`.
+#: La modalidad no cambia lo que hay en la zona, pero sí lo que un club
+#: **necesita** para competir: sin control del recinto no puede cobrar entrada
+#: (`VenueAgreement.can_charge_admission`), así que en una competición
+#: profesional el campo municipal compartido deja de ser la opción natural y
+#: pasa a ser la excepción —un club que no controla su sede—. Sigue teniendo
+#: peso positivo: la heterogeneidad dentro de una misma liga es válida.
+_VENUE_MODALITY_TILT = {
+    ParticipationModality.PROFESSIONAL: (0.30, 2.5),
+    ParticipationModality.SEMI_PROFESSIONAL: (0.60, 1.6),
+}
+
+
 def _venue_weights(
     governance: GovernanceModel,
     market: MarketProfile,
     pool: LocalResourcePool,
+    modality: ParticipationModality,
 ) -> list[tuple[VenueAgreement, float]]:
     """Cómo accede este club a un terreno, dado quién es y qué hay en la zona."""
     escasez = 1.8 if pool.facilities_are_scarce else 1.0
+    compartir, controlar = _VENUE_MODALITY_TILT.get(modality, (1.0, 1.0))
     propia = 0.08 + 0.9 * market.infrastructure_index * market.economy_index
     if governance in (GovernanceModel.SPORTS_COMPANY, GovernanceModel.FRANCHISE):
         propia *= 4.0
     elif governance in (GovernanceModel.COLLECTIVE, GovernanceModel.MUNICIPAL_PROGRAM):
         propia *= 0.15
     return [
-        (VenueAgreement.PUBLIC_SHARED, 2.2 * escasez),
+        (VenueAgreement.PUBLIC_SHARED, 2.2 * escasez * compartir),
         (
             VenueAgreement.SCHOOL_FACILITY,
             (2.4 if governance is GovernanceModel.SCHOOL_PROGRAM else 0.5)
-            * (0.4 + market.infrastructure_index),
+            * (0.4 + market.infrastructure_index)
+            * compartir,
         ),
-        (VenueAgreement.RENTED, 1.0 + 1.2 * market.economy_index),
-        (VenueAgreement.OWNED, propia),
-        (VenueAgreement.ITINERANT, 0.7 * escasez),
+        (VenueAgreement.RENTED, (1.0 + 1.2 * market.economy_index) * controlar),
+        (VenueAgreement.OWNED, propia * controlar),
+        (VenueAgreement.ITINERANT, 0.7 * escasez * compartir),
     ]
 
 
@@ -161,8 +177,11 @@ def generate_organization(
         ),
     )
 
-    venue_agreement = weighted_choice(rng, _venue_weights(governance, market, pool))
+    venue_agreement = weighted_choice(
+        rng, _venue_weights(governance, market, pool, ruleset.participation_modality)
+    )
     assert isinstance(venue_agreement, VenueAgreement)
+    inclinacion = _VENUE_MODALITY_TILT.get(ruleset.participation_modality)
     record.note(
         "venue_agreement",
         str(venue_agreement),
@@ -172,6 +191,13 @@ def generate_organization(
             f"{pool.claimants} clubes"
             + (" (escasez: compartir es lo normal)" if pool.facilities_are_scarce else "")
             + f"; forma de gobierno {governance}"
+            + (
+                f"; en una competición {ruleset.participation_modality} compartir el "
+                f"terreno pesa ×{inclinacion[0]:.2f} y controlarlo ×{inclinacion[1]:.1f}, "
+                "porque sin control del recinto no se cobra entrada"
+                if inclinacion is not None
+                else ""
+            )
         ),
     )
 

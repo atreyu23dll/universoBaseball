@@ -48,8 +48,11 @@ from simulation.economy.model import (
     VenueAgreement,
 )
 from simulation.economy.season_close import Outcome, close_season
+from simulation.generation.clubs import active_months
 from simulation.generation.context import market_for_place
 from simulation.generation.season_forecast import ClubEconomicState, forecast_next_season
+from simulation.generation.venues import size_venue
+from simulation.geography.model import PlaceTree
 
 
 @dataclass
@@ -111,13 +114,21 @@ def close_edition_finances(
         ).all()
     }
 
+    # El reglamento y la geografía se cargan una sola vez: los necesita cada
+    # club para medir su caja en meses de **su** gasto y para redimensionar su
+    # recinto si cambia de sede.
+    ruleset = RuleSet.model_validate(
+        current_rule_version(session, edition.competition_id).rules_json
+    )
+    tree = load_place_tree(session, universe.id)
+
     for entrada in entradas:
         if entrada.club_id is None or entrada.club_id in ya_liquidados:
             continue
         club = session.get(m.Club, entrada.club_id)
         if club is None or club.status != "active":
             continue
-        _close_club(session, universe, edition, club, report)
+        _close_club(session, universe, edition, club, report, ruleset, tree)
 
     session.flush()
     _reforecast_edition(session, universe, edition, report)
@@ -234,12 +245,78 @@ def _reforecast_edition(
     store_provenance(session, universe.id, [p.record for p in previsiones])
 
 
+def _monthly_operating_cost(libro, perfil, ruleset: RuleSet) -> Decimal | None:
+    """Lo que le cuesta a **este club** un mes de actividad.
+
+    Es el divisor con el que se mide su caja cuando decide si puede invertir en
+    su sede. Antes se usaba el `reference_monthly_cost` del territorio —el gasto
+    mensual de un hogar—, y un club con 18 millones en caja «tenía» 1 563 meses
+    de gasto: el umbral para mejorar de sede estaba siempre abierto y la
+    decisión no decidía nada.
+
+    Sale de lo que pagó de verdad en la temporada repartido entre los meses que
+    la competición está activa. Si no pagó nada —una temporada sin cerrar o un
+    territorio sin moneda—, se cae al coste de referencia para no dividir por
+    cero, y entonces la comparación vuelve a ser laxa; es preferible a bloquear
+    toda inversión por falta de datos.
+    """
+    meses = max(1.0, active_months(ruleset))
+    if libro.paid and libro.paid > 0:
+        return (Decimal(libro.paid) / Decimal(str(meses))).quantize(Decimal("1"))
+    if perfil.reference_monthly_cost is not None:
+        return Decimal(perfil.reference_monthly_cost)
+    return None
+
+
+def _resize_venue(
+    session: Session,
+    universe: m.Universe,
+    club: m.Club,
+    edition: m.CompetitionEdition,
+    tree: PlaceTree,
+    agreement: VenueAgreement,
+) -> dict[str, Any] | None:
+    """Rehace el recinto del club tras cambiar su acuerdo de sede.
+
+    Sin esto, la mejora de sede era puramente nominal: el club pasaba del campo
+    de la escuela a un estadio alquilado y seguía jugando en un parque de 3 000
+    localidades —el tope del acuerdo que ya no tenía—, porque la fila de
+    `venues` se escribía una vez al crear la edición y nunca se volvía a tocar.
+    Las dimensiones del terreno **no** se tocan: cambiar de sede no redibuja el
+    jardín izquierdo de un campo que ya existía en el mundo.
+    """
+    venue = session.scalars(select(m.Venue).where(m.Venue.club_id == club.id)).first()
+    if venue is None:
+        return None
+    lugar = session.get(m.Place, club.home_place_id)
+    if lugar is None:
+        return None
+    try:
+        market = market_for_place(tree, lugar.place_key)
+    except KeyError:
+        # El mercado del club no está materializado: no se inventa un aforo.
+        return None
+
+    rng = rng_for(universe.master_seed, "venue_resize", club.id, edition.year)
+    sizing = size_venue(rng, agreement, market, club.fan_base)
+    antes = {"capacity": venue.capacity, "venue_type": venue.venue_type}
+    venue.capacity = sizing.capacity
+    venue.venue_type = str(sizing.venue_type)
+    return {
+        "before": antes,
+        "after": {"capacity": sizing.capacity, "venue_type": str(sizing.venue_type)},
+        "basis": sizing.basis,
+    }
+
+
 def _close_club(
     session: Session,
     universe: m.Universe,
     edition: m.CompetitionEdition,
     club: m.Club,
     report: EvolutionReport,
+    ruleset: RuleSet,
+    tree: PlaceTree,
 ) -> None:
     perfil = _profile_from_json(club)
     jugados, programados = _home_games(session, edition.id, club.id)
@@ -304,11 +381,7 @@ def _close_club(
         win_percentage=victorias,
         seasons_insolvent=club.seasons_insolvent,
         club_age_years=max(0, edition.year - club.foundation_year),
-        reference_monthly_cost=(
-            Decimal(perfil.reference_monthly_cost)
-            if perfil.reference_monthly_cost is not None
-            else None
-        ),
+        monthly_operating_cost=_monthly_operating_cost(libro, perfil, ruleset),
     )
 
     if libro.outcome is Outcome.INSOLVENT:
@@ -343,8 +416,12 @@ def _close_club(
     if evolucion.governance is not None:
         actualizada["governance"] = str(evolucion.governance)
         actualizada["has_owner"] = evolucion.governance.has_single_owner
+    recinto = None
     if evolucion.venue_agreement is not None:
         actualizada["venue_agreement"] = str(evolucion.venue_agreement)
+        # El acuerdo de sede y el recinto van juntos: si el club cambia de
+        # terreno, sus gradas se rehacen con el público que tiene hoy.
+        recinto = _resize_venue(session, universe, club, edition, tree, evolucion.venue_agreement)
     club.organization = actualizada
 
     for cambio in evolucion.changes:
@@ -373,6 +450,30 @@ def _close_club(
                 payload={"season": edition.year, **cambio.as_dict()},
                 headline=_change_headline(club, cambio),
             ),
+        )
+
+    if recinto is not None and recinto["before"] != recinto["after"]:
+        # Después del cambio de sede, porque es consecuencia suya. No emite
+        # noticia propia: la mudanza ya tiene la suya y serían dos titulares
+        # para el mismo hecho.
+        _record_change(
+            session,
+            universe,
+            club,
+            edition.year,
+            "venue_capacity",
+            recinto["before"]["capacity"],
+            recinto["after"]["capacity"],
+            recinto["basis"],
+        )
+        report.changes.append(
+            {
+                "club": club.name,
+                "field": "venue_capacity",
+                "before": str(recinto["before"]["capacity"]),
+                "after": str(recinto["after"]["capacity"]),
+                "reason": recinto["basis"],
+            }
         )
 
     if evolucion.folds:

@@ -156,3 +156,26 @@ el reparto necesita conocer a todos los supervivientes antes de dividir.
 - Sigue sin existir mercado de fichajes, derechos de televisión ni traspasos,
   así que la escala profesional queda por debajo de la realidad. Está anotado en
   el plan y en `/acerca`.
+
+## Enmienda — 25 de octubre de 2026
+
+Dos cosas que este ADR describía y que el código no hacía como aquí se dice.
+
+**1. El umbral de inversión en la sede no medía lo que decía medir.** El §3
+habla de «más de 24 meses de gasto en caja», pero el divisor que se pasaba a
+`evolve_club()` era el `reference_monthly_cost` del territorio: el gasto mensual
+de **un hogar** (12 000 MXN en México), no el del club. Un club con 18 759 549
+MXN en caja resultaba tener «1 563 meses de gasto», así que la condición se
+cumplía siempre y la decisión no decidía nada. Ahora el divisor es lo que le
+cuesta al club un mes de actividad —lo pagado en la temporada entre los meses
+activos de la competición— y el umbral es `CASH_MONTHS_TO_INVEST = 12`.
+
+**2. Mejorar de sede no cambiaba el recinto.** El cambio de `venue_agreement` se
+escribía en `clubs.organization`, con su evento y su causa, y la fila de `venues`
+no se tocaba nunca: se escribía al crear la edición y ahí se quedaba. En un
+universo real había tres clubes que habían pasado a sede alquilada o propia y
+seguían jugando en un parque de 2 500 o 3 000 localidades —el tope del acuerdo
+que ya no tenían—. Ahora `_resize_venue()` rehace aforo y tipo de recinto con la
+afición del momento, lo registra en `club_organization_changes` con su causa, y
+**no** toca las dimensiones del terreno: mudarse no redibuja un campo que ya
+existía en el mundo.
