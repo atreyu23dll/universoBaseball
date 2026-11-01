@@ -18,7 +18,7 @@ const DEFAULT_TARGET = 'http://127.0.0.1:8000';
 
 /** Cabeceras que se reenvían. `Idempotency-Key` es imprescindible: sin ella un
  *  reintento del avance del reloj duplicaría la simulación. */
-const FORWARDED = ['content-type', 'accept', 'idempotency-key'];
+const FORWARDED = ['content-type', 'accept', 'idempotency-key', 'if-none-match'];
 
 const proxy: RequestHandler = async ({ request, params, url }) => {
   const base = (env.BU_API_URL ?? DEFAULT_TARGET).replace(/\/$/, '');
@@ -61,6 +61,10 @@ const proxy: RequestHandler = async ({ request, params, url }) => {
   const responseHeaders = new Headers();
   const contentType = upstream.headers.get('content-type');
   if (contentType) responseHeaders.set('content-type', contentType);
+  for (const name of ['etag', 'cache-control', 'content-disposition', 'x-content-type-options']) {
+    const value = upstream.headers.get(name);
+    if (value) responseHeaders.set(name, value);
+  }
 
   return new Response(body, { status: upstream.status, headers: responseHeaders });
 };

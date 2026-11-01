@@ -16,12 +16,17 @@ from simulation.competitions.playoffs import qualifiers_from_gates
 from simulation.competitions.ruleset import RuleSet
 from simulation.competitions.schedule import build_schedule
 from simulation.competitions.structure import (
+    BracketFeed,
+    BracketFeedOutcome,
+    BracketKey,
+    BracketKeyFormat,
     Division,
     Gate,
     GateRoute,
     Stage,
     StageFormat,
     bracket_shape,
+    consolation_keys,
     derive_stages,
     validate_sequence,
 )
@@ -453,3 +458,220 @@ def test_las_plazas_de_la_tabla_general_se_numeran_sobre_la_misma_lista() -> Non
     assert por_clave["a3"].reason == "segundo entre los no clasificados"
     assert por_clave["a2"].route == "wildcard"
     assert [por_clave[c].entry_round for c in ("a1", "b1", "a2", "a3")] == [1, 1, 0, 0]
+
+
+def test_grafo_de_llaves_acepta_cinco_segundos_con_una_miniliga() -> None:
+    divisiones = [
+        Division(key=f"d{i}", label=f"División {i}", slots=3, intra_cycles=2, inter_cycles=0)
+        for i in range(1, 6)
+    ]
+    regular = Stage(
+        key="regular",
+        label="Regular",
+        divisions=divisiones,
+        gates=[Gate(key=f"segundo-{i}", division=f"d{i}", positions=[2]) for i in range(1, 6)],
+    )
+    playoff = Stage(
+        key="playoff",
+        label="Postemporada",
+        format=StageFormat.BRACKET,
+        bracket_keys=[
+            BracketKey(
+                key="grupo",
+                label="Mini-liga de acceso",
+                row=1,
+                column=0,
+                format=BracketKeyFormat.MINI_LEAGUE,
+                feeds=[
+                    BracketFeed(source=f"segundo-{i}", outcome=BracketFeedOutcome.SEED)
+                    for i in range(1, 4)
+                ],
+                qualifying_positions=[1],
+            ),
+            BracketKey(
+                key="serie",
+                label="Serie de acceso",
+                row=1,
+                column=1,
+                feeds=[
+                    BracketFeed(source="segundo-4", outcome=BracketFeedOutcome.SEED),
+                    BracketFeed(source="segundo-5", outcome=BracketFeedOutcome.SEED),
+                ],
+                best_of=3,
+            ),
+            BracketKey(
+                key="final",
+                label="Final",
+                row=2,
+                column=0,
+                feeds=[
+                    BracketFeed(source="grupo", outcome=BracketFeedOutcome.POSITION, position=1),
+                    BracketFeed(source="serie", outcome=BracketFeedOutcome.WINNER),
+                ],
+                best_of=5,
+            ),
+        ],
+    )
+
+    assert validate_sequence([regular, playoff], club_count=15) == []
+
+
+def test_grafo_de_llaves_rechaza_una_entrada_sin_destino() -> None:
+    regular = Stage(
+        key="regular",
+        label="Regular",
+        divisions=[Division(key="d", label="Única", slots=4, intra_cycles=2)],
+        gates=[
+            Gate(key="uno", division="d", positions=[1]),
+            Gate(key="dos", division="d", positions=[2]),
+            Gate(key="tres", division="d", positions=[3]),
+        ],
+    )
+    playoff = Stage(
+        key="playoff",
+        label="Postemporada",
+        format=StageFormat.BRACKET,
+        bracket_keys=[
+            BracketKey(
+                key="final",
+                label="Final",
+                row=1,
+                column=0,
+                feeds=[
+                    BracketFeed(source="uno", outcome=BracketFeedOutcome.SEED),
+                    BracketFeed(source="dos", outcome=BracketFeedOutcome.SEED),
+                ],
+            )
+        ],
+    )
+
+    assert "la entrada «tres» no está conectada a ninguna llave" in validate_sequence(
+        [regular, playoff], club_count=4
+    )
+
+
+def _cuadro_de_cuatro(*extra: BracketKey) -> tuple[Stage, Stage]:
+    """Semifinales y final de cuatro plazas, más las llaves que se añadan."""
+    regular = Stage(
+        key="regular",
+        label="Regular",
+        divisions=[Division(key="u", label="General", slots=8, intra_cycles=2)],
+        gates=[Gate(key=f"p{i}", division="u", positions=[i]) for i in range(1, 5)],
+    )
+    cuadro = Stage(
+        key="playoff",
+        label="Postemporada",
+        format=StageFormat.BRACKET,
+        bracket_keys=[
+            BracketKey(
+                key="s1",
+                label="Semifinal 1",
+                row=1,
+                column=0,
+                feeds=[
+                    BracketFeed(source="p1", outcome=BracketFeedOutcome.SEED),
+                    BracketFeed(source="p4", outcome=BracketFeedOutcome.SEED),
+                ],
+                best_of=3,
+            ),
+            BracketKey(
+                key="s2",
+                label="Semifinal 2",
+                row=1,
+                column=1,
+                feeds=[
+                    BracketFeed(source="p2", outcome=BracketFeedOutcome.SEED),
+                    BracketFeed(source="p3", outcome=BracketFeedOutcome.SEED),
+                ],
+                best_of=3,
+            ),
+            BracketKey(
+                key="final",
+                label="Final",
+                row=2,
+                column=0,
+                feeds=[
+                    BracketFeed(source="s1", outcome=BracketFeedOutcome.WINNER),
+                    BracketFeed(source="s2", outcome=BracketFeedOutcome.WINNER),
+                ],
+                best_of=5,
+            ),
+            *extra,
+        ],
+    )
+    return regular, cuadro
+
+
+def test_el_partido_por_el_tercer_puesto_no_es_un_segundo_campeon() -> None:
+    """Conectar los dos perdedores crea una llave que no disputa el título.
+
+    Es lo que hace el editor cuando el usuario arrastra la salida «Perdedor»
+    de las dos semifinales al mismo cruce. Si su ganador contase como salida
+    final, el grafo tendría dos campeones y el motor lo rechazaría.
+    """
+    tercero = BracketKey(
+        key="tercero",
+        label="Tercer puesto",
+        row=2,
+        column=1,
+        feeds=[
+            BracketFeed(source="s1", outcome=BracketFeedOutcome.LOSER),
+            BracketFeed(source="s2", outcome=BracketFeedOutcome.LOSER),
+        ],
+        best_of=1,
+    )
+    regular, cuadro = _cuadro_de_cuatro(tercero)
+
+    assert validate_sequence([regular, cuadro], club_count=8) == []
+    assert consolation_keys(cuadro.bracket_keys) == {"tercero"}
+
+
+def test_una_llave_que_recibe_un_ganador_si_disputa_el_titulo() -> None:
+    """La consolación se hereda perdiendo; un ganador la rompe."""
+    repesca = BracketKey(
+        key="repesca",
+        label="Repesca",
+        row=2,
+        column=1,
+        feeds=[
+            BracketFeed(source="s1", outcome=BracketFeedOutcome.LOSER),
+            BracketFeed(source="s2", outcome=BracketFeedOutcome.LOSER),
+        ],
+        best_of=1,
+    )
+    # El ganador de la repesca vuelve al cuadro: deja de ser consolación
+    # porque su salida ya no es final, la consume la gran final.
+    gran_final = BracketKey(
+        key="gran",
+        label="Gran final",
+        row=3,
+        column=0,
+        feeds=[
+            BracketFeed(source="final", outcome=BracketFeedOutcome.WINNER),
+            BracketFeed(source="repesca", outcome=BracketFeedOutcome.WINNER),
+        ],
+        best_of=5,
+    )
+    regular, cuadro = _cuadro_de_cuatro(repesca, gran_final)
+
+    assert validate_sequence([regular, cuadro], club_count=8) == []
+    assert consolation_keys(cuadro.bracket_keys) == {"repesca"}
+
+
+def test_dos_finales_de_verdad_siguen_siendo_un_error() -> None:
+    """La regla se relaja para la consolación, no para el título."""
+    otra_final = BracketKey(
+        key="otra",
+        label="Otra final",
+        row=2,
+        column=1,
+        feeds=[
+            BracketFeed(source="s1", outcome=BracketFeedOutcome.LOSER),
+            BracketFeed(source="p1", outcome=BracketFeedOutcome.SEED),
+        ],
+        best_of=5,
+    )
+    regular, cuadro = _cuadro_de_cuatro(otra_final)
+
+    problemas = validate_sequence([regular, cuadro], club_count=8)
+    assert any("debe dejar un campeón" in p for p in problemas)

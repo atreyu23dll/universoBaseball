@@ -14,7 +14,7 @@
     <article class="ranking-card">
       <div class="ranking-position">{row.group_rank || row.rank}</div>
       <div class="row" style="min-width:0;flex-wrap:nowrap">
-        {#if row.club}<Crest primary={row.club.primary_color} secondary={row.club.secondary_color} shape={row.club.crest_shape} motif={row.club.crest_motif} size={30} />{/if}
+        {#if row.club}<Crest clubId={row.club.id} size={64} title={row.club.name} />{/if}
         <div style="min-width:0"><a href={`/clubes/${row.club?.id}`}><strong>{row.club?.name}</strong></a><div class="small muted">{row.group || row.streak || 'Liga'}</div></div>
       </div>
       <div class="metric"><strong>{row.wins}–{row.losses}</strong><small>Récord</small></div>

@@ -25,3 +25,7 @@ frontend/.npm-cache/
 # `make import-geonames`, no se versionan. El extracto reducido para pruebas sí
 # está en el repositorio, en data/gazetteer/sample/.
 data/gazetteer/geonames/
+crests.svg
+crests-review.svg
+crests-gallery.svg
+crests-examples.svg

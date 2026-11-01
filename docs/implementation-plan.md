@@ -119,13 +119,15 @@ Ver `docs/adr/0006-gazetteer-mundial-geonames.md`.
 - **No hay mapa.** La búsqueda es textual y accesible por teclado, que es el
   requisito (§4.1, G07); MapLibre y los polígonos de geoBoundaries descargados
   quedan para cuando haya una vista cartográfica que los use.
-- **Los nombres generados son de español de México.** El gazetteer abrió el
-  mundo y eso dejó a la vista que `simulation/generation/lexicon.py` tiene un
-  solo idioma: una liga en Kampala produce clubes llamados «Zopilotes» y
-  jugadores con nombres mexicanos. La especificación maestra pide «nombre
-  apropiado por contexto lingüístico» (§7.5), así que es una deuda real: hace
-  falta léxico por idioma o región, con sus fuentes. Aparece declarada en el
-  propio módulo y en la pantalla `/acerca`.
+- **Los nombres de persona son de español de México.** La marca del club ya
+  no: se acuña con morfología propia en español e inglés y con inventario curado
+  en ocho idiomas más (ADR 0016), y un país sin gramática curada recibe su
+  topónimo verificado. Lo que sigue teniendo un solo idioma es
+  `NAME_POOLS`: un jugador de Kampala se llama en castellano. La especificación
+  maestra pide «nombre apropiado por contexto lingüístico» (§7.5), así que es
+  una deuda real y acotada: hacen falta antropónimos por idioma o región, con
+  sus fuentes. Aparece declarada en el propio módulo y en la pantalla
+  `/acerca`.
 
 **P4 (hecho). Borrador, previsualización inmutable y confirmación idempotente.**
 Lo implementado (`backend/app/application/draft_service.py`):
@@ -410,9 +412,174 @@ Lo que H1 y H2 dejaron hecho, y lo que deliberadamente no tocaron:
   exista la mecánica de selección, y una `xfail` estricta que pasa falla la
   batería: es la lista de lo que hay que devolver a la vida.
 
+## Identidad generativa (ADR 0015)
+
+Nombre y logo dejaron de salir de listas terminadas. El motor nominal construye
+varias candidatas con morfemas y gramáticas del idioma declarado, puntúa
+naturalidad, rechaza similitudes y conserva la **familia** del concepto elegido.
+El perfil institucional persistente —semilla, versión, referencias y decisiones
+creativas separadas— alimenta tanto ese nombre como un árbol gráfico con treinta
+motivos paramétricos. De él salen las variantes principal, secundaria, monograma,
+reducida, gorra y fondos claro/oscuro.
+
+Tres defectos medidos que esto corrige:
+
+1. **El 59 % de los escudos no se leía** (contraste mediano 2,2:1, mínimo
+   1,0:1). La paleta se genera ahora en OKLCH y el contraste se **exige**: 0 de
+   600 por debajo del umbral de WCAG.
+2. **El símbolo no sabía nada del nombre**: un club llamado Nopaleras llevaba un
+   elefante tan a menudo como un cactus, que ni existía.
+3. **El contrato no se validaba** y su único intérprete era un componente del
+   frontend: un motivo mal escrito salía como estrella y nada podía exportar un
+   escudo sin un navegador. Ahora el motor lo dibuja y lo sirve en
+   `/clubs/{id}/crest.svg`.
+
+## Nombres acuñados (ADR 0016)
+
+El motor nominal ya no combina nombres acabados: combina **morfemas**. Medido
+sobre 96 clubes de una misma región, antes «Viento» salía siete veces y las
+marcas sólo se distinguían por el prefijo, porque el inventario eran 24 palabras
+por idioma y el control de duplicados comparaba la cadena final.
+
+Lo que hay ahora:
+
+- **673 raíces** —165 en español— con el alomorfo que cada una admite por clase
+  de sufijo, y las reglas ortográficas del idioma para aplicarlo: `barranca` +
+  `-ero` da «barranquero», `médano` + `-ero` da «medanero». Español e inglés
+  derivan; ocho idiomas más tienen inventario curado que se usa tal cual.
+- **Un filtro fonotáctico** por palabra acuñada: silabación de ataque máximo,
+  ataques y codas del idioma, sílaba repetida y longitud.
+- **Tres vetas de identidad**, una por club: territorio (altitud, franja
+  climática, tamaño de plaza), época (año de fundación) y patronazgo (la casa o
+  la empresa que lo sostiene). La veta restringe vocabulario y gramática, y
+  degrada en vez de fallar cuando falta el dato.
+- **La presión del universo es sobre la raíz y la plantilla**, no sobre la
+  cadena: 24 clubes de una misma plaza salen con 24 raíces distintas.
+- **El nombre guarda de dónde salió**: veta, hecho que lo motivó y acuñación
+  («mezquite + -al») viajan en el perfil de identidad del club.
+
+Coste: 5,7 ms por club. El año de fundación pasó a su propio cauce RNG porque la
+veta de época lo necesita antes del nombre; el sorteo histórico se sigue
+consumiendo, así que las cuentas no se mueven.
+
+## Escudos blasonados (ADR 0017)
+
+El escudo dejó de salir de una plantilla. Antes había **una** silueta escrita a
+mano y **cinco** composiciones fijas, con una figura sola en el centro: cien
+escudos se repartían en cinco grupos reconocibles. Ahora:
+
+- La **silueta se construye** por familias de blasón —inglés, francés, ibérico,
+  italiano, de torneo, barroco, estandarte, ojival—, con parámetros continuos:
+  500 semillas dan 500 contornos distintos.
+- El **emblema tiene capas**: 13 particiones del campo, 10 piezas honorables, el
+  mueble principal, 7 muebles menores geométricos —o un segundo símbolo de la
+  misma familia—, escudete cuando el fondo lo pide, y exteriores construidos
+  (cinta, corona, estrellas, año de fundación).
+- La **colocación se calcula**: `width_at` dice cuánto escudo hay a cada altura,
+  y ningún mueble menor se pone a menos de la distancia a la que deja de tocar
+  al principal.
+- Un **solo color fuerte** por escudo, con el contraste medido contra el campo y
+  contra la figura.
+- Los símbolos más repetidos —torre, yunque, engranaje, abstracto— tienen
+  anatomía variable, no un único parámetro.
+
+Medido sobre las cien identidades de la galería de aceptación: **100 de 100 con
+estructura gráfica distinta**, donde el criterio pedía 50.
+
+## Símbolos y arquetipos de marca (ADR 0018)
+
+El escudo ya no se repetía, pero su contenido sí: quince de los veintidós
+símbolos eran el mismo dibujo con un número movido, ocho motivos del mapa
+semántico no tenían contorno y todo era «escudo con una figura».
+
+- **30 símbolos con anatomía propia**, y los treinta dan 24 dibujos distintos de
+  24 semillas. El rayo son sus siete vértices; la llama, de una a tres lenguas;
+  el cactus tiene dos especies; el puente puede ser colgante.
+- **`DRAWABLE_FALLBACK` vacío**: lo que el nombre promete, el escudo lo dibuja.
+- **El lienzo manda en un solo sitio**: `generate_symbol` mide y encaja cada
+  figura, así que ninguna se sale y «escala 0,6» significa lo mismo para todas.
+- **Tres arquetipos de escudo** —simple, cuartelado con una figura por cuartel,
+  y acompañado con tenantes, cimera y compartimento— y **cinco de marca**
+  —escudo, disco, libre, parche y banderín—, porque en la realidad no todo es un
+  escudo.
+
+Medido sobre 200 escudos: 200 estructuras gráficas distintas.
+
+## De todo tipo, y sin repetirse (ADR 0019)
+
+Quedaban dos problemas de reparto. El primero: **88 de cada 100 marcas eran
+escudos heráldicos**, porque esa dirección pesaba 16,0 contra 0,15 de las
+rotuladas. El segundo: esas cinco direcciones rotuladas eran cinco recetas con
+las cajas escritas a mano.
+
+- La **marca rotulada es ahora un sistema**: cinco marcos (ninguno, roundel,
+  escudo, cápsula, banderín), cuatro modos de monograma —incluido el grande y
+  velado al fondo—, rótulo recto o en arco, seis adornos y cuatro pies.
+- **Regla de tinta**: dentro de un marco la letra va clara; fuera, del color del
+  club con perfil. Rotular en `field` sobre un marco de `field` dejaba la marca
+  invisible.
+- **Reparto deliberado de direcciones**: 34 heráldicas, 18 simbólicas y 48
+  rotuladas de cada 100, inclinado por la personalidad del club. El criterio de
+  aceptación se cambió a propósito: antes exigía 65 % de heráldicas, es decir,
+  exigía la falta de variedad.
+- **Dos arquetipos más**: escudo con las **iniciales dentro** —lo más
+  característico de un escudo de fútbol— y marca con **empuje diagonal**.
+- **El halcón y el toro miran de lado**: vista de perfil además de la frontal.
+
+Medido: 1.000 escudos del mismo club dan 1.000 estructuras distintas, y 1.000
+clubes distintos reciben 1.000 marcas distintas, ninguna repetida.
+
+## Fechas de temporada y cuadro editable a la vista (ADR 0020 y 0021)
+
+Dos quejas del mismo paso del asistente.
+
+**Las fechas.** Toda liga arrancaba el día en que se creaba. Ahora el
+reglamento declara `season.start_date` —sólo el arranque; el final lo pone el
+calendario que el motor construye— y `SeasonRules.opening()` lo resuelve en un
+solo sitio: la fecha tal cual en la primera edición, su aniversario en las
+siguientes, nunca antes del día del mundo y nunca antes de la pausa entre
+temporadas. Las competiciones que intercambian plazas abren su temporada **el
+mismo día**, el más tardío de la escalera, porque el intercambio siguiente no
+se resuelve hasta que todas hayan terminado. La previsualización devuelve el
+calendario día a día con sus cruces, y el asistente lo dibuja mes a mes.
+
+**El cuadro.** Las salidas de cada llave —ganador y perdedor— salen del pliegue
+y se ven siempre, con un menú «⋯» que conecta de un clic, incluido el destino
+«cruce nuevo» que es el que crea el partido por el tercer puesto. Para que eso
+no fuera una promesa vacía, el motor aprendió qué es una **llave de
+consolación** —aquella a la que solo se llega perdiendo—: su ganador es una
+salida final legítima que no disputa el título, así que un cuadro con tercer
+puesto deja de ser «dos campeones» y pasa a validar. Se pueden
+abrir varias llaves a la vez. Y vuelven a la vista los mandos que una hoja de
+estilo había escondido: formato de la postemporada, estado del camino, recuento
+de cada ronda y el botón de quitarla.
+
+## La paleta del club: dos, tres y tres (ADR 0022)
+
+El compositor de marcas tenía la paleta escrita a mano: el tono del campo se
+sorteaba **entre cinco** y la marca, la tinta y el papel eran constantes. Tres
+de cada cuatro colores de una identidad no eran de esa identidad.
+
+Ahora cada club tiene ocho colores con oficio —dos principales, tres
+secundarios y tres terciarios, incluido un metal con nombre— derivados de un
+esquema de armonía declarado (monocroma, análoga, complementaria, complementaria
+dividida o tríada) que la personalidad institucional inclina. Se imponen dos
+cosas: el **contraste WCAG** de lo que acaba pegado y la **distinción
+perceptual** en OKLab, que es otra cosa —dos tonos opuestos con la misma
+claridad tienen contraste 1:1—. La paleta se compone una vez por club, se
+guarda en su perfil, la enseña su ficha con el oficio de cada color, y el
+blasón dibuja con ella: las tinturas de las particiones, el color de los
+muebles y el filete de metal de la bordura.
+
+Medido sobre 200 clubes: 200 bases distintas y 200 colores principales
+distintos.
+
 ## Orden recomendado para la siguiente iteración
 
-1. Que el organigrama **crezca**: crear un departamento cuando aparece el
+1. Rasterizado del escudo a PNG —favicon por club e imagen para compartir— y
+   variantes adicionales horizontal/monocroma. Las siete variantes SVG de uso
+   inmediato ya se generan, persisten y exploran en la ficha del club.
+2. Que el organigrama **crezca**: crear un departamento cuando aparece el
    trabajo que lo justifica, fusionarlo en una crisis, cerrarlo, y emitir los
    eventos institucionales de cada cambio.
 3. La mecánica de selección: cómo una persona del universo pasa a jugar en un

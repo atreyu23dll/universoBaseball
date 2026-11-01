@@ -186,7 +186,7 @@ LABEL: dict[str, str] = {
     "recognition_need": "necesidad de reconocimiento",
     "competitiveness": "competitividad",
     "fairness_preference": "sentido de la justicia",
-    "self_efficacy": "confianza en sí misma",
+    "self_efficacy": "autoconfianza",
     "stress_level": "nivel de estrés",
     "mood_valence": "ánimo",
     "motivation_level": "motivación",

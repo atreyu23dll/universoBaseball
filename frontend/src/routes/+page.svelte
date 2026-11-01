@@ -4,15 +4,31 @@
   import type { UniverseSummary } from '$lib/api/types';
   import { formatDate, formatNumber } from '$lib/format';
   import ErrorNotice from '$lib/components/ErrorNotice.svelte';
+  import DatePicker from '$lib/components/DatePicker.svelte';
 
   let universes = $state<UniverseSummary[]>([]);
   let loading = $state(true);
   let error = $state<unknown>(null);
   let creating = $state(false);
 
-  let name = $state('México Alternativo');
-  let worldDate = $state('2042-03-20');
-  let seed = $state<string>('18723');
+  // Los datos de identidad los escribe el usuario. No precargamos ejemplos
+  // que haya que seleccionar y borrar antes de empezar.
+  let name = $state('');
+  let worldDate = $state('');
+  let seed = $state<string>('');
+  const readableWorldDate = $derived(
+    worldDate
+      ? new Intl.DateTimeFormat('es-MX', {
+          weekday: 'short', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'
+        }).format(new Date(`${worldDate}T00:00:00Z`))
+      : 'Ninguna fecha seleccionada'
+  );
+
+  function chooseToday() {
+    const now = new Date();
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+    worldDate = local.toISOString().slice(0, 10);
+  }
 
   async function load() {
     loading = true;
@@ -29,6 +45,10 @@
 
   async function create(event: SubmitEvent) {
     event.preventDefault();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(worldDate)) {
+      error = new Error('Elige una fecha inicial válida en el calendario.');
+      return;
+    }
     creating = true;
     error = null;
     try {
@@ -99,7 +119,13 @@
       </div>
       <div class="field">
         <label for="fecha">Fecha inicial del mundo</label>
-        <input id="fecha" type="date" bind:value={worldDate} required />
+        <DatePicker bind:value={worldDate}/>
+        <input id="fecha" class="date-value" value={worldDate} required aria-hidden="true" tabindex="-1" />
+        <p class="chosen-date">{readableWorldDate}</p>
+        <div class="date-actions">
+          <button type="button" class="ghost" onclick={chooseToday}>Usar hoy</button>
+          {#if worldDate}<button type="button" class="ghost" onclick={() => (worldDate = '')}>Limpiar</button>{/if}
+        </div>
       </div>
       <div class="field">
         <label for="semilla">Semilla maestra (vacío = aleatoria)</label>
@@ -111,3 +137,8 @@
     </form>
   </div>
 </div>
+
+<style>
+  .date-value{position:absolute;width:1px;height:1px;padding:0;opacity:0;pointer-events:none}.chosen-date{margin:6px 0 0;color:var(--muted);font-size:11px}.chosen-date::first-letter{text-transform:uppercase}
+  .date-actions{display:flex;gap:6px;margin-top:6px}.date-actions button{padding:5px 9px;font-size:10px}
+</style>

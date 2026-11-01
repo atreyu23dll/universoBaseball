@@ -1,0 +1,875 @@
+{
+  "$defs": {
+    "Anchor": {
+      "enum": [
+        "center",
+        "top",
+        "bottom",
+        "left",
+        "right",
+        "top_left",
+        "top_right",
+        "bottom_left",
+        "bottom_right"
+      ],
+      "title": "Anchor",
+      "type": "string"
+    },
+    "CompositionNode": {
+      "additionalProperties": false,
+      "description": "Un nodo del árbol de composición, independiente del SVG final.\n\nLa representación es deliberadamente de dominio: dice «repite este\nsímbolo», «recorta este grupo con esta forma» o «transforma estas capas».\nNo guarda fragmentos de SVG. Así una variante puede regenerarse y otro\nintérprete futuro (por ejemplo Three.js) puede recorrer el mismo árbol.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/NodeKind"
+        },
+        "name": {
+          "default": "",
+          "maxLength": 48,
+          "title": "Name",
+          "type": "string"
+        },
+        "z": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Z",
+          "type": "integer"
+        },
+        "placement": {
+          "$ref": "#/$defs/Placement",
+          "default": {
+            "anchor": "center",
+            "dx": 0.0,
+            "dy": 0.0,
+            "scale": 1.0,
+            "rotate": 0.0
+          }
+        },
+        "opacity": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Opacity",
+          "type": "number"
+        },
+        "min_size": {
+          "default": 0,
+          "maximum": 512,
+          "minimum": 0,
+          "title": "Min Size",
+          "type": "integer"
+        },
+        "fill": {
+          "default": "mark",
+          "pattern": "^(field|mark|ink|accent|paper|shade|tint|metal|none|#[0-9A-Fa-f]{6})$",
+          "title": "Fill",
+          "type": "string"
+        },
+        "stroke": {
+          "default": "none",
+          "pattern": "^(field|mark|ink|accent|paper|shade|tint|metal|none|#[0-9A-Fa-f]{6})$",
+          "title": "Stroke",
+          "type": "string"
+        },
+        "stroke_width": {
+          "default": 0.0,
+          "maximum": 12.0,
+          "minimum": 0.0,
+          "title": "Stroke Width",
+          "type": "number"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Shape"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "d": {
+          "anyOf": [
+            {
+              "maxLength": 150000,
+              "pattern": "^[MmLlHhVvCcSsQqTtAaZz0-9eE., +\\-\\n]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "D"
+        },
+        "bounds": {
+          "default": [
+            0,
+            0,
+            100,
+            100
+          ],
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bounds",
+          "type": "array"
+        },
+        "role": {
+          "default": "symbol",
+          "enum": [
+            "symbol",
+            "lettering",
+            "ornament",
+            "container"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "label": {
+          "default": "",
+          "title": "Label",
+          "type": "string"
+        },
+        "motif": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Motif"
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Params",
+          "type": "object"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "layout": {
+          "$ref": "#/$defs/TextLayout",
+          "default": "straight"
+        },
+        "typography": {
+          "$ref": "#/$defs/Typography",
+          "default": "block"
+        },
+        "size": {
+          "default": 28.0,
+          "exclusiveMinimum": 0.0,
+          "maximum": 100.0,
+          "title": "Size",
+          "type": "number"
+        },
+        "letter_spacing": {
+          "default": 0.0,
+          "maximum": 12.0,
+          "minimum": -6.0,
+          "title": "Letter Spacing",
+          "type": "number"
+        },
+        "children": {
+          "items": {
+            "$ref": "#/$defs/CompositionNode"
+          },
+          "maxItems": 16,
+          "title": "Children",
+          "type": "array"
+        },
+        "mask": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompositionNode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "mask_mode": {
+          "default": "intersect",
+          "enum": [
+            "intersect",
+            "cutout"
+          ],
+          "title": "Mask Mode",
+          "type": "string"
+        },
+        "transform_version": {
+          "default": 1,
+          "enum": [
+            1,
+            2
+          ],
+          "title": "Transform Version",
+          "type": "integer"
+        },
+        "count": {
+          "default": 1,
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Count",
+          "type": "integer"
+        },
+        "spread_x": {
+          "default": 0.0,
+          "maximum": 100.0,
+          "minimum": -100.0,
+          "title": "Spread X",
+          "type": "number"
+        },
+        "spread_y": {
+          "default": 0.0,
+          "maximum": 100.0,
+          "minimum": -100.0,
+          "title": "Spread Y",
+          "type": "number"
+        },
+        "rotate_step": {
+          "default": 0.0,
+          "maximum": 180.0,
+          "minimum": -180.0,
+          "title": "Rotate Step",
+          "type": "number"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "CompositionNode",
+      "type": "object"
+    },
+    "MotifLayer": {
+      "additionalProperties": false,
+      "description": "Un símbolo paramétrico, opcionalmente repetido.\n\n`params` son los parámetros del motivo —cuántos pétalos, cuántas puntas—,\nno coordenadas: el dibujo lo construye el catálogo de motivos.",
+      "properties": {
+        "z": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Z",
+          "type": "integer"
+        },
+        "placement": {
+          "$ref": "#/$defs/Placement",
+          "default": {
+            "anchor": "center",
+            "dx": 0.0,
+            "dy": 0.0,
+            "scale": 1.0,
+            "rotate": 0.0
+          }
+        },
+        "fill": {
+          "default": "mark",
+          "pattern": "^(field|mark|ink|accent|paper|shade|tint|metal|none|#[0-9A-Fa-f]{6})$",
+          "title": "Fill",
+          "type": "string"
+        },
+        "stroke": {
+          "default": "none",
+          "pattern": "^(field|mark|ink|accent|paper|shade|tint|metal|none|#[0-9A-Fa-f]{6})$",
+          "title": "Stroke",
+          "type": "string"
+        },
+        "stroke_width": {
+          "default": 0.0,
+          "maximum": 12.0,
+          "minimum": 0.0,
+          "title": "Stroke Width",
+          "type": "number"
+        },
+        "opacity": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Opacity",
+          "type": "number"
+        },
+        "min_size": {
+          "default": 0,
+          "maximum": 512,
+          "minimum": 0,
+          "title": "Min Size",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "motif",
+          "default": "motif",
+          "title": "Kind",
+          "type": "string"
+        },
+        "motif": {
+          "title": "Motif",
+          "type": "string"
+        },
+        "params": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "title": "Params",
+          "type": "object"
+        },
+        "repeat": {
+          "default": 1,
+          "maximum": 7,
+          "minimum": 1,
+          "title": "Repeat",
+          "type": "integer"
+        },
+        "spread": {
+          "default": 0.0,
+          "maximum": 100.0,
+          "minimum": 0.0,
+          "title": "Spread",
+          "type": "number"
+        }
+      },
+      "required": [
+        "motif"
+      ],
+      "title": "MotifLayer",
+      "type": "object"
+    },
+    "NodeKind": {
+      "description": "Nodos de la gramática gráfica.\n\nLas hojas (`shape`, `motif`, `text`) dibujan. Los demás describen cómo se\ncompone el árbol: grupos/capas, transformaciones anidadas, repeticiones y\nmáscaras. `ornament` es un grupo semántico que puede desaparecer en\ntamaños pequeños sin perder el símbolo principal.",
+      "enum": [
+        "group",
+        "layer",
+        "shape",
+        "motif",
+        "text",
+        "path",
+        "mask",
+        "repeat",
+        "ornament"
+      ],
+      "title": "NodeKind",
+      "type": "string"
+    },
+    "Palette": {
+      "additionalProperties": false,
+      "description": "Los ocho colores de un club, con su contraste ya comprobado.\n\nDos principales, tres secundarios y tres terciarios. El reparto no es\ndecorativo: un escudo necesita margen para separar, perfilar y rematar sin\nsalirse de la familia del club.",
+      "properties": {
+        "field": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Field",
+          "type": "string"
+        },
+        "mark": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Mark",
+          "type": "string"
+        },
+        "ink": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Ink",
+          "type": "string"
+        },
+        "accent": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Accent",
+          "type": "string"
+        },
+        "paper": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Paper",
+          "type": "string"
+        },
+        "shade": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Shade",
+          "type": "string"
+        },
+        "tint": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Tint",
+          "type": "string"
+        },
+        "metal": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Metal",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "mark",
+        "ink",
+        "accent",
+        "paper",
+        "shade",
+        "tint",
+        "metal"
+      ],
+      "title": "Palette",
+      "type": "object"
+    },
+    "PathLayer": {
+      "additionalProperties": false,
+      "description": "Geometría calculada y congelada, en coordenadas del lienzo.",
+      "properties": {
+        "z": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Z",
+          "type": "integer"
+        },
+        "placement": {
+          "$ref": "#/$defs/Placement",
+          "default": {
+            "anchor": "center",
+            "dx": 0.0,
+            "dy": 0.0,
+            "scale": 1.0,
+            "rotate": 0.0
+          }
+        },
+        "fill": {
+          "default": "mark",
+          "pattern": "^(field|mark|ink|accent|paper|shade|tint|metal|none|#[0-9A-Fa-f]{6})$",
+          "title": "Fill",
+          "type": "string"
+        },
+        "stroke": {
+          "default": "none",
+          "pattern": "^(field|mark|ink|accent|paper|shade|tint|metal|none|#[0-9A-Fa-f]{6})$",
+          "title": "Stroke",
+          "type": "string"
+        },
+        "stroke_width": {
+          "default": 0.0,
+          "maximum": 12.0,
+          "minimum": 0.0,
+          "title": "Stroke Width",
+          "type": "number"
+        },
+        "opacity": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Opacity",
+          "type": "number"
+        },
+        "min_size": {
+          "default": 0,
+          "maximum": 512,
+          "minimum": 0,
+          "title": "Min Size",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "path",
+          "default": "path",
+          "title": "Kind",
+          "type": "string"
+        },
+        "d": {
+          "maxLength": 150000,
+          "minLength": 1,
+          "pattern": "^[MmLlHhVvCcSsQqTtAaZz0-9eE., +\\-\\n]+$",
+          "title": "D",
+          "type": "string"
+        },
+        "bounds": {
+          "default": [
+            0,
+            0,
+            100,
+            100
+          ],
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bounds",
+          "type": "array"
+        },
+        "role": {
+          "default": "symbol",
+          "enum": [
+            "symbol",
+            "lettering",
+            "ornament",
+            "container"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "label": {
+          "default": "",
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "d"
+      ],
+      "title": "PathLayer",
+      "type": "object"
+    },
+    "Placement": {
+      "additionalProperties": false,
+      "description": "Dónde, cuánto y con qué giro se dibuja una capa.",
+      "properties": {
+        "anchor": {
+          "$ref": "#/$defs/Anchor",
+          "default": "center"
+        },
+        "dx": {
+          "default": 0.0,
+          "maximum": 100.0,
+          "minimum": -100.0,
+          "title": "Dx",
+          "type": "number"
+        },
+        "dy": {
+          "default": 0.0,
+          "maximum": 100.0,
+          "minimum": -100.0,
+          "title": "Dy",
+          "type": "number"
+        },
+        "scale": {
+          "default": 1.0,
+          "exclusiveMinimum": 0.0,
+          "maximum": 2.0,
+          "title": "Scale",
+          "type": "number"
+        },
+        "rotate": {
+          "default": 0.0,
+          "maximum": 180.0,
+          "minimum": -180.0,
+          "title": "Rotate",
+          "type": "number"
+        }
+      },
+      "title": "Placement",
+      "type": "object"
+    },
+    "Shape": {
+      "description": "Siluetas de soporte y de marco. Geometría, no dibujo.",
+      "enum": [
+        "shield",
+        "circle",
+        "diamond",
+        "square",
+        "hexagon",
+        "banner",
+        "triangle",
+        "ring",
+        "arch"
+      ],
+      "title": "Shape",
+      "type": "string"
+    },
+    "ShapeLayer": {
+      "additionalProperties": false,
+      "description": "Una silueta: el soporte del escudo o un marco por encima.",
+      "properties": {
+        "z": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Z",
+          "type": "integer"
+        },
+        "placement": {
+          "$ref": "#/$defs/Placement",
+          "default": {
+            "anchor": "center",
+            "dx": 0.0,
+            "dy": 0.0,
+            "scale": 1.0,
+            "rotate": 0.0
+          }
+        },
+        "fill": {
+          "default": "mark",
+          "pattern": "^(field|mark|ink|accent|paper|shade|tint|metal|none|#[0-9A-Fa-f]{6})$",
+          "title": "Fill",
+          "type": "string"
+        },
+        "stroke": {
+          "default": "none",
+          "pattern": "^(field|mark|ink|accent|paper|shade|tint|metal|none|#[0-9A-Fa-f]{6})$",
+          "title": "Stroke",
+          "type": "string"
+        },
+        "stroke_width": {
+          "default": 0.0,
+          "maximum": 12.0,
+          "minimum": 0.0,
+          "title": "Stroke Width",
+          "type": "number"
+        },
+        "opacity": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Opacity",
+          "type": "number"
+        },
+        "min_size": {
+          "default": 0,
+          "maximum": 512,
+          "minimum": 0,
+          "title": "Min Size",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "shape",
+          "default": "shape",
+          "title": "Kind",
+          "type": "string"
+        },
+        "shape": {
+          "$ref": "#/$defs/Shape"
+        }
+      },
+      "required": [
+        "shape"
+      ],
+      "title": "ShapeLayer",
+      "type": "object"
+    },
+    "TextLayer": {
+      "additionalProperties": false,
+      "description": "Letras: un monograma, unas iniciales o el nombre entero.",
+      "properties": {
+        "z": {
+          "default": 0,
+          "maximum": 100,
+          "minimum": -100,
+          "title": "Z",
+          "type": "integer"
+        },
+        "placement": {
+          "$ref": "#/$defs/Placement",
+          "default": {
+            "anchor": "center",
+            "dx": 0.0,
+            "dy": 0.0,
+            "scale": 1.0,
+            "rotate": 0.0
+          }
+        },
+        "fill": {
+          "default": "mark",
+          "pattern": "^(field|mark|ink|accent|paper|shade|tint|metal|none|#[0-9A-Fa-f]{6})$",
+          "title": "Fill",
+          "type": "string"
+        },
+        "stroke": {
+          "default": "none",
+          "pattern": "^(field|mark|ink|accent|paper|shade|tint|metal|none|#[0-9A-Fa-f]{6})$",
+          "title": "Stroke",
+          "type": "string"
+        },
+        "stroke_width": {
+          "default": 0.0,
+          "maximum": 12.0,
+          "minimum": 0.0,
+          "title": "Stroke Width",
+          "type": "number"
+        },
+        "opacity": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Opacity",
+          "type": "number"
+        },
+        "min_size": {
+          "default": 0,
+          "maximum": 512,
+          "minimum": 0,
+          "title": "Min Size",
+          "type": "integer"
+        },
+        "kind": {
+          "const": "text",
+          "default": "text",
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "layout": {
+          "$ref": "#/$defs/TextLayout",
+          "default": "straight"
+        },
+        "typography": {
+          "$ref": "#/$defs/Typography",
+          "default": "block"
+        },
+        "size": {
+          "default": 28.0,
+          "exclusiveMinimum": 0.0,
+          "maximum": 100.0,
+          "title": "Size",
+          "type": "number"
+        },
+        "letter_spacing": {
+          "default": 0.0,
+          "maximum": 12.0,
+          "minimum": -6.0,
+          "title": "Letter Spacing",
+          "type": "number"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "TextLayer",
+      "type": "object"
+    },
+    "TextLayout": {
+      "description": "Topología del texto: la forma en que las letras se colocan.\n\nNo es solo la tipografía: `ARC` curva el nombre sobre el escudo, `STACKED`\nlo parte en líneas y `VERTICAL` lo pone en columna. Es lo que distingue un\nmonograma de una marca verbal.",
+      "enum": [
+        "straight",
+        "arc",
+        "arc_below",
+        "stacked",
+        "vertical"
+      ],
+      "title": "TextLayout",
+      "type": "string"
+    },
+    "Typography": {
+      "enum": [
+        "block",
+        "slab",
+        "script",
+        "condensed",
+        "geometric"
+      ],
+      "title": "Typography",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Un logo completo: paleta, capas y por qué es así.\n\n`rationale` no es decoración: es la traza de qué decidió esta identidad —el\nlugar, el concepto del nombre, la personalidad de quien manda— y sin ella\nun logo generado es indistinguible de uno aleatorio.",
+  "properties": {
+    "design_style": {
+      "default": "legacy",
+      "title": "Design Style",
+      "type": "string"
+    },
+    "schema_version": {
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "variant": {
+      "default": "primary",
+      "pattern": "^[a-z][a-z0-9_-]{0,31}$",
+      "title": "Variant",
+      "type": "string"
+    },
+    "palette": {
+      "$ref": "#/$defs/Palette"
+    },
+    "layers": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "motif": "#/$defs/MotifLayer",
+            "path": "#/$defs/PathLayer",
+            "shape": "#/$defs/ShapeLayer",
+            "text": "#/$defs/TextLayer"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/ShapeLayer"
+          },
+          {
+            "$ref": "#/$defs/MotifLayer"
+          },
+          {
+            "$ref": "#/$defs/TextLayer"
+          },
+          {
+            "$ref": "#/$defs/PathLayer"
+          }
+        ]
+      },
+      "maxItems": 12,
+      "title": "Layers",
+      "type": "array"
+    },
+    "root": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CompositionNode"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "rationale": {
+      "default": "",
+      "title": "Rationale",
+      "type": "string"
+    }
+  },
+  "required": [
+    "palette"
+  ],
+  "title": "LogoSpec",
+  "type": "object"
+}

@@ -51,8 +51,7 @@
         <tr>
           <td>
             <span class="row" style="gap:8px">
-              <Crest primary={club.primary_color} secondary={club.secondary_color}
-                     shape={club.crest_shape} motif={club.crest_motif} size={20} />
+              <Crest clubId={club.id} size={64} title={club.name} />
               <a href={`/clubes/${club.id}`}>{club.name}</a>
             </span>
           </td>

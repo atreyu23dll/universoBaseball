@@ -38,7 +38,8 @@ class UniverseSummary(BaseModel):
     master_seed: int
     sim_version: str
     fixture_version: str
-    currency: str
+    #: Nulo cuando el territorio del universo no tiene ancla monetaria.
+    currency: str | None = None
     status: str
     competitions: int
     clubs: int

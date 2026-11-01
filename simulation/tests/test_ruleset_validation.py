@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 from pydantic import ValidationError
 
@@ -114,3 +116,52 @@ def test_con_puntos_ganar_debe_valer_mas_que_perder():
 def test_no_se_puede_descansar_mas_de_cinco_dias():
     with pytest.raises(ValidationError):
         construir(season={"rest_days_weekday": [0, 1, 2, 3, 4, 5]})
+
+
+# --------------------------------------------------------------------------- #
+# Cuándo arranca la temporada
+# --------------------------------------------------------------------------- #
+
+
+def test_sin_fecha_declarada_la_temporada_arranca_con_el_mundo():
+    """Lo de siempre: la liga empieza cuando se crea."""
+    reglas = construir(season={"games_per_club_target": 20}).season
+    assert reglas.opening(date(2042, 3, 20)) == date(2042, 3, 20)
+
+    con_pausa = construir(season={"games_per_club_target": 20, "start_date_offset_days": 10}).season
+    assert con_pausa.opening(date(2042, 3, 20)) == date(2042, 3, 30)
+
+
+def test_la_fecha_declarada_manda_en_la_primera_temporada():
+    reglas = construir(season={"games_per_club_target": 20, "start_date": "2042-05-04"}).season
+    assert reglas.opening(date(2042, 3, 20)) == date(2042, 5, 4)
+
+
+def test_una_temporada_no_empieza_en_el_pasado():
+    """Una fecha anterior al día del mundo no programa partidos ya jugados."""
+    reglas = construir(season={"games_per_club_target": 20, "start_date": "2041-05-04"}).season
+    assert reglas.opening(date(2042, 3, 20)) == date(2042, 3, 20)
+
+
+def test_las_temporadas_siguientes_caen_en_el_aniversario():
+    reglas = construir(season={"games_per_club_target": 20, "start_date": "2042-05-04"}).season
+    # El año de la edición que se abre decide el aniversario.
+    assert reglas.opening(date(2042, 11, 1), season=2043) == date(2043, 5, 4)
+
+
+def test_la_pausa_entre_temporadas_empuja_al_aniversario_que_ya_pasó():
+    """Si la temporada terminó tarde, la siguiente no arranca hacia atrás."""
+    reglas = construir(
+        season={"games_per_club_target": 20, "start_date": "2042-05-04", "offseason_days": 14}
+    ).season
+    arranque = reglas.opening(
+        date(2043, 6, 1),
+        season=2043,
+        earliest=date(2043, 6, 15),
+    )
+    assert arranque == date(2043, 6, 15)
+
+
+def test_el_29_de_febrero_no_rompe_el_aniversario():
+    reglas = construir(season={"games_per_club_target": 20, "start_date": "2044-02-29"}).season
+    assert reglas.opening(date(2044, 1, 1), season=2045) == date(2045, 3, 1)

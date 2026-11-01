@@ -10,14 +10,38 @@ export function formatDate(value: string | null | undefined): string {
   }).format(new Date(year, month - 1, day));
 }
 
-export function formatMoney(value: string | number, currency: string): string {
+/**
+ * Un importe con su moneda.
+ *
+ * `currency` puede venir **nula**, y no es un descuido del backend: cuando el
+ * territorio de una competición no tiene ancla monetaria declarada, el motor
+ * deja los importes sin determinar en vez de inventarse una moneda (FIX V2
+ * §4.4). Pasarle ese nulo a `Intl.NumberFormat` lanza `RangeError: invalid
+ * currency code`, y como esto se llama durante el render, el error se llevaba
+ * por delante la página entera: se quedaba en el HTML del servidor —«Cargando
+ * club…»— sin que nada lo contara.
+ */
+export function formatMoney(
+  value: string | number | null | undefined,
+  currency: string | null | undefined
+): string {
   const amount = typeof value === 'string' ? Number(value) : value;
-  if (!Number.isFinite(amount)) return '—';
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0
-  }).format(amount);
+  if (amount === null || amount === undefined || !Number.isFinite(amount)) return '—';
+  if (!currency) {
+    // Sin moneda no hay importe que mostrar: el territorio no tiene ancla y la
+    // cifra no significa nada todavía. Decirlo es más honesto que un «0».
+    return 'sin determinar';
+  }
+  try {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 0
+    }).format(amount);
+  } catch {
+    // Un código de moneda que `Intl` no reconoce no puede tumbar una página.
+    return `${formatNumber(amount)} ${currency}`;
+  }
 }
 
 export function formatNumber(value: number | null | undefined): string {
@@ -194,6 +218,13 @@ export const INSTITUTION_LABEL: Record<string, string> = {
   municipal: 'municipal',
   private: 'privado',
   franchise: 'franquicia'
+};
+
+/** La veta que motivó el nombre del club (ADR 0016). */
+export const NAMING_MOTIVATION_LABEL: Record<string, string> = {
+  territorio: 'por el territorio',
+  epoca: 'por la época de fundación',
+  patronazgo: 'por quien lo sostiene'
 };
 
 export const VENUE_LABEL: Record<string, string> = {

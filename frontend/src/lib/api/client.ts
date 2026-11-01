@@ -29,6 +29,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       body = null;
     }
+    // El mensaje de reserva lo traduce `ErrorNotice`: aquí sólo se conserva
+    // el dato técnico por si hace falta en la consola.
     throw new RequestFailed(response.status, body, `${response.status} en ${path}`);
   }
   if (response.status === 204) return undefined as T;

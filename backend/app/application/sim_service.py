@@ -47,6 +47,12 @@ from simulation.competitions.playoffs import (
 )
 from simulation.competitions.ruleset import PlayoffFormat, RuleSet
 from simulation.competitions.standings import GameOutcome, compute_standings
+from simulation.competitions.structure import (
+    BracketFeedOutcome,
+    BracketKey,
+    BracketKeyFormat,
+    consolation_keys,
+)
 from simulation.core.errors import RuleValidationError
 from simulation.core.events import EventType, SimulationEvent
 
@@ -960,6 +966,30 @@ def _close_regular_season(
                     headline=_qualifiers_headline(session, clasificados),
                 ),
             )
+            stages = ruleset.structure.effective_stages(len(ranked_clubs), ruleset.playoffs)
+            graph_keys = stages[1].bracket_keys if len(stages) > 1 else []
+            if graph_keys:
+                seed_map = {q.gate_key: q.entry_key for q in clasificados if q.gate_key}
+                edition.stage = "playoffs"
+                edition.playoff_byes = {
+                    "graph": True,
+                    "seeds": seed_map,
+                }
+                scheduled = _schedule_ready_graph_keys(
+                    session, universe, edition, ruleset, graph_keys, seed_map
+                )
+                record_event(
+                    session,
+                    universe,
+                    SimulationEvent(
+                        event_type=EventType.PLAYOFF_ROUND_BUILT,
+                        world_date=universe.world_date,
+                        entities={"edition": edition.id},
+                        payload={"keys": scheduled},
+                        headline=f"Arranca la postemporada con {len(scheduled)} llave(s)",
+                    ),
+                )
+                return False
             if ruleset.playoffs.staged or any(q.entry_round is not None for q in clasificados):
                 # Cuadro dibujado: las rondas y la entrada de cada plaza son
                 # las que el usuario puso. La tabla sigue decidiendo la localía
@@ -1154,10 +1184,195 @@ def _schedule_pending_series_games(
     session.flush()
 
 
+def _graph_feed_token(source: str, outcome: BracketFeedOutcome, position: int | None) -> str:
+    if outcome is BracketFeedOutcome.POSITION:
+        return f"{source}:position:{position}"
+    return f"{source}:{outcome}"
+
+
+def _mini_league_ranking(
+    session: Session, edition_id: str, key: BracketKey, seed_order: list[str]
+) -> list[str] | None:
+    games = list(
+        session.scalars(
+            select(m.Game).where(
+                m.Game.edition_id == edition_id,
+                m.Game.series_key == f"ml:{key.key}",
+            )
+        ).all()
+    )
+    expected = len(key.feeds) * (len(key.feeds) - 1) // 2 * key.games_per_pair
+    if len(games) != expected or any(game.state != "final" for game in games):
+        return None
+    clubs = {game.home_club_id for game in games} | {game.away_club_id for game in games}
+    wins = dict.fromkeys(clubs, 0)
+    differential = dict.fromkeys(clubs, 0)
+    for game in games:
+        home_score, away_score = game.home_score or 0, game.away_score or 0
+        differential[game.home_club_id] += home_score - away_score
+        differential[game.away_club_id] += away_score - home_score
+        if home_score > away_score:
+            wins[game.home_club_id] += 1
+        elif away_score > home_score:
+            wins[game.away_club_id] += 1
+    seed = {club: index for index, club in enumerate(seed_order)}
+    return sorted(clubs, key=lambda club: (-wins[club], -differential[club], seed.get(club, 999)))
+
+
+def _graph_outputs(
+    session: Session,
+    edition: m.CompetitionEdition,
+    keys: list[BracketKey],
+    seeds: dict[str, str],
+    seed_order: list[str],
+) -> dict[str, str]:
+    outputs = {f"{source}:seed": club for source, club in seeds.items()}
+    rows = {
+        row.series_key: row
+        for row in session.scalars(
+            select(m.PlayoffSeriesRow).where(m.PlayoffSeriesRow.edition_id == edition.id)
+        ).all()
+    }
+    for key in sorted(keys, key=lambda item: (item.row, item.column)):
+        if key.format is BracketKeyFormat.SERIES:
+            row = rows.get(key.key)
+            if row and row.winner_club_id:
+                outputs[f"{key.key}:winner"] = row.winner_club_id
+                outputs[f"{key.key}:loser"] = (
+                    row.low_seed_club_id
+                    if row.winner_club_id == row.high_seed_club_id
+                    else row.high_seed_club_id
+                )
+        else:
+            ranking = _mini_league_ranking(session, edition.id, key, seed_order)
+            if ranking:
+                for position, club in enumerate(ranking, 1):
+                    outputs[f"{key.key}:position:{position}"] = club
+    return outputs
+
+
+def _schedule_mini_league(
+    session: Session,
+    universe: m.Universe,
+    edition: m.CompetitionEdition,
+    ruleset: RuleSet,
+    key: BracketKey,
+    participants: list[str],
+) -> None:
+    entries = {
+        entry.club_id: entry
+        for entry in session.scalars(
+            select(m.EditionEntry).where(m.EditionEntry.edition_id == edition.id)
+        ).all()
+    }
+    venues = {
+        venue.club_id: venue
+        for venue in session.scalars(
+            select(m.Venue).where(m.Venue.universe_id == universe.id)
+        ).all()
+    }
+    last_date = (
+        session.scalar(select(func.max(m.Game.game_date)).where(m.Game.edition_id == edition.id))
+        or universe.world_date
+    )
+    game_date = next_playoff_date(
+        max(last_date, universe.world_date), ruleset.season.rest_days_weekday
+    )
+    game_index = 0
+    for left in range(len(participants)):
+        for right in range(left + 1, len(participants)):
+            for meeting in range(key.games_per_pair):
+                home, away = (
+                    (participants[left], participants[right])
+                    if meeting % 2 == 0
+                    else (participants[right], participants[left])
+                )
+                session.add(
+                    m.Game(
+                        universe_id=universe.id,
+                        edition_id=edition.id,
+                        stage="playoffs",
+                        round_index=key.row - 1,
+                        series_key=f"ml:{key.key}",
+                        game_in_series=game_index,
+                        home_entry_id=entries[home].id,
+                        away_entry_id=entries[away].id,
+                        home_club_id=home,
+                        away_club_id=away,
+                        venue_id=venues[home].id,
+                        game_date=game_date,
+                        state="scheduled",
+                    )
+                )
+                game_index += 1
+                game_date = next_playoff_date(game_date, ruleset.season.rest_days_weekday)
+
+
+def _schedule_ready_graph_keys(
+    session: Session,
+    universe: m.Universe,
+    edition: m.CompetitionEdition,
+    ruleset: RuleSet,
+    keys: list[BracketKey],
+    seeds: dict[str, str],
+) -> list[str]:
+    seed_order = [
+        entry.club_id
+        for entry in session.scalars(
+            select(m.EditionEntry)
+            .where(m.EditionEntry.edition_id == edition.id)
+            .order_by(m.EditionEntry.seed_rank)
+        ).all()
+    ]
+    outputs = _graph_outputs(session, edition, keys, seeds, seed_order)
+    existing_series = set(
+        session.scalars(
+            select(m.PlayoffSeriesRow.series_key).where(m.PlayoffSeriesRow.edition_id == edition.id)
+        ).all()
+    )
+    existing_games = set(
+        session.scalars(select(m.Game.series_key).where(m.Game.edition_id == edition.id)).all()
+    )
+    scheduled: list[str] = []
+    for key in sorted(keys, key=lambda item: (item.row, item.column)):
+        if key.key in existing_series or f"ml:{key.key}" in existing_games:
+            continue
+        participants: list[str] = []
+        for feed in key.feeds:
+            token = _graph_feed_token(feed.source, feed.outcome, feed.position)
+            club = outputs.get(token)
+            if club is None:
+                break
+            participants.append(club)
+        if len(participants) != len(key.feeds):
+            continue
+        if key.format is BracketKeyFormat.SERIES:
+            order = {club: index for index, club in enumerate(seed_order)}
+            high, low = sorted(participants, key=lambda club: order.get(club, 999))
+            series = PlayoffSeries(
+                series_key=key.key,
+                round_index=key.row - 1,
+                high_seed=high,
+                low_seed=low,
+                best_of=key.best_of,
+                wins={high: 0, low: 0},
+            )
+            _persist_series(session, edition, [series])
+            _schedule_pending_series_games(session, universe, edition, ruleset, [series])
+        else:
+            _schedule_mini_league(session, universe, edition, ruleset, key, participants)
+        scheduled.append(key.key)
+    session.flush()
+    return scheduled
+
+
 def _progress_playoffs(
     session: Session, universe: m.Universe, edition: m.CompetitionEdition
 ) -> bool:
     ruleset = _load_ruleset(session, edition)
+    graph_state = edition.playoff_byes or {}
+    if isinstance(graph_state, dict) and graph_state.get("graph"):
+        return _progress_graph_playoffs(session, universe, edition, ruleset, graph_state)
     round_index = _current_round(session, edition.id)
     rows = _load_series(session, edition.id, round_index)
     if not rows:
@@ -1260,6 +1475,128 @@ def _progress_playoffs(
         ),
     )
     return False
+
+
+def _progress_graph_playoffs(
+    session: Session,
+    universe: m.Universe,
+    edition: m.CompetitionEdition,
+    ruleset: RuleSet,
+    state: dict,
+) -> bool:
+    entries = list(
+        session.scalars(select(m.EditionEntry).where(m.EditionEntry.edition_id == edition.id)).all()
+    )
+    stages = ruleset.structure.effective_stages(len(entries), ruleset.playoffs)
+    keys = stages[1].bracket_keys if len(stages) > 1 else []
+    seeds = {str(key): str(value) for key, value in dict(state.get("seeds", {})).items()}
+
+    # Actualiza todas las series, aunque dos ramas estén en filas distintas.
+    for row in session.scalars(
+        select(m.PlayoffSeriesRow).where(m.PlayoffSeriesRow.edition_id == edition.id)
+    ).all():
+        wins = {row.high_seed_club_id: 0, row.low_seed_club_id: 0}
+        games = session.scalars(
+            select(m.Game).where(
+                m.Game.edition_id == edition.id,
+                m.Game.series_key == row.series_key,
+                m.Game.state == "final",
+            )
+        ).all()
+        for game in games:
+            if (game.home_score or 0) > (game.away_score or 0):
+                wins[game.home_club_id] = wins.get(game.home_club_id, 0) + 1
+            elif (game.away_score or 0) > (game.home_score or 0):
+                wins[game.away_club_id] = wins.get(game.away_club_id, 0) + 1
+        item = PlayoffSeries(
+            series_key=row.series_key,
+            round_index=row.round_index,
+            high_seed=row.high_seed_club_id,
+            low_seed=row.low_seed_club_id,
+            best_of=row.best_of,
+            wins=wins,
+        )
+        row.high_seed_wins = wins[row.high_seed_club_id]
+        row.low_seed_wins = wins[row.low_seed_club_id]
+        if item.winner:
+            row.winner_club_id = item.winner
+            row.status = "completed"
+        else:
+            _schedule_pending_series_games(session, universe, edition, ruleset, [item])
+
+    scheduled = _schedule_ready_graph_keys(session, universe, edition, ruleset, keys, seeds)
+    if scheduled:
+        record_event(
+            session,
+            universe,
+            SimulationEvent(
+                event_type=EventType.PLAYOFF_ROUND_BUILT,
+                world_date=universe.world_date,
+                entities={"edition": edition.id},
+                payload={"keys": scheduled},
+                headline=f"Se abren {len(scheduled)} llave(s) de postemporada",
+            ),
+        )
+
+    seed_order = [entry.club_id for entry in sorted(entries, key=lambda item: item.seed_rank)]
+    outputs = _graph_outputs(session, edition, keys, seeds, seed_order)
+    consumed = {
+        _graph_feed_token(feed.source, feed.outcome, feed.position)
+        for key in keys
+        for feed in key.feeds
+        if feed.outcome is not BracketFeedOutcome.SEED
+    }
+    # La postemporada no termina cuando se conoce al campeón, sino cuando se ha
+    # jugado entera: un partido por el tercer puesto se disputa a la vez que la
+    # final, y cerrar la edición antes lo dejaría programado y sin jugar.
+    for key in keys:
+        salidas = (
+            [f"{key.key}:winner"]
+            if key.format is BracketKeyFormat.SERIES
+            else [f"{key.key}:position:{position}" for position in key.qualifying_positions]
+        )
+        if any(salida not in outputs for salida in salidas):
+            return False
+
+    consolacion = consolation_keys(keys)
+    terminal_tokens: list[str] = []
+    for key in keys:
+        # Las llaves de consolación dejan su salida final sin ser la del
+        # campeón: el ganador del tercer puesto no gana el título.
+        if key.key in consolacion:
+            continue
+        if key.format is BracketKeyFormat.SERIES:
+            token = f"{key.key}:winner"
+            if token not in consumed:
+                terminal_tokens.append(token)
+        else:
+            terminal_tokens.extend(
+                token
+                for position in key.qualifying_positions
+                if (token := f"{key.key}:position:{position}") not in consumed
+            )
+    if len(terminal_tokens) != 1 or terminal_tokens[0] not in outputs:
+        return False
+
+    champion = outputs[terminal_tokens[0]]
+    edition.stage = "completed"
+    edition.status = "completed"
+    edition.champion_club_id = champion
+    edition.end_date = session.scalar(
+        select(func.max(m.Game.game_date)).where(m.Game.edition_id == edition.id)
+    )
+    record_event(
+        session,
+        universe,
+        SimulationEvent(
+            event_type=EventType.EDITION_COMPLETED,
+            world_date=universe.world_date,
+            entities={"edition": edition.id, "club": champion},
+            payload={"champion": _club_name(session, champion), "graph_output": terminal_tokens[0]},
+            headline=f"{_club_name(session, champion)} se corona campeón",
+        ),
+    )
+    return True
 
 
 def job_status(session: Session, job_id: str) -> m.SimJob:

@@ -97,6 +97,19 @@ nuke:  ## Para los contenedores y BORRA el volumen de Postgres
 
 # --- Calidad -------------------------------------------------------------- #
 
+.PHONY: crest-sheet
+crest-sheet:  ## Hoja de contactos de escudos generados, para mirarlos juntos
+	$(PY) scripts/crest_sheet.py --count 120 --out crests.svg
+	@echo "abre crests.svg en el navegador"
+
+.PHONY: logo-schema
+.PHONY: identity-gallery
+identity-gallery:  ## Exporta 100 identidades calculadas y los tres ejemplos geométricos
+	$(PY) scripts/identity_gallery.py
+
+logo-schema:  ## Publica el contrato del logo (JSON Schema) desde el modelo
+	$(PY) scripts/logo_schema.py --out docs/logo-schema.json
+
 .PHONY: test
 test:  ## Pruebas rápidas (excluye rendimiento)
 	$(PY) -m pytest -m "not slow"

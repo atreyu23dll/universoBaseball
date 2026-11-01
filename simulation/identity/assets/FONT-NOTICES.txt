@@ -1,0 +1,17 @@
+NotoSerifDisplay-BlackItalic.ttf
+0: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)
+1: Noto Serif Display Black
+13: This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://scripts.sil.org/OFL
+14: https://scripts.sil.org/OFL
+
+NotoSans-BlackItalic.ttf
+0: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)
+1: Noto Sans Black
+13: This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://scripts.sil.org/OFL
+14: https://scripts.sil.org/OFL
+
+NotoSerifDisplay-Black.ttf
+0: Copyright 2022 The Noto Project Authors (https://github.com/notofonts/latin-greek-cyrillic)
+1: Noto Serif Display Black
+13: This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://scripts.sil.org/OFL
+14: https://scripts.sil.org/OFL

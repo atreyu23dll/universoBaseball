@@ -25,6 +25,28 @@
         propiedad de estadios, personal ni nivel de riqueza.
       </li>
       <li>
+        <strong>Cada club tiene su paleta</strong>: dos colores principales,
+        tres secundarios y tres terciarios —incluido un metal con nombre—,
+        derivados de un esquema de armonía y con el contraste comprobado. No es
+        adorno de la ficha: es con lo que su escudo divide el campo, perfila la
+        figura y remata el filete.
+      </li>
+      <li>
+        <strong>La temporada empieza el día que se declara.</strong> Antes toda
+        liga arrancaba cuando se creaba. El reglamento fija la fecha de la
+        jornada inaugural —y sólo esa: el final lo pone el calendario que el
+        motor construye con las vueltas, los partidos por serie y los días
+        cerrados—, las temporadas siguientes caen en su aniversario, y dos
+        competiciones que intercambian plazas abren el mismo día. El asistente
+        enseña el calendario mes a mes, con quién juega cada jornada.
+      </li>
+      <li>
+        <strong>El cuadro de postemporada se dibuja a mano.</strong> Cada llave
+        enseña siempre a dónde va su ganador y a dónde su perdedor; conectar un
+        perdedor a un cruce nuevo es lo que crea el partido por el tercer
+        puesto, un repechaje o un cuadro de perdedores.
+      </li>
+      <li>
         <strong>Categorías de edad y elegibilidad</strong>: edad mínima y máxima,
         fecha de corte del reglamento, permanencia en la categoría tras cumplir
         años, residencia y salvaguarda obligatoria cuando hay menores. Crear una
@@ -158,6 +180,44 @@
         elige quién se cruza con quién: resembrando por la tabla, por sorteo o
         con las llaves fijas del cuadro.
       </li>
+      <li>
+        <strong>El nombre de un club se acuña, no se sortea.</strong> El motor
+        guarda morfemas —165 raíces en español— y las reglas del idioma para
+        combinarlos: de «salina» salen Salineros, Salinera y Unión Salinera, y
+        ninguna de esas palabras está escrita en el código. Antes el inventario
+        eran 24 palabras por idioma y «Viento» salía siete veces en 96 clubes.
+        Y el nombre viene de algo: de la plaza (una tierra árida da Huizachales
+        o Cardones), del año de fundación o de la casa que sostiene al club. La
+        ficha del club cuenta cuál de las tres fue.
+      </li>
+      <li>
+        <strong>El escudo se blasona, no se rellena.</strong> La silueta se
+        construye con parámetros de blasón —hombros, flanco, punta, muesca de
+        lanza—, así que 500 clubes dan 500 contornos distintos en vez de la
+        misma plantilla repintada. Dentro va un emblema por capas: el campo
+        puede ir partido, cortado o cuartelado, encima puede llevar un jefe,
+        una faja o una cruz, y sobre eso la figura del club con dos o tres
+        muebles menores. Cien escudos de la galería salen con cien estructuras
+        distintas, y cada uno dice su propio blasón en la ficha.
+      </li>
+      <li>
+        <strong>Treinta símbolos que se dibujan solos.</strong> Cada motivo
+        tiene su anatomía: el rayo son siete vértices, la llama lleva de una a
+        tres lenguas, el cactus puede ser saguaro o nopal y el puente, de ojos
+        o colgante. Ninguno se repite: veinticuatro semillas dan veinticuatro
+        dibujos. Y no todo es un escudo —hay parches de gorra, banderines y
+        marcas sueltas—, ni todo escudo lleva una sola figura: los hay
+        cuartelados con una distinta en cada cuartel, y acompañados de
+        tenantes y cimera.
+      </li>
+      <li>
+        <strong>Marcas de todo tipo, y ninguna repetida.</strong> Un club puede
+        recibir un escudo blasonado, un escudo con sus iniciales dentro, un
+        parche de gorra con el nombre en arco, un banderín, un wordmark con
+        monograma o una marca con empuje diagonal. Mil clubes distintos reciben
+        mil marcas distintas; mil escudos del mismo club, con sólo cambiar la
+        semilla, salen con mil estructuras distintas.
+      </li>
       <li>Procedencia de cada número generado, consultable en la ficha del club.</li>
     </ul>
   </div>
@@ -166,11 +226,12 @@
     <h2>Diseñado, todavía sin implementar</h2>
     <ul class="small">
       <li>
-        <strong>Nombres fuera del español.</strong> El generador de nombres de
-        clubes y personas tiene un solo léxico, de español de México. Ahora que
-        se puede crear una liga en cualquier parte del mundo, eso se nota: los
-        clubes de Kampala se llamarán «Zopilotes» y sus jugadores tendrán
-        nombres mexicanos. Hace falta léxico por idioma, con sus fuentes.
+        <strong>Nombres de persona fuera del español.</strong> La marca del club
+        ya se acuña en diez idiomas, y un país sin gramática curada recibe su
+        topónimo y nada más. Los nombres de las personas, en cambio, siguen
+        saliendo de un solo léxico de español de México: un jugador de Kampala
+        se llamará en castellano. Hacen falta antropónimos por idioma o región,
+        con sus fuentes.
       </li>
       <li>
         <strong>Mapa cartográfico.</strong> La búsqueda y la ficha de un

@@ -37,17 +37,26 @@ class FieldSurface(StrEnum):
 
 @dataclass
 class Brand:
-    """Identidad visual derivada, no una imagen descargada.
+    """La identidad visual de un club.
 
-    Los colores se generan en HSL para garantizar contraste entre primario y
-    secundario; el escudo se dibuja con primitivas SVG en el frontend.
+    Los tres colores con nombre heredado —primario, secundario, acento— se
+    conservan porque la interfaz los usa para fondos y bordes fuera del escudo.
+    Son los papeles `field`, `mark` y `accent` de la paleta del logo, y no una
+    segunda fuente de verdad.
+
+    `logo` es la especificación completa (`simulation.identity.spec.LogoSpec`)
+    volcada a diccionario: capas, colocación, orden y el porqué de cada
+    decisión. Quien la dibuja es el renderizador del motor, no el cliente.
     """
 
     primary_color: str
     secondary_color: str
     accent_color: str
-    crest_shape: str
-    crest_motif: str
+    logo: dict[str, Any] = field(default_factory=dict)
+    #: Perfil institucional, semilla/versión y todas las variantes coordinadas.
+    #: Vive en el mismo JSON persistido que la marca para no regenerarse al
+    #: abrir una pantalla ni al actualizar el algoritmo.
+    identity: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

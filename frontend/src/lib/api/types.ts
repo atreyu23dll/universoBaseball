@@ -9,7 +9,8 @@ export interface UniverseSummary {
   master_seed: number;
   sim_version: string;
   fixture_version: string;
-  currency: string;
+  /** Nulo: hay territorios sin ancla monetaria, y entonces no hay importes. */
+  currency: string | null;
   status: string;
   competitions: number;
   clubs: number;
@@ -25,8 +26,16 @@ export interface ClubBrief {
   nickname: string;
   primary_color: string;
   secondary_color: string;
-  crest_shape: string;
-  crest_motif: string;
+  accent_color: string;
+  /**
+   * Ruta del escudo ya dibujado por el motor. La interfaz no interpreta el
+   * contrato del logo: lo pide. Ver ADR 0015.
+   */
+  crest_url: string;
+  /** Por qué el logo de este club es así: capas, paleta y de dónde salen. */
+  brand_rationale: string;
+  /** Variantes coordinadas ya preparadas por el motor. */
+  brand_variants: Record<'primary' | 'secondary' | 'monogram' | 'reduced' | 'cap' | 'light' | 'dark', string>;
 }
 
 export interface GameBrief {
@@ -81,7 +90,8 @@ export interface Dashboard {
     master_seed: number;
     sim_version: string;
     fixture_version: string;
-    currency: string;
+    /** Nulo: hay territorios sin ancla monetaria, y entonces no hay importes. */
+    currency: string | null;
     busy: boolean;
   };
   counts: {
@@ -139,6 +149,8 @@ export interface EditorDivision {
  * para los reglamentos escritos antes del cuadro dibujado.
  */
 export interface EditorGate {
+  /** Identidad estable para conectar esta plaza con una llave explícita. */
+  key?: string;
   /** Clave de la división, o `null` para los puestos de la tabla general. */
   division: string | null;
   positions: number[];
@@ -148,6 +160,43 @@ export interface EditorGate {
   target_round?: number;
   /** Orden dentro de su ronda: es el cruce que el usuario dibujó. */
   order?: number;
+}
+
+export type BracketFeedOutcome = 'seed' | 'winner' | 'loser' | 'position';
+
+export interface EditorBracketFeed {
+  /** Clave de una plaza clasificatoria o de otra llave. */
+  source: string;
+  outcome: BracketFeedOutcome;
+  position?: number;
+}
+
+/** Una coordenada jugable de la matriz de postemporada. */
+export interface EditorBracketKey {
+  key: string;
+  label: string;
+  row: number;
+  column: number;
+  format: 'series' | 'mini_league';
+  feeds: EditorBracketFeed[];
+  best_of: number;
+  games_per_pair: number;
+  qualifying_positions: number[];
+}
+
+export interface EditorBracketKeyConfig {
+  format: 'series' | 'mini_league';
+  /** Participantes de la mini-liga; una serie siempre usa dos. */
+  participants: number;
+  best_of: number;
+  games_per_pair: number;
+  qualifying_positions: number[];
+}
+
+export interface EditorBracketRoute {
+  target_round: number;
+  /** Puerto absoluto dentro de la fila de destino, empezando en cero. */
+  target_slot: number;
 }
 
 /** Cómo se forman los cruces de una ronda. */
@@ -220,6 +269,15 @@ export interface SchedulePreview {
   /** Partidos entre cada par de clubes: `matchups[a][b]`. */
   matchups: Record<string, Record<string, number>>;
   first_dates: Array<{ date: string; weekday: number; games: number; rest_day: boolean }>;
+  /** Los días con partido, con sus cruces: es lo que dibuja el calendario. */
+  calendar?: Array<{
+    date: string;
+    games: Array<{ home: string; away: string; group: string; matchup: string }>;
+  }>;
+  /** `false` si la temporada tiene más días con partido de los que viajan. */
+  calendar_complete?: boolean;
+  /** Días cerrados de la semana, 0 = lunes. */
+  rest_days_weekday?: number[];
   warnings: string[];
   /** Desajustes de la estructura declarada, todos a la vez. */
   issues?: string[];

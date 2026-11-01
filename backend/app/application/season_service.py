@@ -19,7 +19,7 @@ ya pertenecen a la competición, con su plantilla, su caja y su historia. Lo
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import date, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, aliased
@@ -157,8 +157,13 @@ def process_season_boundaries(session: Session, universe: m.Universe) -> SeasonB
             )
             continue
 
+        # Una escalera arranca a la vez. Si la superior empieza el 1 de abril
+        # y su filial el 15 de marzo, el intercambio del año siguiente espera
+        # igualmente a las dos: lo que cambia es que la filial jugaría dos
+        # semanas sola. Se toma la fecha más tardía de la escalera.
+        arranque = _ladder_start(session, universe, members, season + 1)
         for member in members:
-            opened = open_next_edition(session, universe, member, season + 1)
+            opened = open_next_edition(session, universe, member, season + 1, arranque)
             if opened is not None:
                 report.editions_opened.append(opened)
 
@@ -247,6 +252,35 @@ def _record_waiting(session: Session, universe: m.Universe, report: SeasonBounda
             )
 
 
+def _ladder_start(
+    session: Session,
+    universe: m.Universe,
+    members: list[m.CompetitionDefinition],
+    season: int,
+) -> date | None:
+    """El día en que arranca una escalera: el más tardío de sus miembros.
+
+    Con un solo miembro no hay nada que cuadrar y se devuelve `None`, para que
+    la competición use su propia fecha sin pasar por aquí.
+    """
+    if len(members) < 2:
+        return None
+    fechas = []
+    for member in members:
+        try:
+            reglas = RuleSet.model_validate(current_rule_version(session, member.id).rules_json)
+        except (ValueError, LookupError):
+            continue
+        fechas.append(
+            reglas.season.opening(
+                universe.world_date,
+                season=season,
+                earliest=universe.world_date + timedelta(days=max(1, reglas.season.offseason_days)),
+            )
+        )
+    return max(fechas) if fechas else None
+
+
 def _latest_edition(session: Session, competition_id: str) -> m.CompetitionEdition | None:
     return session.scalars(
         select(m.CompetitionEdition)
@@ -261,11 +295,16 @@ def open_next_edition(
     universe: m.Universe,
     competition: m.CompetitionDefinition,
     season: int,
+    start_override: date | None = None,
 ) -> dict | None:
     """Abre la edición `season` con los clubes que ya pertenecen a la competición.
 
     No genera clubes ni personas: los participantes son los de siempre, más los
     que hayan ascendido o descendido, menos los que se hayan ido.
+
+    `start_override` existe por las escaleras: las competiciones que
+    intercambian plazas arrancan el mismo día, porque el intercambio siguiente
+    no se puede resolver hasta que todas hayan terminado.
     """
     existing = session.scalars(
         select(m.CompetitionEdition).where(
@@ -310,7 +349,13 @@ def open_next_edition(
     # heredada del año anterior dejaría a alguien sin rivales.
     grupos = _assign_groups_for_season(session, universe, competition, ruleset, clubs, season)
 
-    start = universe.world_date + timedelta(days=max(1, ruleset.season.offseason_days))
+    # La pausa entre temporadas es el suelo; la fecha declarada en el
+    # reglamento, si la hay, manda por encima en su aniversario.
+    start = start_override or ruleset.season.opening(
+        universe.world_date,
+        season=season,
+        earliest=universe.world_date + timedelta(days=max(1, ruleset.season.offseason_days)),
+    )
     try:
         schedule = build_schedule(
             club_keys=club_order,

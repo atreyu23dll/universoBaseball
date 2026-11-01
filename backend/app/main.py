@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import logging
+import uuid
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1.routes import router as v1_router
 from app.application.errors import ApplicationError
+from app.application.validation_messages import explain
 from app.config import get_settings
 from simulation import SIM_VERSION
 from simulation.core.errors import InvariantViolation, RuleValidationError, ScheduleError
@@ -77,6 +80,47 @@ async def schedule_error_handler(_: Request, exc: ScheduleError) -> JSONResponse
             "code": "schedule_impossible",
             "message": exc.message,
             "suggestions": exc.suggestions,
+        },
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+    """Un formulario mal rellenado no es un fallo: se explica en castellano.
+
+    FastAPI devuelve aquí una lista de objetos con `loc`, `msg` y `type`, que es
+    la forma que necesita un cliente de API y la que **no** debe llegar a una
+    pantalla: el usuario veía «422 en /universes/.../competitions».
+    """
+    titular, pistas = explain(list(exc.errors()))
+    return JSONResponse(
+        status_code=422,
+        content={"code": "datos_no_validos", "message": titular, "suggestions": pistas},
+    )
+
+
+@app.exception_handler(Exception)
+async def unexpected_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Un fallo no previsto es culpa del motor, y se dice sin jerga.
+
+    El detalle técnico va al registro del servidor con una referencia corta; al
+    usuario se le da esa referencia para que pueda citarla, no la traza.
+    """
+    referencia = uuid.uuid4().hex[:8]
+    logging.getLogger("baseball.api").exception(
+        "fallo no controlado [%s] en %s %s", referencia, request.method, request.url.path
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": "fallo_del_motor",
+            "message": (
+                "El motor no pudo completar la operación. No se ha modificado nada del mundo."
+            ),
+            "suggestions": [
+                "Vuelve a intentarlo: muchos fallos dependen de la semilla y no se repiten.",
+                f"Si vuelve a ocurrir, cita esta referencia al reportarlo: {referencia}.",
+            ],
         },
     )
 

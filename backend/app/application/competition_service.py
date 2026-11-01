@@ -13,6 +13,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
+from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -26,6 +27,7 @@ from app.application.errors import (
 )
 from app.application.mappers import venue_dimensions_to_json
 from app.application.universe_service import get_universe, record_event
+from app.application.validation_messages import explain_pydantic
 from app.infrastructure import models as m
 from simulation import SIM_VERSION
 from simulation.competitions.ruleset import RelationshipMode, RuleSet, parse_ruleset
@@ -160,8 +162,16 @@ def validate_ruleset(
     _reject_deprecated_fields(payload)
     try:
         ruleset = parse_ruleset(payload)
-    except Exception as exc:  # pydantic ValidationError u otro
-        raise ValidationFailure(f"el reglamento no es válido: {exc}") from exc
+    except PydanticValidationError as exc:
+        # El texto de Pydantic es para quien escribe el código. Lo que llega a
+        # la pantalla dice qué campo está mal y por qué, sin tipos internos.
+        titular, pistas = explain_pydantic(exc)
+        raise ValidationFailure(titular, pistas) from exc
+    except Exception as exc:
+        raise ValidationFailure(
+            "El reglamento no se pudo leer.",
+            ["Revisa la configuración de la competición y vuelve a intentarlo."],
+        ) from exc
     if session is not None and universe_id is not None:
         return education_service.canonicalize_school_universities(session, universe_id, ruleset)
     return ruleset
@@ -1300,6 +1310,14 @@ def list_competitions(session: Session, universe_id: str) -> list[dict]:
                     else None
                 ),
                 "structure": _structure_summary(rule_version.rules_json if rule_version else {}),
+                # La fecha declarada en el reglamento, no la de una edición ya
+                # jugada: es con la que se comparan dos ligas vinculadas antes
+                # de que ninguna de las dos haya arrancado.
+                "season_start": (
+                    (rule_version.rules_json.get("season") or {}).get("start_date")
+                    if rule_version
+                    else None
+                ),
                 "hierarchy_links": len(relationships),
                 "qualification_paths": len(paths),
                 "editions": [

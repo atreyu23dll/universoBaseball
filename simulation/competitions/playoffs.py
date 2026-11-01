@@ -86,6 +86,8 @@ class Qualifier:
     #: los pases automáticos por siembra del formato clásico.
     entry_round: int | None = None
     entry_order: int | None = None
+    #: Puerta estable del grafo explícito. Vacío en reglamentos antiguos.
+    gate_key: str = ""
 
 
 def qualifiers_from_gates(
@@ -128,6 +130,7 @@ def qualifiers_from_gates(
                     reason=_gate_reason(gate, puesto, division),
                     entry_round=gate.target_round,
                     entry_order=(gate.order + offset if gate.order is not None else None),
+                    gate_key=gate.key or "",
                 )
             )
 

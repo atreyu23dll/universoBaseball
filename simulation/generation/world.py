@@ -8,7 +8,7 @@ que el usuario toque un solo club.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date
 
 from simulation import SIM_VERSION
 from simulation.competitions.groups import GroupCandidate, GroupPlacement, assign_groups
@@ -147,7 +147,7 @@ def generate_competition_world(
         )
         extra_records.append(group_record)
 
-    start = world_date + timedelta(days=ruleset.season.start_date_offset_days)
+    start = ruleset.season.opening(world_date)
     if build_calendar:
         schedule = build_schedule(
             club_keys=[club.key for club in generated.clubs],

@@ -71,8 +71,7 @@
           <tr>
             <td>
               <span class="row" style="gap:8px">
-                <Crest primary={club.primary_color} secondary={club.secondary_color}
-                       shape={club.crest_shape} motif={club.crest_motif} size={18} />
+                <Crest clubId={club.id} size={64} title={club.short_name} />
                 {club.short_name}
               </span>
             </td>

@@ -6,6 +6,8 @@
     Draft,
     EditorDivision,
     EditorGate,
+    EditorBracketKeyConfig,
+    EditorBracketRoute,
     GenerationPreview,
     SchedulePreview as SchedulePreviewData,
     GeoContext,
@@ -46,6 +48,8 @@
     club_count: number;
     education_track?: 'school' | 'formative' | null;
     structure?: Array<{ key: string; label: string; slots: number }>;
+    /** Fecha declarada en su reglamento, para cuadrar temporadas vinculadas. */
+    season_start?: string | null;
   };
 
   const universeId = $derived($page.params.id);
@@ -89,9 +93,9 @@
   );
 
   // --- Paso 1: identidad y clase de competición ---
-  let name = $state('Liga Municipal de Ciudad Juárez');
+  let name = $state('');
   let kind = $state('municipal_league');
-  let seed = $state('18723');
+  let seed = $state('');
   // Escolar y formativa son una modalidad; el rastro se guarda aparte para
   // que una liga municipal o nacional no pierda su clase territorial.
   // Las universitarias adultas se resuelven antes del formato.
@@ -163,6 +167,13 @@
   let gamesPerSeries = $state(1);
   let daysBetweenSeries = $state(0);
   let offseasonDays = $state(14);
+  /**
+   * Día de la jornada inaugural. Vacío hasta que se conoce el día del mundo:
+   * hasta ahora toda liga arrancaba cuando se creaba, y eso no deja decidir
+   * que una temporada empiece en abril.
+   */
+  let startDate = $state('');
+  let worldDate = $state('');
   let restDays = $state<number[]>([0]);
 
   // El reglamento deportivo forma parte del mismo lienzo: lo que se decide
@@ -179,7 +190,10 @@
   // porque un cuadro puede incorporar clubes en cualquier ronda.
   let roundLengths = $state<number[]>([3, 5]);
   let roundLabels = $state<string[]>(['Semifinales', 'Final']);
-  let roundPairings = $state<PairingPolicy[]>(['high_low', 'high_low']);
+  // El editor dibuja llaves concretas; por omisión el motor respeta ese orden.
+  let roundPairings = $state<PairingPolicy[]>(['fixed', 'fixed']);
+  let bracketKeyConfigs = $state<Record<string, EditorBracketKeyConfig>>({});
+  let bracketOutputRoutes = $state<Record<string, EditorBracketRoute>>({});
   let licenceRequired = $state(false);
   let safetyCertRequired = $state(false);
   let amateurStatusRequired = $state(false);
@@ -366,6 +380,132 @@
     previewResult && !previewResult.ok ? previewResult.error : null
   );
 
+  function gateKey(gate: EditorGate): string {
+    return `seed-${gate.division ?? 'general'}-${gate.positions[0]}`;
+  }
+
+  /**
+   * Materializa las llaves que se ven en el editor. Mientras haya un puerto
+   * incompleto conserva el validador antiguo para poder mostrar el error; en
+   * cuanto el camino cierra, el reglamento guarda ya el grafo explícito.
+   */
+  function buildBracketKeys() {
+    type Feed = { source: string; outcome: 'seed' | 'winner' | 'loser' | 'position'; position?: number };
+    type Output = { token: string; feed: Feed; defaultRound: number; fromKey: string };
+    /**
+     * Llaves a las que solo se llega perdiendo —tercer puesto, repechaje,
+     * cuadro de perdedores—. Su salida final no disputa el título, así que no
+     * cuenta para «debe quedar un campeón». Es la misma regla que aplica el
+     * motor en `consolation_keys`.
+     */
+    const consolacion = new Set<string>();
+    const result: Array<{
+      key: string; label: string; row: number; column: number;
+      format: 'series' | 'mini_league'; feeds: Feed[]; best_of: number;
+      games_per_pair: number; qualifying_positions: number[];
+    }> = [];
+    const outputs: Output[] = [];
+    for (let round = 0; round < roundCount; round += 1) {
+      const arrivals = outputs.filter((output) =>
+        (bracketOutputRoutes[output.token]?.target_round ?? output.defaultRound) === round
+      );
+      const direct: Feed[] = gates
+        .filter((gate) => (gate.target_round ?? 0) === round)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .map((gate) => ({ source: gateKey(gate), outcome: 'seed' as const }));
+      const fixed = arrivals.filter((output) => bracketOutputRoutes[output.token]);
+      const flexible: Feed[] = [
+        ...arrivals.filter((output) => !bracketOutputRoutes[output.token]).map((output) => output.feed),
+        ...direct
+      ];
+      const furthest = Math.max(-1, ...fixed.map((output) => bracketOutputRoutes[output.token].target_slot));
+      const feeds: Array<Feed | null> = Array.from(
+        { length: Math.max(arrivals.length + direct.length, furthest + 1) },
+        () => null
+      );
+      for (const output of fixed) {
+        const slot = bracketOutputRoutes[output.token].target_slot;
+        if (feeds[slot] === null) feeds[slot] = output.feed;
+        else flexible.push(output.feed);
+      }
+      for (const feed of flexible) {
+        const empty = feeds.indexOf(null);
+        if (empty === -1) feeds.push(feed);
+        else feeds[empty] = feed;
+      }
+      if (feeds.length < 2) return [];
+      let offset = 0;
+      let keyIndex = 0;
+      while (offset < feeds.length) {
+        const key = `r${round + 1}k${keyIndex + 1}`;
+        const config = bracketKeyConfigs[key];
+        const format = config?.format ?? 'series';
+        const size = format === 'mini_league'
+          ? Math.max(3, config?.participants ?? 3)
+          : 2;
+        const keyFeeds = feeds.slice(offset, offset + size);
+        if (keyFeeds.length !== size || keyFeeds.some((feed) => feed === null)) return [];
+        const completeFeeds = keyFeeds as Feed[];
+        const qualifying = format === 'mini_league'
+          ? (config?.qualifying_positions ?? [1])
+          : [1];
+        if (
+          completeFeeds.every(
+            (feed) => feed.outcome === 'loser' || consolacion.has(feed.source)
+          )
+        ) {
+          consolacion.add(key);
+        }
+        result.push({
+          key,
+          label: `${roundLabels[round] || `Ronda ${round + 1}`} · Llave ${keyIndex + 1}`,
+          row: round + 1,
+          column: keyIndex,
+          format,
+          feeds: completeFeeds,
+          best_of: playoffFormat === 'single_elimination'
+            ? 1
+            : (config?.best_of ?? playoffRoundLengths[round]),
+          games_per_pair: config?.games_per_pair ?? 1,
+          qualifying_positions: qualifying
+        });
+        if (format === 'mini_league') {
+          outputs.push(...qualifying.map((position) => ({
+            token: `${key}:position:${position}`,
+            feed: { source: key, outcome: 'position' as const, position },
+            defaultRound: round + 1,
+            fromKey: key
+          })));
+        } else {
+          outputs.push({
+            token: `${key}:winner`,
+            feed: { source: key, outcome: 'winner' as const },
+            defaultRound: round + 1,
+            fromKey: key
+          });
+          const loserToken = `${key}:loser`;
+          if (bracketOutputRoutes[loserToken]) {
+            outputs.push({
+              token: loserToken,
+              feed: { source: key, outcome: 'loser' as const },
+              defaultRound: roundCount,
+              fromKey: key
+            });
+          }
+        }
+        offset += size;
+        keyIndex += 1;
+      }
+    }
+    const terminal = outputs.filter(
+      (output) =>
+        !bracketOutputRoutes[output.token] &&
+        output.defaultRound >= roundCount &&
+        !consolacion.has(output.fromKey)
+    );
+    return terminal.length === 1 ? result : [];
+  }
+
   /** Las fases tal como las entiende el reglamento. */
   function buildStages() {
     const regular = {
@@ -385,6 +525,7 @@
         playoffFormat === 'none'
           ? []
           : gates.map((g) => ({
+              key: gateKey(g),
               division: g.division,
               positions: g.positions,
               route: g.route,
@@ -400,7 +541,8 @@
         key: 'playoffs',
         label: 'Postemporada',
         format: 'bracket',
-        series_lengths: playoffRoundLengths
+        series_lengths: playoffRoundLengths,
+        bracket_keys: buildBracketKeys()
       }
     ];
   }
@@ -423,10 +565,13 @@
       format: playoffFormat,
       seeding: 'staged',
       round_lengths: playoffRoundLengths,
-      round_labels: roundLabels.slice(0, roundCount),
+      round_labels: Array.from(
+        { length: roundCount },
+        (_, index) => roundLabels[index]?.trim() || `Ronda ${index + 1}`
+      ),
       round_pairings: Array.from(
         { length: roundCount },
-        (_, index) => roundPairings[index] || 'high_low'
+        (_, index) => roundPairings[index] || 'fixed'
       )
     };
   }
@@ -438,7 +583,8 @@
       games_per_club_target: gamesTarget,
       games_per_series: gamesPerSeries,
       days_between_series: daysBetweenSeries,
-      rest_days_weekday: restDays
+      rest_days_weekday: restDays,
+      ...(startDate ? { start_date: startDate } : {})
     },
     structure: { stages: buildStages() },
     playoffs: buildPlayoffs()
@@ -447,24 +593,28 @@
   // Si cambia el número de equipos, las plazas se ajustan en la división más
   // grande: el editor nunca se queda descuadrado por detrás.
   $effect(() => {
+    if (!Number.isFinite(clubCount) || divisions.length === 0) return;
     const total = divisions.reduce((suma, d) => suma + d.slots, 0);
-    if (total === clubCount || divisions.length === 0) return;
+    // El corte es por valor, no por identidad: si el ajuste no mueve ninguna
+    // plaza y aun así se reasignara el array, el propio efecto se volvería a
+    // disparar con cada escritura y no pararía nunca.
     const diferencia = clubCount - total;
+    if (diferencia === 0) return;
     const indice = divisions.reduce(
       (mejor, d, i) => (d.slots > divisions[mejor].slots ? i : mejor),
       0
     );
     const ajustada = [...divisions];
-    ajustada[indice] = {
-      ...ajustada[indice],
-      slots: Math.max(0, ajustada[indice].slots + diferencia)
-    };
+    const plazas = Math.max(0, ajustada[indice].slots + diferencia);
+    if (plazas === ajustada[indice].slots) return;
+    ajustada[indice] = { ...ajustada[indice], slots: plazas };
     divisions = ajustada;
   });
   // La consulta escolar puede cambiar el total de participantes de golpe. Las
   // puertas que apuntaban a una plaza inexistente se retiran del tablero, en
   // vez de dejar una postemporada de doce equipos sobre una liga de cinco.
   $effect(() => {
+    if (!Number.isFinite(clubCount)) return;
     const validGates = gates
       .map((gate) => ({ ...gate, positions: gate.positions.filter((position) => position <= clubCount) }))
       .filter((gate) => gate.positions.length > 0);
@@ -495,7 +645,7 @@
     if (roundPairings.length !== roundCount) {
       roundPairings = Array.from(
         { length: roundCount },
-        (_, index) => roundPairings[index] || 'high_low'
+        (_, index) => roundPairings[index] || 'fixed'
       );
     }
   });
@@ -602,6 +752,7 @@
         games_per_series: gamesPerSeries,
         days_between_series: daysBetweenSeries,
         offseason_days: offseasonDays,
+        ...(startDate ? { start_date: startDate } : {}),
         roster_size: rosterSize,
         rest_days_weekday: restDays,
         designated_hitter: designatedHitter,
@@ -739,6 +890,13 @@
       );
       competitions = existing.items;
       try {
+        const universe = await api.get<{ world_date: string }>(`/universes/${universeId}`);
+        worldDate = universe.world_date;
+        if (!startDate) startDate = universe.world_date;
+      } catch {
+        worldDate = '';
+      }
+      try {
         geoStatus = await api.get<GeoStatus>('/geography/status');
       } catch {
         geoStatus = null;
@@ -779,7 +937,7 @@
     <div class="grid two">
       <div class="field">
         <label for="nombre">Nombre de la competición</label>
-        <input id="nombre" bind:value={name} />
+        <input id="nombre" bind:value={name} required minlength="2" />
       </div>
       <div class="field">
         <label for="tipo">Clase territorial</label>
@@ -993,8 +1151,13 @@
             type="number"
             min="4"
             max="75"
-            bind:value={minimumAge}
-            oninput={invalidateUniversityDiscovery}
+            value={minimumAge}
+            oninput={(event) => {
+              if (event.currentTarget.value !== '') {
+                minimumAge = event.currentTarget.valueAsNumber;
+                invalidateUniversityDiscovery();
+              }
+            }}
           />
         </div>
         <div class="field">
@@ -1003,7 +1166,15 @@
             <span>Hay edad máxima</span>
           </label>
           {#if hasMaximumAge}
-            <input type="number" min="4" max="99" bind:value={maximumAge} />
+            <input
+              type="number"
+              min="4"
+              max="99"
+              value={maximumAge}
+              oninput={(event) => {
+                if (event.currentTarget.value !== '') maximumAge = event.currentTarget.valueAsNumber;
+              }}
+            />
           {:else}
             <p class="small muted" style="margin:6px 0 0">Sin tope: una liga de 40+ no lo necesita.</p>
           {/if}
@@ -1105,7 +1276,18 @@
         {:else}
           <div class="field">
             <label for="clubes">Número objetivo de clubes</label>
-            <input id="clubes" type="number" min="2" max="64" bind:value={clubCount} />
+            <!-- El campo puede quedar vacío mientras se escribe. El tablero
+              conserva el último número válido hasta recibir el siguiente. -->
+            <input
+              id="clubes"
+              type="number"
+              min="2"
+              max="64"
+              value={clubCount}
+              oninput={(event) => {
+                if (event.currentTarget.value !== '') clubCount = event.currentTarget.valueAsNumber;
+              }}
+            />
             <p class="small muted" style="margin:6px 0 0">
               Si el territorio no los sostiene, la previsualización lo advierte. El
               motor no inventa instituciones a la fuerza.
@@ -1114,7 +1296,16 @@
         {/if}
         <div class="field">
           <label for="roster-min">Mínimo de inscritos activos por equipo</label>
-          <input id="roster-min" type="number" min="6" max="40" bind:value={minimumActiveRoster} />
+          <input
+            id="roster-min"
+            type="number"
+            min="6"
+            max="40"
+            value={minimumActiveRoster}
+            oninput={(event) => {
+              if (event.currentTarget.value !== '') minimumActiveRoster = event.currentTarget.valueAsNumber;
+            }}
+          />
         </div>
       </div>
       <div>
@@ -1136,7 +1327,15 @@
             <span>Limitar extranjeros por equipo</span>
           </label>
           {#if foreignLimitEnabled}
-            <input type="number" min="0" max="40" bind:value={foreignLimit} />
+            <input
+              type="number"
+              min="0"
+              max="40"
+              value={foreignLimit}
+              oninput={(event) => {
+                if (event.currentTarget.value !== '') foreignLimit = event.currentTarget.valueAsNumber;
+              }}
+            />
           {/if}
         </div>
       </div>
@@ -1165,11 +1364,16 @@
     bind:gamesPerSeries
     bind:daysBetweenSeries
     bind:offseasonDays
+    bind:startDate
+    {worldDate}
+    otherSeasons={competitions.map((c) => ({ name: c.name, start: c.season_start ?? null }))}
     bind:restDays
     bind:playoffFormat
     bind:roundLengths
     bind:roundLabels
     bind:roundPairings
+    bind:bracketKeyConfigs
+    bind:bracketOutputRoutes
     bind:rosterSize
     bind:designatedHitter
     bind:extraInnings

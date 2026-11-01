@@ -386,7 +386,10 @@ determinar.
 - No hay pronóstico meteorológico: hay un modelo estacional por latitud y
   altitud, declarado como modelo en la API y en la interfaz.
 - Las distancias son en línea recta. No son tiempos de viaje.
-- No se usan nombres, escudos ni patrocinadores reales.
+- Los clubes ficticios no usan escudos ni patrocinadores reales. Una liga
+  universitaria puede conservar el nombre documentado de su institución; su
+  identidad deportiva generada queda marcada como ficticia y nunca como logo
+  oficial.
 
 Las desviaciones medidas del motor respecto al béisbol profesional están
 enumeradas en [docs/simulation-calibration.md](docs/simulation-calibration.md),
@@ -409,7 +412,15 @@ incluidas las que no se han corregido.
   [liquidación de temporada y vida institucional](docs/adr/0007-liquidacion-de-temporada-y-vida-institucional.md) ·
   [divisiones dentro de una competición](docs/adr/0008-divisiones-dentro-de-una-competicion.md) ·
   [postemporada con pase directo y asistente visual](docs/adr/0009-postemporada-con-pase-directo-y-asistente-visual.md) ·
-  [estructura por fases y editor gráfico](docs/adr/0010-estructura-por-fases-y-editor-grafico.md)
+  [estructura por fases y editor gráfico](docs/adr/0010-estructura-por-fases-y-editor-grafico.md) ·
+  [identidad generativa](docs/adr/0015-identidad-generativa-nombre-y-logo.md)
+
+## Galería de identidades
+
+En [localhost:5173/identidades](http://127.0.0.1:5173/identidades) puedes explorar
+100 clubes ficticios generados por semilla, comparar variantes y exportar SVG
+o perfiles completos. Incluye los ejemplos de monograma, elefante heráldico y
+tres rosas. [Motor, límites y comprobación](docs/identity-gallery.md).
 
 ## Licencias y atribución
 
@@ -417,5 +428,7 @@ El fixture geográfico usa nomenclatura y centroides públicos; si se amplía co
 datos de OpenStreetMap, aplican su
 [licencia y atribución](https://www.openstreetmap.org/copyright) y su
 [política de tiles](https://operations.osmfoundation.org/policies/tiles/).
-Todo lo demás —clubes, personas, escudos, estadios, empresas— es ficticio y
-generado por el motor.
+Salvo los nombres y metadatos trazables del catálogo universitario, todo lo
+demás —clubes, personas, escudos, estadios, empresas— es ficticio y generado
+por el motor. Una marca universitaria generada no reproduce ni afirma ser la
+marca oficial de la institución.

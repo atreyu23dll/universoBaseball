@@ -453,7 +453,8 @@ class CompetitionEdition(Base):
     warnings: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
     #: Clasificados con pase directo que esperan la segunda ronda, cuando las
     #: plazas de playoff no son potencia de dos. Se vacía en cuanto entran.
-    playoff_byes: Mapped[list] = mapped_column(JSONType, nullable=False, default=list)
+    # Lista en cuadros heredados; estado del grafo en postemporadas de llaves.
+    playoff_byes: Mapped[list | dict] = mapped_column(JSONType, nullable=False, default=list)
     #: Posición de la fase en curso dentro de la secuencia del reglamento. El
     #: nombre de la fase está en `stage`; esto dice **cuál** de las declaradas
     #: es, que es lo que hace falta para saber qué viene después.

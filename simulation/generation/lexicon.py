@@ -4,14 +4,19 @@ Todo lo que sale de aquí es inventado. No se copian nombres, apodos ni escudos
 de clubes reales, ni se usan marcas existentes: los patrocinadores que el motor
 llegue a generar serán empresas ficticias.
 
-**Límite conocido y visible:** este léxico es de español de México. Desde que el
-territorio se resuelve contra un gazetteer mundial, se puede crear una liga en
-Kampala o en Ulán Bator, y sus clubes saldrán con apodos como «Zopilotes» y sus
-jugadores con nombres mexicanos, que no es «nombre apropiado por contexto
-lingüístico» (especificación maestra §7.5). Hace falta léxico por idioma o
-región, con sus fuentes, y es trabajo de datos además de código. Está anotado en
-`docs/implementation-plan.md` y en la pantalla `/acerca` para que nadie se lleve
-la impresión de que el motor sabe nombrar lo que no sabe.
+**Qué queda aquí y qué se fue.** Los nombres de **persona** siguen viviendo en
+este módulo, y siguen siendo de español de México: un jugador de Kampala se
+llamará en castellano, que no es «nombre apropiado por contexto lingüístico»
+(especificación maestra §7.5). Es una deuda real, declarada en
+`docs/implementation-plan.md` y en la pantalla `/acerca`: hacen falta
+antropónimos por idioma o región, con sus fuentes, y es trabajo de datos además
+de código.
+
+La **marca del club** ya no sale de aquí. Se acuña con morfemas y con las reglas
+de cada idioma en `morphemes.py`, `morphology.py` y `motivation.py` (ADR 0016).
+Los apodos de club que quedan abajo sólo alimentan
+`consume_legacy_club_name_entropy`, que conserva el cauce aleatorio histórico
+para que añadir una regla verbal no mueva aforos ni cuentas.
 """
 
 from __future__ import annotations
@@ -596,4 +601,60 @@ COUNTRY_LOCALE = {
     "CU": "es",
     "DO": "es",
     "BR": "pt",
+}
+
+# Apellidos para la veta de patronazgo: el fundador, el socio o la casa que
+# sostiene al club. No entran en `NAME_POOLS` porque no son el idioma de los
+# **jugadores** —que sigue siendo hispano mientras no haya léxico por región—,
+# sino el de la **marca** del club, que sí se resuelve por país.
+SURNAMES_EN = [
+    "Ashcroft",
+    "Baldwin",
+    "Bannister",
+    "Beckett",
+    "Bramley",
+    "Carraway",
+    "Chadwick",
+    "Collister",
+    "Cromwell",
+    "Danforth",
+    "Easterly",
+    "Fairbanks",
+    "Fenwick",
+    "Gatlin",
+    "Halloway",
+    "Hartwell",
+    "Haskell",
+    "Kettering",
+    "Larkin",
+    "Lindgren",
+    "Marbury",
+    "Merrick",
+    "Norwood",
+    "Oakridge",
+    "Pembroke",
+    "Quimby",
+    "Ravenel",
+    "Redmond",
+    "Sanderling",
+    "Shackleton",
+    "Sowerby",
+    "Thistle",
+    "Tolliver",
+    "Underhill",
+    "Vandermeer",
+    "Wadsworth",
+    "Whitlock",
+    "Winslow",
+    "Yarborough",
+    "Ziegler",
+]
+
+#: Apellidos por idioma de marca. Un idioma ausente deja la veta de patronazgo
+#: sin material, y el club se nombra por otra: el motor no traslada apellidos
+#: hispanos a un club de Osaka.
+FOUNDER_SURNAMES = {
+    "es": SURNAMES_ES,
+    "pt": SURNAMES_PT,
+    "en": SURNAMES_EN,
 }

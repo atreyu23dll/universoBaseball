@@ -21,7 +21,6 @@ recursos limitados que se reparten.
 
 from __future__ import annotations
 
-import colorsys
 import random
 from dataclasses import dataclass, replace
 from datetime import date
@@ -29,7 +28,7 @@ from decimal import Decimal
 
 from simulation.competitions.ruleset import RuleSet, UniversityParticipant
 from simulation.core.provenance import Confidence, GenerationRecord
-from simulation.core.rng import clamped_normal, rng_for, weighted_choice
+from simulation.core.rng import clamped_normal, derive_seed, rng_for, weighted_choice
 from simulation.economy.club_finances import ClubEconomicContext, estimate_club_finances
 from simulation.economy.market import build_resource_pool
 from simulation.economy.model import (
@@ -39,7 +38,13 @@ from simulation.economy.model import (
     resource_multiplier,
 )
 from simulation.generation.context import CompetitionContext, MarketProfile
-from simulation.generation.naming import NameRegistry, club_name
+from simulation.generation.motivation import NamingFacts
+from simulation.generation.naming import (
+    ClubName,
+    NameRegistry,
+    club_name,
+    consume_legacy_club_name_entropy,
+)
 from simulation.generation.organization import (
     OrganizationProfile,
     assign_roles,
@@ -47,6 +52,7 @@ from simulation.generation.organization import (
 )
 from simulation.generation.venues import generate_venue
 from simulation.geography.distance import haversine_km
+from simulation.identity import LogoRegistry, build_identity_system, place_initials
 from simulation.organizations.model import (
     Brand,
     Club,
@@ -56,11 +62,7 @@ from simulation.organizations.model import (
     Reputation,
 )
 
-PROCEDURE_VERSION = "clubs/1.0.0"
-
-_CREST_SHAPES = ("escudo_clasico", "circulo", "rombo", "banderola", "hexagono")
-_CREST_MOTIFS = ("pelota", "bate_cruzado", "home_plate", "guante", "estrella", "montana")
-
+PROCEDURE_VERSION = "clubs/1.1.0"
 
 #: El tipo institucional que se persiste es una **lectura** de la forma de
 #: gobierno que el club se dio, no una elección previa. Se conserva porque el
@@ -76,27 +78,6 @@ _GOVERNANCE_TO_INSTITUTION = {
     GovernanceModel.SPORTS_COMPANY: InstitutionalType.PRIVATE,
     GovernanceModel.FRANCHISE: InstitutionalType.FRANCHISE,
 }
-
-
-def _brand(rng: random.Random) -> Brand:
-    hue = rng.random()
-    saturation = rng.uniform(0.45, 0.95)
-    value = rng.uniform(0.45, 0.85)
-
-    def hex_of(h: float, s: float, v: float) -> str:
-        r, g, b = colorsys.hsv_to_rgb(h % 1.0, min(1.0, s), min(1.0, v))
-        return f"#{int(r * 255):02X}{int(g * 255):02X}{int(b * 255):02X}"
-
-    # El secundario se separa en luminosidad para que el contraste funcione en
-    # un escudo y en una camiseta, en lugar de dos tonos indistinguibles.
-    secondary_value = value - 0.35 if value > 0.55 else value + 0.35
-    return Brand(
-        primary_color=hex_of(hue, saturation, value),
-        secondary_color=hex_of(hue + rng.uniform(0.35, 0.65), saturation * 0.8, secondary_value),
-        accent_color=hex_of(hue + 0.5, 0.25, 0.95),
-        crest_shape=rng.choice(_CREST_SHAPES),
-        crest_motif=rng.choice(_CREST_MOTIFS),
-    )
 
 
 def allocate_slots(
@@ -233,6 +214,8 @@ def generate_clubs(
 
     clubs: list[Club] = []
     records: list[GenerationRecord] = [allocation_record]
+    legacy_name_registry = NameRegistry()
+    logo_registry = LogoRegistry()
 
     # Recursos finitos por mercado: cuantos más clubes se planten en la misma
     # zona, menos patrocinio y menos socios para cada uno.
@@ -343,14 +326,70 @@ def generate_clubs(
             ),
         )
 
+        identity_seed = derive_seed(master_seed, "club_identity", edition_key, index)
+        # El año de fundación se sortea aquí, antes del nombre, porque la veta
+        # de época lo necesita: un club de 1912 no se llama como uno de 1998.
+        # Va en su propio cauce derivado y el sorteo histórico se consume más
+        # abajo intacto, para no mover ni un peso de las cuentas.
+        founded = (
+            world_date.year
+            - int(abs(random.Random(derive_seed(identity_seed, "foundation")).gauss(0, 22)))
+            - 1
+        )
         if participant:
             name = registry.claim(participant.name)
-            nickname = "Béisbol"
+            nickname = ""
             short = _university_short_name(participant.name)
-        else:
-            name, nickname, short = club_name(
-                rng, registry, market.place_name, str(institutional_type)
+            verbal = ClubName(
+                full=name,
+                nickname=nickname,
+                short=short,
+                family="community",
+                initials=place_initials(short),
+                grammar="documented_institution",
+                concept=participant.name,
+                rationale=(
+                    f"Se conserva el nombre documentado de {participant.source}:"
+                    f"{participant.source_id}. La identidad deportiva que acompaña al nombre "
+                    "es ficticia y no representa una marca oficial."
+                ),
             )
+        else:
+            # La creatividad de la marca tiene su propio cauce aleatorio: añadir
+            # una regla verbal no puede alterar aforo, cuentas o políticas.
+            consume_legacy_club_name_entropy(
+                rng, legacy_name_registry, market.place_name, str(institutional_type)
+            )
+            verbal = club_name(
+                random.Random(derive_seed(identity_seed, "naming")),
+                registry,
+                market.place_name,
+                str(institutional_type),
+                country_code=market.country_code,
+                organization=organization,
+                scope_level=str(ruleset.scope.level),
+                facts=NamingFacts(
+                    place_name=market.place_name,
+                    country_code=market.country_code,
+                    institutional_type=str(institutional_type),
+                    governance=str(organization.governance),
+                    foundation_year=founded,
+                    elevation_m=market.elevation_m,
+                    latitude=market.lat,
+                    catchment_population=market.catchment_population,
+                ),
+            )
+            record.note(
+                "naming",
+                verbal.full,
+                Confidence.FICTIONAL,
+                verbal.rationale,
+                motivation=verbal.motivation,
+                root=verbal.root,
+                formation=verbal.formation,
+                nickname=verbal.nickname,
+            )
+            name, nickname, short = verbal.full, verbal.nickname, verbal.short
 
         # Base social: gente de la zona que sigue al club. Sale de su alcance
         # comunitario y de la cultura local, nunca del dinero. Se calcula
@@ -370,7 +409,7 @@ def generate_clubs(
             rng,
             registry,
             f"{edition_key}:club:{index}",
-            nickname,
+            nickname or short,
             market,
             organization.venue_agreement,
             organization.community_reach,
@@ -461,7 +500,9 @@ def generate_clubs(
             ),
         )
 
-        founded = world_date.year - int(abs(rng.gauss(0, 22))) - 1
+        # Cauce histórico: el sorteo que antes fijaba el año de fundación se
+        # consume igual para que políticas y reputación no se desplacen.
+        rng.gauss(0, 22)
         clubs.append(
             Club(
                 key=f"{edition_key}:club:{index}",
@@ -471,7 +512,25 @@ def generate_clubs(
                 home_place_key=market.place_key,
                 institutional_type=institutional_type,
                 foundation_year=founded,
-                brand=_brand(rng),
+                brand=_brand_for(
+                    identity_seed=identity_seed,
+                    verbal=verbal,
+                    place_name=market.place_name,
+                    country_code=market.country_code,
+                    institution_type=str(institutional_type),
+                    foundation_year=founded,
+                    organization=organization,
+                    territory_confidence=str(market.confidence),
+                    real_institution=(
+                        {
+                            "name": participant.name,
+                            "source": f"{participant.source}:{participant.source_id}",
+                        }
+                        if participant
+                        else None
+                    ),
+                    logo_registry=logo_registry,
+                ),
                 venue=venue,
                 finances=ClubFinances(
                     currency=finances_profile.currency,
@@ -527,6 +586,47 @@ def generate_clubs(
         records.append(record)
 
     return ClubGeneration(clubs=clubs, records=records)
+
+
+def _brand_for(
+    *,
+    identity_seed: int,
+    verbal: ClubName,
+    place_name: str,
+    country_code: str,
+    institution_type: str,
+    foundation_year: int,
+    organization: OrganizationProfile,
+    territory_confidence: str,
+    real_institution: dict[str, str] | None,
+    logo_registry: LogoRegistry,
+) -> Brand:
+    """La identidad visual del club, compuesta por capas y ya legible.
+
+    Los tres colores con nombre heredado son papeles de la misma paleta, no una
+    segunda decisión: `field` es el fondo del escudo, `mark` lo que se pinta
+    encima y `accent` el color de las letras.
+    """
+    system = build_identity_system(
+        identity_seed=identity_seed,
+        verbal=verbal,
+        place_name=place_name,
+        country_code=country_code,
+        institution_type=institution_type,
+        foundation_year=foundation_year,
+        organization=organization,
+        territory_confidence=territory_confidence,
+        real_institution=real_institution,
+        logo_registry=logo_registry,
+    )
+    spec = system.logos["primary"]
+    return Brand(
+        primary_color=spec.palette.field_color,
+        secondary_color=spec.palette.mark,
+        accent_color=spec.palette.accent,
+        logo=spec.as_dict(),
+        identity=system.as_dict(),
+    )
 
 
 def _university_organization() -> OrganizationProfile:

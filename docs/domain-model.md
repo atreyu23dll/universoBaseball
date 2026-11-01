@@ -177,6 +177,27 @@ representación en las otras seis—. Los demás departamentos aparecen cuando h
 trabajo que los justifique, y cada unidad guarda en `reason` qué necesidad la
 justificó. Ver ADR 0014.
 
+### Brand `[I]` / IdentitySystem `[I]` / LogoSpec `[I]`
+La identidad institucional y visual de un club. `Brand` guarda los tres colores que la interfaz
+usa fuera del escudo —papeles `field`, `mark` y `accent` de la misma paleta, no
+una segunda fuente de verdad— y un `IdentitySystem` persistido en el mismo JSON:
+semilla, versión del generador, perfil institucional, decisión nominal,
+referencias con procedencia, evaluación de calidad y siete variantes coordinadas.
+Abrir una pantalla no vuelve a generar nada. Un rediseño por acontecimiento
+incrementa `revision` y archiva completo el sistema anterior; una actualización
+del algoritmo, por sí sola, no migra identidades existentes.
+
+`LogoSpec` es un contrato validado: una paleta de cinco papeles con contraste
+comprobado (3:1 en gráficos y 4,5:1 en texto, reparando la claridad en OKLCH si
+no llega), capas compatibles y un árbol de `CompositionNode`. Sus hojas son
+siluetas, motivos o texto; grupos, capas, máscaras, repeticiones y ornamentos
+pueden anidarlas con transformaciones. Los motivos son funciones paramétricas
+en una caja normalizada, no dibujos fijos ni PNG seleccionados.
+
+Quien lo dibuja es el motor, en `simulation/identity/render.py`, y lo sirve en
+`/clubs/{id}/crest.svg?variant=…`: **un solo intérprete** del contrato. Las marcas
+anteriores no se reescriben, se traducen al dibujarlas. Ver ADR 0015.
+
 ### StructureRules `[I]` / Stage `[I]` / Division `[I]` / Gate `[I]`
 `structure` describe la competición como una **secuencia de fases**
 (`simulation/competitions/structure.py`). Una `Stage` es de tabla —una o varias

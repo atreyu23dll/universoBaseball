@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import date
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Query, Request, Response
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
@@ -24,6 +24,7 @@ from app.api.schemas import (
     UniverseCreate,
     UniversityDiscoveryRequest,
 )
+from app.api.v1.identity_gallery import router as identity_gallery_router
 from app.application import (
     competition_service,
     draft_service,
@@ -39,6 +40,7 @@ from app.application import (
 from app.infrastructure.database import get_session
 
 router = APIRouter(prefix="/api/v1")
+router.include_router(identity_gallery_router)
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
@@ -541,6 +543,40 @@ def list_clubs(session: SessionDep, universe_id: str) -> dict[str, Any]:
 @router.get("/clubs/{club_id}", tags=["clubes"])
 def club_detail(session: SessionDep, club_id: str) -> dict[str, Any]:
     return query_service.club_detail(session, club_id)
+
+
+@router.get(
+    "/clubs/{club_id}/crest.svg",
+    tags=["clubes"],
+    response_class=Response,
+    responses={200: {"content": {"image/svg+xml": {}}}},
+)
+def club_crest(
+    session: SessionDep,
+    club_id: str,
+    request: Request,
+    size: int = Query(default=128, ge=16, le=1024),
+    variant: Literal[
+        "primary", "secondary", "monogram", "reduced", "cap", "light", "dark"
+    ] = "primary",
+) -> Response:
+    """El escudo de un club, dibujado por el motor.
+
+    Es una imagen y no un trozo de JSON a propósito: así hay **un solo
+    intérprete** del contrato del logo, el navegador la cachea y la misma marca
+    sirve para una tabla, una ficha, un favicon o una imagen para compartir.
+
+    `size` no solo escala: decide el nivel de detalle. A 28 píxeles el nombre
+    completo de un club es una mancha, así que no se dibuja.
+    """
+    svg, etag = query_service.club_crest(session, club_id, size, variant)
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers={"ETag": etag})
+    return Response(
+        content=svg,
+        media_type="image/svg+xml",
+        headers={"ETag": etag, "Cache-Control": "public, max-age=3600"},
+    )
 
 
 @router.get("/universes/{universe_id}/people", tags=["personas"])

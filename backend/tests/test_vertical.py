@@ -122,6 +122,42 @@ def test_la_generacion_crea_el_mundo_entero(client: TestClient, universe: dict):
     assert "partidas de gasto" in presupuesto[0]["derivation"]
 
 
+def test_la_liga_arranca_el_dia_que_dice_su_reglamento(client: TestClient, universe: dict):
+    """Una liga no empieza el día en que se crea si declara otra fecha.
+
+    El universo vive el 20 de marzo; esta liga declara el 4 de mayo. El final
+    no se declara en ninguna parte: lo pone el calendario que el motor
+    construye con las vueltas, los partidos por serie y los descansos.
+    """
+    edicion = create_league(
+        client,
+        universe["id"],
+        {
+            **MUNICIPAL_LEAGUE,
+            "season": {**MUNICIPAL_LEAGUE["season"], "start_date": "2042-05-04"},
+        },
+    )
+
+    assert edicion["start_date"] == "2042-05-04"
+    assert edicion["end_date"] > "2042-05-04", "el final lo decide el calendario"
+
+    partidos = client.get(f"/api/v1/editions/{edicion['edition_id']}/schedule").json()
+    primero = min(juego["game_date"] for juego in partidos["items"])
+    assert primero == "2042-05-04"
+
+    # Y la fecha declarada viaja en la lista: es con lo que se comparan dos
+    # competiciones vinculadas antes de que ninguna haya arrancado.
+    listado = client.get(f"/api/v1/universes/{universe['id']}/competitions").json()
+    assert listado["items"][0]["season_start"] == "2042-05-04"
+
+
+def test_sin_fecha_declarada_la_liga_sigue_arrancando_con_el_mundo(
+    client: TestClient, universe: dict
+):
+    edicion = create_league(client, universe["id"])
+    assert edicion["start_date"] == universe["world_date"]
+
+
 @pytest.mark.xfail(strict=True, reason=SIN_PLANTILLAS)
 def test_c13_c15_avanzar_el_reloj_produce_partidos_y_clasificacion(
     client: TestClient, universe: dict

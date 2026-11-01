@@ -118,6 +118,7 @@ def preview_schedule(payload: dict) -> dict:
         clave = juego.game_date.isoformat()
         por_fecha[clave] = por_fecha.get(clave, 0) + 1
 
+    calendario, calendario_completo = _calendar_days(informe, grupo_de)
     intra_por_club, inter_por_club = _split_by_club(informe, club_keys, grupo_de, structure)
     jugados = sorted(informe.games_by_club.values())
 
@@ -160,6 +161,11 @@ def preview_schedule(payload: dict) -> dict:
         # Las dos primeras semanas, día a día: aclara de un vistazo qué hacen
         # los días de descanso y los días entre series.
         "first_dates": _calendar_strip(informe, por_fecha, rest_days),
+        # El calendario de verdad, día a día y con los cruces de cada día, para
+        # que la temporada se pueda mirar mes a mes.
+        "calendar": calendario,
+        "calendar_complete": calendario_completo,
+        "rest_days_weekday": sorted(set(rest_days)),
         "warnings": list(informe.warnings),
         # Desajustes de la estructura declarada: faltan plazas, una puerta saca
         # a un puesto que no existe, una fase no recibe a nadie…
@@ -230,6 +236,37 @@ def _split_by_club(
         destino[juego.home_key] += 1
         destino[juego.away_key] += 1
     return intra, inter
+
+
+#: Tope de días con partido que viajan en la previsualización. Una temporada
+#: larga de muchos clubes puede pasar de doscientas jornadas; el calendario del
+#: asistente es una previsualización, no el acta de la temporada.
+MAX_CALENDAR_DAYS = 200
+
+
+def _calendar_days(informe, grupo_de: dict[str, str]) -> tuple[list[dict], bool]:
+    """Los días con partido, con quién juega contra quién.
+
+    Es lo que convierte el calendario en algo que se puede mirar: un recuento
+    por día dice cuántos partidos hay, pero no si tu club juega ese sábado.
+    """
+    por_dia: dict[str, list[dict]] = {}
+    for juego in informe.games:
+        clave = juego.game_date.isoformat()
+        por_dia.setdefault(clave, []).append(
+            {
+                "home": juego.home_key,
+                "away": juego.away_key,
+                "group": grupo_de.get(juego.home_key, ""),
+                "matchup": juego.matchup,
+            }
+        )
+    dias = sorted(por_dia)
+    completo = len(dias) <= MAX_CALENDAR_DAYS
+    return (
+        [{"date": dia, "games": por_dia[dia]} for dia in dias[:MAX_CALENDAR_DAYS]],
+        completo,
+    )
 
 
 def _calendar_strip(informe, por_fecha: dict[str, int], rest_days: list[int]) -> list[dict]:

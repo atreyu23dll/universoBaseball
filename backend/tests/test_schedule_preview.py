@@ -9,6 +9,8 @@ explica en vez de romperse.
 
 from __future__ import annotations
 
+from datetime import date
+
 from app.infrastructure import models as m
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -165,6 +167,50 @@ def test_los_dias_de_descanso_se_ven_dia_a_dia(client: TestClient) -> None:
             assert dia["rest_day"] is True
             assert dia["games"] == 0, "no se juega en los días de descanso"
     assert sum(d["games"] for d in tira) > 0
+
+
+def test_el_calendario_dice_quien_juega_cada_dia(client: TestClient) -> None:
+    """Un recuento por día no sirve para mirar un calendario: hacen falta cruces.
+
+    La pregunta que el usuario hace mirando un calendario no es «cuántos
+    partidos hay el sábado», es «quién juega el sábado».
+    """
+    datos = client.post("/api/v1/schedule/preview", json=BASE).json()
+    calendario = datos["calendar"]
+
+    assert datos["calendar_complete"] is True
+    assert calendario, "una temporada con partidos tiene días con partido"
+    assert [dia["date"] for dia in calendario] == sorted(d["date"] for d in calendario)
+    assert calendario[0]["date"] == datos["totals"]["first_date"]
+    assert sum(len(dia["games"]) for dia in calendario) == datos["totals"]["games"]
+
+    claves = {club["key"] for club in datos["clubs"]}
+    for dia in calendario:
+        for juego in dia["games"]:
+            assert juego["home"] in claves and juego["away"] in claves
+            assert juego["home"] != juego["away"]
+        # Nadie juega dos veces el mismo día: el calendario se puede leer.
+        participantes = [c for j in dia["games"] for c in (j["home"], j["away"])]
+        assert len(participantes) == len(set(participantes))
+
+    # Los días cerrados del reglamento no aparecen en el calendario.
+    assert datos["rest_days_weekday"] == [0]
+    for dia in calendario:
+        anio, mes, día = (int(parte) for parte in dia["date"].split("-"))
+        assert date(anio, mes, día).weekday() != 0
+
+
+def test_la_temporada_arranca_el_dia_que_declara_el_reglamento(client: TestClient) -> None:
+    """La fecha de inicio es del reglamento, no del día en que se pulsa crear."""
+    datos = client.post(
+        "/api/v1/schedule/preview",
+        json={**BASE, "season": {**BASE["season"], "start_date": "2043-04-05"}},
+    ).json()
+
+    assert datos["totals"]["first_date"] == "2043-04-05"
+    # El final no se declara: lo dice el calendario.
+    assert datos["totals"]["last_date"] > "2043-04-05"
+    assert datos["calendar"][0]["date"] == "2043-04-05"
 
 
 POR_FASES = {

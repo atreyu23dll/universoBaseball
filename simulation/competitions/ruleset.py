@@ -19,6 +19,7 @@ import hashlib
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import date, timedelta
 from decimal import Decimal
 from enum import StrEnum
 from typing import Any, Literal
@@ -665,6 +666,14 @@ class SeasonRules(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     games_per_club_target: int = Field(ge=2, le=250)
+    #: Día de la jornada inaugural. Sin fecha, la competición arranca el día
+    #: del mundo más `start_date_offset_days`, que es lo que hacía siempre: la
+    #: liga empezaba cuando se creaba. Con fecha, la primera temporada arranca
+    #: **ese** día y las siguientes en su aniversario, salvo que la pausa entre
+    #: temporadas lo empuje más allá. El final no se declara: lo dice el
+    #: calendario que el motor construye con las vueltas, los partidos por
+    #: serie y los descansos.
+    start_date: date | None = None
     start_date_offset_days: int = Field(default=0, ge=0, le=365)
     #: Días entre el final de una edición y el arranque de la siguiente. Es el
     #: hueco en el que se resuelven ascensos y descensos antes de que la nueva
@@ -682,6 +691,36 @@ class SeasonRules(BaseModel):
     roster_size: int = Field(default=26, ge=14, le=40)
     mercy_rule_run_diff: int | None = Field(default=None, ge=5, le=30)
     mercy_rule_after_inning: int = Field(default=7, ge=4, le=9)
+
+    def opening(
+        self,
+        world_date: date,
+        *,
+        season: int | None = None,
+        earliest: date | None = None,
+    ) -> date:
+        """El día de la jornada inaugural, en un solo sitio.
+
+        `season` es el año de la edición que se abre: con él, una fecha
+        declarada se traslada a su aniversario, que es como arranca una liga de
+        verdad año tras año. Sin él —la primera edición— se respeta la fecha tal
+        cual la escribió el usuario, aunque caiga en otro año.
+
+        `earliest` es el suelo que impone la pausa entre temporadas. Nunca se
+        programa un partido antes del día del mundo: una temporada no puede
+        empezar en el pasado.
+        """
+        suelo = max(earliest or world_date, world_date)
+        if self.start_date is None:
+            return max(suelo, world_date + timedelta(days=self.start_date_offset_days))
+        fecha = self.start_date
+        if season is not None and season != fecha.year:
+            try:
+                fecha = fecha.replace(year=season)
+            except ValueError:
+                # 29 de febrero en un año común: la inaugural pasa al 1 de marzo.
+                fecha = date(season, 3, 1)
+        return max(fecha, suelo)
 
     @field_validator("rest_days_weekday")
     @classmethod

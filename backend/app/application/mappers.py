@@ -36,6 +36,23 @@ from simulation.people.model import (
 )
 
 
+def brand_from_json(data: dict) -> Brand:
+    """La marca de un club desde su fila, sin romperse con las antiguas.
+
+    Las filas creadas antes del contrato del logo guardan claves que el modelo
+    ya no tiene —`crest_shape`, `monogram`, `typography`—. No se reescriben: se
+    ignoran al reconstruir el objeto, y quien quiera dibujar ese logo usa
+    `simulation.identity.legacy.spec_of`, que sabe traducirlo.
+    """
+    return Brand(
+        primary_color=data.get("primary_color") or "#2B4C6F",
+        secondary_color=data.get("secondary_color") or "#F2C14E",
+        accent_color=data.get("accent_color") or "#FFFFFF",
+        logo=data.get("logo") or {},
+        identity=data.get("identity") or {},
+    )
+
+
 def person_attributes_to_json(person: Person) -> dict:
     return {
         "batting": vars(person.batting),
@@ -129,7 +146,7 @@ def club_row_to_domain(row: m.Club, venue: Venue, home_place_key: str) -> Club:
         home_place_key=home_place_key,
         institutional_type=InstitutionalType(row.institutional_type),
         foundation_year=row.foundation_year,
-        brand=Brand(**row.brand),
+        brand=brand_from_json(row.brand),
         venue=venue,
         finances=ClubFinances(
             currency=row.currency,

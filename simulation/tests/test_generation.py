@@ -19,6 +19,10 @@ SIN_PLANTILLAS = "la generación de plantillas se retiró el 25/10/2026 (ADR 001
 def test_c03_determinismo_misma_semilla_mismo_mundo(tree):
     """Misma versión, mismas reglas y misma semilla → mundo idéntico."""
     primero = build_world(tree, MUNICIPAL, seed=18723)
+    assert all(
+        "Ámbito municipal" in club.brand.identity["profile"]["naming"]["rationale"]
+        for club in primero.clubs
+    )
     segundo = build_world(tree, MUNICIPAL, seed=18723)
 
     assert [c.name for c in primero.clubs] == [c.name for c in segundo.clubs]

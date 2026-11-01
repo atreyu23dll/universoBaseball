@@ -57,6 +57,78 @@ class GateRoute(StrEnum):
     SEED = "seed"
 
 
+class BracketKeyFormat(StrEnum):
+    """Modalidad que se juega dentro de una coordenada del cuadro."""
+
+    SERIES = "series"
+    MINI_LEAGUE = "mini_league"
+
+
+class BracketFeedOutcome(StrEnum):
+    """Qué salida de un origen alimenta una llave."""
+
+    SEED = "seed"
+    WINNER = "winner"
+    LOSER = "loser"
+    POSITION = "position"
+
+
+class BracketFeed(BaseModel):
+    """Un cable de entrada: de una puerta o de otra llave a esta llave."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: str = Field(min_length=1, max_length=40)
+    outcome: BracketFeedOutcome
+    #: Solo para ``position``: 1.º, 2.º… de una mini-liga.
+    position: int | None = Field(default=None, ge=1, le=64)
+
+    @model_validator(mode="after")
+    def _position_matches_outcome(self) -> BracketFeed:
+        if self.outcome is BracketFeedOutcome.POSITION and self.position is None:
+            raise ValueError("una salida por posición necesita indicar qué puesto avanza")
+        if self.outcome is not BracketFeedOutcome.POSITION and self.position is not None:
+            raise ValueError("solo una salida por posición puede declarar `position`")
+        return self
+
+
+class BracketKey(BaseModel):
+    """Una llave concreta situada en la matriz de postemporada."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    key: str = Field(min_length=1, max_length=40)
+    label: str = Field(min_length=1, max_length=80)
+    row: int = Field(ge=1, le=16)
+    column: int = Field(ge=0, le=63)
+    format: BracketKeyFormat = BracketKeyFormat.SERIES
+    feeds: list[BracketFeed] = Field(min_length=2, max_length=64)
+    #: Serie al mejor de N. En mini-liga se ignora: manda ``games_per_pair``.
+    best_of: int = Field(default=1, ge=1, le=15)
+    games_per_pair: int = Field(default=1, ge=1, le=12)
+    #: Puestos que produce la llave. Una serie normalmente produce [1]; una
+    #: mini-liga puede producir [1, 2]. Los perdedores se conectan con
+    #: ``outcome=loser`` y no se mezclan con esta lista.
+    qualifying_positions: list[int] = Field(default_factory=lambda: [1], min_length=1)
+
+    @model_validator(mode="after")
+    def _coherent_key(self) -> BracketKey:
+        if self.format is BracketKeyFormat.SERIES:
+            if len(self.feeds) != 2:
+                raise ValueError(f"la llave «{self.label}» de serie necesita dos entradas")
+            if self.best_of % 2 == 0:
+                raise ValueError(f"la serie de «{self.label}» debe ser al mejor de un número impar")
+            if self.qualifying_positions != [1]:
+                raise ValueError("una serie produce un ganador; usa la salida `loser` para el otro")
+        elif len(self.feeds) < 3:
+            raise ValueError(f"la mini-liga «{self.label}» necesita al menos tres participantes")
+        if len(set(self.qualifying_positions)) != len(self.qualifying_positions):
+            raise ValueError(f"la llave «{self.label}» repite puestos de salida")
+        if max(self.qualifying_positions) > len(self.feeds):
+            raise ValueError(f"la llave «{self.label}» clasifica un puesto que no existe")
+        return self
+
+
 class Division(BaseModel):
     """Un subproceso de la liga: su grupo de clubes y sus propias vueltas."""
 
@@ -78,6 +150,9 @@ class Gate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    #: Identidad estable para conectarla a una llave explícita. Opcional para
+    #: los reglamentos anteriores al grafo.
+    key: str | None = Field(default=None, min_length=1, max_length=40)
     #: División de la que salen. `None` = de la tabla general de la fase.
     division: str | None = None
     #: Puestos que pasan, contando desde 1. En una puerta de división son sus
@@ -136,6 +211,9 @@ class Stage(BaseModel):
     divisions: list[Division] = Field(default_factory=list)
     #: Solo para `bracket`: al mejor de N en cada ronda.
     series_lengths: list[int] = Field(default_factory=list)
+    #: Grafo explícito de la postemporada. Vacío conserva el cuadro por rondas
+    #: de los reglamentos existentes.
+    bracket_keys: list[BracketKey] = Field(default_factory=list)
     #: Quién pasa de esta fase a la siguiente. La última fase no necesita
     #: puertas: su ganador es el campeón.
     gates: list[Gate] = Field(default_factory=list)
@@ -176,6 +254,9 @@ class Stage(BaseModel):
                     f"la fase «{self.label}» es de cruces: sus participantes vienen de las "
                     "puertas de la fase anterior, no de divisiones"
                 )
+            key_ids = [item.key for item in self.bracket_keys]
+            if len(set(key_ids)) != len(key_ids):
+                raise ValueError(f"la fase «{self.label}» repite claves de llave")
 
         for gate in self.gates:
             if gate.division is None:
@@ -308,6 +389,8 @@ def validate_sequence(stages: list[Stage], club_count: int) -> list[str]:
                 problemas.append(
                     f"a «{stage.label}» llegan {llegan} club(es): un cuadro necesita dos"
                 )
+            elif stage.bracket_keys:
+                problemas.extend(_validate_bracket_graph(stage, entradas))
             elif dibujado:
                 # Cuadro dibujado: las rondas son las que puso el usuario y lo
                 # que hay que comprobar es que su camino cierre. Exigirle la
@@ -352,6 +435,126 @@ def validate_sequence(stages: list[Stage], club_count: int) -> list[str]:
                     f"{donde}, que solo tiene {tope}"
                 )
     return problemas
+
+
+def _validate_bracket_graph(stage: Stage, gates: list[Gate]) -> list[str]:
+    """Comprueba el grafo explícito sin inferir emparejamientos por cantidad."""
+    problemas: list[str] = []
+    gate_ids = [gate.key for gate in gates if gate.key]
+    if len(gate_ids) != len(gates):
+        problemas.append(
+            f"el grafo de «{stage.label}» necesita una clave estable en cada plaza de entrada"
+        )
+    if len(set(gate_ids)) != len(gate_ids):
+        problemas.append(f"el grafo de «{stage.label}» repite claves de entrada")
+    if any(gate.size != 1 for gate in gates):
+        problemas.append(
+            f"el grafo de «{stage.label}» necesita una puerta independiente por cada plaza"
+        )
+
+    keys = {item.key: item for item in stage.bracket_keys}
+    used_gates: list[str] = []
+    consumed: set[tuple[str, str, int | None]] = set()
+    for item in stage.bracket_keys:
+        for feed in item.feeds:
+            if feed.outcome is BracketFeedOutcome.SEED:
+                if feed.source not in gate_ids:
+                    problemas.append(
+                        f"«{item.label}» recibe la entrada «{feed.source}», que no existe"
+                    )
+                used_gates.append(feed.source)
+                token = (feed.source, str(feed.outcome), None)
+            else:
+                origin = keys.get(feed.source)
+                if origin is None:
+                    problemas.append(
+                        f"«{item.label}» recibe una salida de «{feed.source}», que no existe"
+                    )
+                    continue
+                if origin.row >= item.row:
+                    problemas.append(
+                        f"«{item.label}» recibe una salida de «{origin.label}» sin avanzar de fila"
+                    )
+                if feed.outcome is BracketFeedOutcome.POSITION:
+                    if origin.format is not BracketKeyFormat.MINI_LEAGUE:
+                        problemas.append(
+                            f"«{item.label}» pide un puesto de «{origin.label}», que no es mini-liga"
+                        )
+                    elif feed.position not in origin.qualifying_positions:
+                        problemas.append(
+                            f"«{origin.label}» no declaró que avance su puesto {feed.position}"
+                        )
+                if (
+                    feed.outcome is BracketFeedOutcome.LOSER
+                    and origin.format is not BracketKeyFormat.SERIES
+                ):
+                    problemas.append(
+                        f"«{item.label}» pide el perdedor de «{origin.label}», que no es una serie"
+                    )
+                token = (feed.source, str(feed.outcome), feed.position)
+            if token in consumed:
+                problemas.append(
+                    f"la salida {feed.outcome} de «{feed.source}» alimenta más de una llave"
+                )
+            consumed.add(token)
+
+    for gate_id in gate_ids:
+        if used_gates.count(gate_id) == 0:
+            problemas.append(f"la entrada «{gate_id}» no está conectada a ninguna llave")
+        elif used_gates.count(gate_id) > 1:
+            problemas.append(f"la entrada «{gate_id}» está conectada más de una vez")
+
+    # Solo las salidas clasificatorias cuentan para hallar al campeón. La
+    # salida de perdedor existe cuando alguien la conecta, pero no es una ruta
+    # obligatoria en una eliminación simple. Y las llaves de consolación —a las
+    # que solo se llega perdiendo— dejan su propia salida final sin disputarle
+    # el título a nadie: ese es justamente el partido por el tercer puesto.
+    consolacion = consolation_keys(stage.bracket_keys)
+    terminales = 0
+    for item in stage.bracket_keys:
+        if item.key in consolacion:
+            continue
+        outputs = (
+            [(item.key, str(BracketFeedOutcome.WINNER), None)]
+            if item.format is BracketKeyFormat.SERIES
+            else [
+                (item.key, str(BracketFeedOutcome.POSITION), position)
+                for position in item.qualifying_positions
+            ]
+        )
+        terminales += sum(output not in consumed for output in outputs)
+    if terminales != 1:
+        problemas.append(
+            f"el grafo de «{stage.label}» deja {terminales} salidas finales; debe dejar un "
+            "campeón. Las llaves que solo reciben perdedores no cuentan: son de consolación"
+        )
+    return problemas
+
+
+def consolation_keys(keys: list[BracketKey]) -> set[str]:
+    """Las llaves a las que solo se llega perdiendo.
+
+    El partido por el tercer puesto, un repechaje que no vuelve al cuadro, un
+    cuadro de perdedores entero. Su ganador es una salida final legítima que no
+    compite con el campeón, y por eso se separan: si contaran, conectar el
+    perdedor de una semifinal —que es lo que hace el editor— dejaría el grafo
+    con dos campeones y el motor lo rechazaría.
+
+    Una llave es de consolación cuando **todas** sus entradas son perdedores o
+    vienen de otra llave de consolación. En cuanto recibe una plaza directa o
+    el ganador de una llave principal, deja de serlo: la final de un cuadro de
+    doble eliminación reparte el título.
+    """
+    consolacion: set[str] = set()
+    for item in sorted(keys, key=lambda key: (key.row, key.column)):
+        if not item.feeds:
+            continue
+        if all(
+            feed.outcome is BracketFeedOutcome.LOSER or feed.source in consolacion
+            for feed in item.feeds
+        ):
+            consolacion.add(item.key)
+    return consolacion
 
 
 def _validate_round_entries(stage: Stage, gates: list[Gate], rounds: int) -> list[str]:

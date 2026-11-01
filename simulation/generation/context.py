@@ -75,6 +75,9 @@ class MarketProfile:
     elevation_m: int
     lat: float
     lon: float
+    #: ISO 3166-1 alfa-2. La identidad del club lo usa para escoger idioma;
+    #: vacío conserva compatibilidad con mercados creados por integraciones antiguas.
+    country_code: str = ""
 
     @property
     def pull(self) -> float:
@@ -171,6 +174,7 @@ def market_for_place(tree: PlaceTree, place_key: str) -> MarketProfile:
         elevation_m=place.elevation_m,
         lat=place.lat,
         lon=place.lon,
+        country_code=place.country_code,
     )
 
 

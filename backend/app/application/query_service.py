@@ -7,6 +7,7 @@ devuelve `null` y la interfaz lo dice.
 
 from __future__ import annotations
 
+import hashlib
 from datetime import date, timedelta
 from typing import Any
 
@@ -18,6 +19,8 @@ from app.application.errors import NotFoundError
 from app.application.universe_service import get_universe
 from app.infrastructure import models as m
 from simulation.competitions.ruleset import StructureRules as RuleSetStructure
+from simulation.identity import LOGO_VARIANTS, LogoSpec, place_initials, render_svg
+from simulation.identity.legacy import spec_of
 from simulation.persons import (
     COGNITIVE_NAMES,
     DIMENSION_LABEL,
@@ -39,8 +42,14 @@ def _club_brief(club: m.Club) -> dict:
         "nickname": club.nickname,
         "primary_color": club.brand.get("primary_color"),
         "secondary_color": club.brand.get("secondary_color"),
-        "crest_shape": club.brand.get("crest_shape"),
-        "crest_motif": club.brand.get("crest_motif"),
+        "accent_color": club.brand.get("accent_color", "#FFFFFF"),
+        # El escudo se sirve dibujado desde un único intérprete, no como capas
+        # que cada cliente tenga que saber interpretar (ADR 0015).
+        "crest_url": crest_url(club.id),
+        "brand_rationale": _brand_rationale(club),
+        "brand_variants": {
+            variant: crest_url(club.id, variant=variant) for variant in _available_variants(club)
+        },
     }
 
 
@@ -589,6 +598,8 @@ def club_detail(session: Session, club_id: str) -> dict:
     ).all()
     return {
         **_club_brief(club),
+        "identity_profile": ((club.brand or {}).get("identity") or {}).get("profile"),
+        "identity_quality": ((club.brand or {}).get("identity") or {}).get("quality", {}),
         "competition_history": competition_history,
         "mobility": [
             {
@@ -749,9 +760,7 @@ def person_detail(session: Session, person_id: str) -> dict:
     history_clubs = {
         item.id: item
         for item in session.scalars(
-            select(m.Club).where(
-                m.Club.id.in_([row.club_id for row in roster_assignments] or [""])
-            )
+            select(m.Club).where(m.Club.id.in_([row.club_id for row in roster_assignments] or [""]))
         ).all()
     }
 
@@ -896,6 +905,62 @@ def _universal_profile(session: Session, person: m.Person) -> dict | None:
             "se mueven despacio; los estados cambian en días."
         ),
     }
+
+
+def crest_url(club_id: str, size: int = 128, variant: str = "primary") -> str:
+    """Ruta del escudo dibujado de un club.
+
+    Es una URL y no un SVG incrustado porque así el navegador la cachea una vez
+    y la reutiliza en la tabla, en la ficha y en el marcador, en vez de recibir
+    el mismo dibujo veinte veces en la misma respuesta.
+    """
+    suffix = "" if variant == "primary" else f"&variant={variant}"
+    return f"/api/v1/clubs/{club_id}/crest.svg?size={size}{suffix}"
+
+
+def club_crest(
+    session: Session, club_id: str, size: int = 128, variant: str = "primary"
+) -> tuple[str, str]:
+    """El escudo de un club dibujado, con su etiqueta de caché.
+
+    Devuelve `(svg, etag)`. El `etag` sale del contenido —la especificación y el
+    tamaño— así que dos peticiones del mismo escudo comparten respuesta y una
+    identidad que cambie la invalida sola.
+
+    Los clubes anteriores al contrato del logo se traducen al vuelo
+    (`identity.legacy`): no se reescribe su marca, se dibuja.
+    """
+    club = session.get(m.Club, club_id)
+    if club is None:
+        raise NotFoundError(f"no existe el club {club_id}")
+    if variant == "primary":
+        spec = spec_of(club.brand or {}, fallback_text=place_initials(club.name))
+        if size < 64 and spec.design_style != "legacy":
+            reduced = (((club.brand or {}).get("identity") or {}).get("logos") or {}).get("reduced")
+            if reduced:
+                spec = LogoSpec.model_validate(reduced)
+    else:
+        logos = ((club.brand or {}).get("identity") or {}).get("logos") or {}
+        raw = logos.get(variant)
+        if raw is None:
+            raise NotFoundError(f"el club {club_id} no tiene variante de marca {variant}")
+        spec = LogoSpec.model_validate(raw)
+    svg = render_svg(spec, size=size, title=club.name)
+    huella = hashlib.sha256(f"{variant}|{spec.as_dict()}|{size}".encode()).hexdigest()[:16]
+    return svg, f'W/"{huella}"'
+
+
+def _available_variants(club: m.Club) -> tuple[str, ...]:
+    logos = ((club.brand or {}).get("identity") or {}).get("logos") or {}
+    if not logos:
+        return ("primary",)
+    return tuple(variant for variant in LOGO_VARIANTS if variant in logos)
+
+
+def _brand_rationale(club: m.Club) -> str:
+    """Por qué el logo de este club es así. Vacío si viene de antes del contrato."""
+    logo = (club.brand or {}).get("logo") or {}
+    return str(logo.get("rationale", ""))
 
 
 def _batting_totals(row: Any) -> dict | None:
